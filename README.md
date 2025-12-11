@@ -1,4 +1,4 @@
-# 🗄️ 42Cabi Gyeongsan ver 2.0 (Backend)
+# 🗄️ 42Cabi Gyeongsan ver 2.5 (Backend)
 
 > **42 경산 캠퍼스 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성과 공정한 사물함 이용을 위해 개발된 REST API 서버입니다.
