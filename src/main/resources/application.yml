@@ -48,3 +48,12 @@ spring:
 
 slack:
   token: ${SLACK_BOT_TOKEN}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: always
