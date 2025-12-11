@@ -1,12 +1,12 @@
 spring:
   config:
-    # 👇 [수정] 파일 위치를 resources 폴더 안으로 지정합니다.
+    # 👇 secret.properties 파일 로드
     import: optional:file:src/main/resources/secret.properties
 
   application:
     name: 42cabi-gyeongsan
 
-  # 👇 [Ver 2.0 추가] Redis 설정 장착
+  # 👇 [Ver 2.0] Redis 설정
   data:
     redis:
       host: localhost
@@ -16,7 +16,7 @@ spring:
     driver-class-name: org.mariadb.jdbc.Driver
     # 👇 타임존 설정 유지
     url: jdbc:mariadb://localhost:13306/cabi?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    # ❌ username, password 삭제함! (secret.properties에서 자동으로 가져옴)
+    # username, password는 secret.properties에서 가져옴
 
   jpa:
     hibernate:
@@ -46,9 +46,7 @@ spring:
             user-info-uri: https://api.intra.42.fr/v2/me
             user-name-attribute: login
 
-slack:
-  token: ${SLACK_BOT_TOKEN}
-
+# 👇 [Ver 2.5] Actuator 모니터링 설정
 management:
   endpoints:
     web:
@@ -57,3 +55,10 @@ management:
   endpoint:
     health:
       show-details: always
+
+# 👇 [Ver 3.0 추가] JWT 비밀키 연결 (secret.properties 값 사용)
+jwt:
+  secret: ${jwt.secret}
+
+slack:
+  token: ${SLACK_BOT_TOKEN}

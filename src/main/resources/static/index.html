@@ -2,70 +2,78 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>42Cabi Gyeongsan - Test</title>
+    <title>42Cabi - JWT Test</title>
     <style>
         body { font-family: sans-serif; padding: 20px; text-align: center; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 10px; }
-        .box { border: 1px solid #ddd; padding: 20px; margin: 20px auto; max-width: 400px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .box { border: 1px solid #ddd; padding: 20px; margin: 20px auto; max-width: 500px; border-radius: 10px; }
+        #token-area { word-break: break-all; color: green; font-size: 12px; margin: 10px 0; }
         #result { margin-top: 20px; font-weight: bold; color: blue; white-space: pre-wrap; }
     </style>
 </head>
 <body>
 
-<h1>🚀 42Cabi Gyeongsan 테스트</h1>
+<h1>🔐 JWT 로그인 테스트</h1>
 
 <div class="box">
-    <h3>1. 인증 (Auth)</h3>
+    <h3>1. 인증 상태</h3>
+    <div id="token-display">로그인이 필요합니다.</div>
+
     <a href="/oauth2/authorization/42">
         <button style="background-color: #00babc; color: white; border: none;">
-            42 Login (로그인)
+            42 Login (토큰 발급)
         </button>
     </a>
-    <br>
-    <small>* 이미 로그인되어 있으면 바로 기능 테스트 가능</small>
 </div>
 
 <div class="box">
-    <h3>2. 상점 (Store)</h3>
-    <p>상품: 30일 대여권 (가격: 100 Coin)</p>
-
-    <button onclick="requestBuy(1)">🛒 대여권 구매 (POST)</button>
-</div>
-
-<div class="box">
-    <h3>3. 사물함 기능 (Lent)</h3>
-    <p>대상: 1번 사물함</p>
-
-    <button onclick="requestLent(1)">🔑 대여하기 (POST)</button>
-
-    <button onclick="requestReturn()">↩️ 반납하기 (POST)</button>
+    <h3>2. 기능 테스트 (토큰 자동 포함)</h3>
+    <button onclick="requestApi('POST', '/v4/store/buy/1')">🛒 아이템 구매</button>
+    <button onclick="requestApi('POST', '/v4/lent/cabinets/1')">🔑 사물함 대여</button>
+    <button onclick="requestApi('POST', '/v4/lent/return')">↩️ 사물함 반납</button>
 </div>
 
 <div id="result">결과가 여기에 표시됩니다.</div>
 
 <script>
-    // [추가] 구매 요청 (POST /v4/store/buy/{itemId})
-    function requestBuy(itemId) {
-        fetch(`/v4/store/buy/${itemId}`, { method: 'POST' })
-            .then(response => response.text())
-            .then(text => document.getElementById('result').innerText = text)
-            .catch(err => document.getElementById('result').innerText = "에러: " + err);
-    }
+    let jwtToken = null;
 
-    // 대여 요청
-    function requestLent(cabinetId) {
-        fetch(`/v4/lent/cabinets/${cabinetId}`, { method: 'POST' })
-            .then(response => response.text())
-            .then(text => document.getElementById('result').innerText = text)
-            .catch(err => document.getElementById('result').innerText = "에러: " + err);
-    }
+    // 1. 페이지 로드 시 URL에서 토큰 찾기
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
 
-    // 반납 요청
-    function requestReturn() {
-        fetch(`/v4/lent/return`, { method: 'POST' })
-            .then(response => response.text())
-            .then(text => document.getElementById('result').innerText = text)
-            .catch(err => document.getElementById('result').innerText = "에러: " + err);
+        if (token) {
+            jwtToken = token;
+            document.getElementById('token-display').innerHTML =
+                `✅ <b>인증됨!</b><div id="token-area">${token.substring(0, 50)}...</div>`;
+
+            // 토큰을 저장해두고 URL은 깔끔하게 정리 (선택사항)
+            window.history.replaceState({}, document.title, "/");
+        }
+    };
+
+    // 2. API 요청 보낼 때 헤더에 토큰 넣기
+    function requestApi(method, url) {
+        if (!jwtToken) {
+            alert("먼저 로그인을 해서 토큰을 발급받으세요!");
+            return;
+        }
+
+        fetch(url, {
+            method: method,
+            headers: {
+                // 👇 여기가 핵심! Bearer 토큰 추가
+                'Authorization': 'Bearer ' + jwtToken
+            }
+        })
+            .then(response => response.json()) // JSON 응답으로 변경됨
+            .then(data => {
+                document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+            })
+            .catch(err => {
+                document.getElementById('result').innerText = "에러: " + err;
+            });
     }
 </script>
 </body>
