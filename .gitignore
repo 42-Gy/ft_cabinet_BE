@@ -1,0 +1,54 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### OS Junk Files (운영체제 임시파일) ###
+.DS_Store
+Thumbs.db
+
+### User Custom (보안 및 데이터) ###
+# 1. 비밀 파일들
+src/main/resources/secret.properties
+secret.properties
+.env
+
+# 2. 로그 파일 (Logback이 만드는 폴더)
+logs/
+*.log
+
+# 3. Docker DB 데이터 (db_data 폴더가 생기면 무시)
+db_data/

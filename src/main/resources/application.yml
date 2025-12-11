@@ -1,0 +1,50 @@
+spring:
+  config:
+    # 👇 [수정] 파일 위치를 resources 폴더 안으로 지정합니다.
+    import: optional:file:src/main/resources/secret.properties
+
+  application:
+    name: 42cabi-gyeongsan
+
+  # 👇 [Ver 2.0 추가] Redis 설정 장착
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    # 👇 타임존 설정 유지
+    url: jdbc:mariadb://localhost:13306/cabi?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    # ❌ username, password 삭제함! (secret.properties에서 자동으로 가져옴)
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+        dialect: org.hibernate.dialect.MariaDBDialect
+
+  security:
+    oauth2:
+      client:
+        registration:
+          42:
+            # 👇 secret.properties의 변수 사용
+            client-id: ${FT_CLIENT_ID}
+            client-secret: ${FT_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope: public
+            client-name: 42 gyeongsan
+        provider:
+          42:
+            authorization-uri: https://api.intra.42.fr/oauth/authorize
+            token-uri: https://api.intra.42.fr/oauth/token
+            user-info-uri: https://api.intra.42.fr/v2/me
+            user-name-attribute: login
+
+slack:
+  token: ${SLACK_BOT_TOKEN}
