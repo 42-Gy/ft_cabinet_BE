@@ -30,7 +30,7 @@ public class AdminController {
     }
 
     /**
-     * [추가] 전체 사용자 목록 조회 엔드포인트
+     * 전체 사용자 목록 조회 엔드포인트
      * GET /admin/users
      */
     @GetMapping("/users")
