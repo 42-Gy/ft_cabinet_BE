@@ -1,4 +1,4 @@
-# 🗄️ 42Cabi Gyeongsan Ver 3.0 (Backend)
+# 🗄️ 42Cabi Gyeongsan Ver 3.5 (Backend)
 
 > **42 경산 캠퍼스 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성과 공정한 사물함 이용을 위해 개발된 REST API 서버입니다.
@@ -12,7 +12,8 @@
 | **Ver 1.0** | **MVP 모델** | 기본적인 대여/반납 로직 구현, DB 비관적 락(Lock) 적용 |
 | **Ver 2.0** | **보안 & 안정성** | 민감 정보 분리(`.env`), 스케줄러 N+1 문제 해결, 로깅 시스템 구축 |
 | **Ver 2.5** | **성능 & 운영** | **비동기 처리(Async)**로 알림 속도 개선, **Actuator** 모니터링, 단위 테스트 도입 |
-| **Ver 3.0** | **아키텍처 확장** | **Spring Security + JWT** 도입 (Stateless 전환), **Redis** 연동, 필터 기반 보안 구축 |
+| **Ver 3.0** | **아키텍처 확장** | **Spring Security + JWT** 도입 (Stateless 전환), 필터 기반 보안 구축 |
+| **Ver 3.5** | **보안 고도화** | **Refresh Token(Redis)** 도입, 예외 처리(401/403) 강화, 42 API 파싱 개선 |
 
 <br>
 
@@ -32,10 +33,10 @@
 
 ## 🚀 Key Features (핵심 기능)
 
-### 1. 보안 및 인증 (Security & Auth) - Ver 3.0 ⭐
+### 1. 보안 및 인증 (Security & Auth) - Ver 3.5 ⭐
 * **Stateless 인증:** 기존 세션(Cookie) 방식을 제거하고 **JWT(JSON Web Token)** 기반 인증 시스템을 구축하여 서버 확장성을 확보했습니다.
-* **OAuth2 연동:** 42 Intra 로그인을 통해 사용자 정보를 안전하게 받아오고, 서버 전용 Access Token을 발급합니다.
-* **보안 필터 체인:** `JwtAuthenticationFilter`를 커스텀하여 모든 요청의 헤더를 검증하고 유연한 인가 처리를 수행합니다.
+* **Refresh Token 시스템:** Access Token 만료 시, **Redis**에 저장된 Refresh Token을 통해 자동으로 재발급받아 로그인 유지를 돕습니다.
+* **보안 필터 & 예외 처리:** `JwtAuthenticationFilter`로 요청을 검증하며, 인증 실패(401) 및 권한 부족(403) 시 명확한 JSON 응답을 반환합니다.
 
 ### 2. 성능 및 비동기 처리 (Async & Ops) - Ver 2.5 ⭐
 * **비동기 이벤트(Event):** 핵심 비즈니스 로직(대여/반납)과 부가 기능(슬랙 알림)을 `Spring Event`로 분리하여 응답 속도를 최적화했습니다.
@@ -59,7 +60,7 @@
 
 ### 1. 프로젝트 클론
 ```bash
-git clone [https://github.com/farmer0010/42_cabinet_backend_mvpmodel.git](https://github.com/farmer0010/42_cabinet_backend_mvpmodel.git)
+git clone https://github.com/farmer0010/42_cabinet_backend_mvpmodel.git
 cd 42_cabinet_backend_mvpmodel
 ```
 
@@ -120,6 +121,7 @@ docker-compose up -d
 * **Base URL:** `http://localhost:8080`
 * **API 명세:**
     * **로그인 (토큰 발급):** `GET /oauth2/authorization/42`
+    * **재발급 (Refresh):** `POST /v4/auth/reissue` (Cookie: `refresh_token`)
     * **대여:** `POST /v4/lent/cabinets/{cabinetId}` (Header: `Authorization: Bearer {token}`)
     * **반납:** `POST /v4/lent/return` (Header: `Authorization: Bearer {token}`)
     * **상점:** `POST /v4/store/buy/{itemId}` (Header: `Authorization: Bearer {token}`)
@@ -149,11 +151,13 @@ docker-compose up -d
     │   │   │   ├── AlarmEventHandler.java # [Async] 알림 이벤트 리스너
     │   │   │   ├── SlackBotService.java   # 슬랙 API 호출
     │   │   │   └── dto/AlarmEvent.java    # 알림 이벤트 객체
-    │   │   ├── auth/                    # [Ver 3.0] 인증/인가 (JWT Core)
-    │   │   │   ├── config/              # Security Config (필터 체인 설정)
+    │   │   ├── auth/                    # [Ver 3.5] 인증/인가 (JWT & Security)
+    │   │   │   ├── config/              # Security Config (필터, 핸들러 설정)
+    │   │   │   ├── controller/          # AuthController (토큰 재발급 API)
+    │   │   │   ├── exception/           # Custom EntryPoint & AccessDeniedHandler
     │   │   │   ├── jwt/                 # JWT Provider & Filter
-    │   │   │   ├── oauth/               # OAuth Success Handler (토큰 발급)
-    │   │   │   └── service/             # OAuth2 유저 서비스
+    │   │   │   ├── oauth/               # OAuth Success Handler (토큰 발급 및 쿠키 설정)
+    │   │   │   └── service/             # OAuth2 유저 서비스 (블랙홀 파싱)
     │   │   ├── cabinet/                 # 사물함 도메인 (Entity, Repository, Lock)
     │   │   ├── common/                  # 공통 모듈 (DTO)
     │   │   ├── config/                  # 전역 설정 (Redis, WebConfig)
