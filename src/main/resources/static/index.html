@@ -2,18 +2,20 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>42Cabi - JWT Test</title>
+    <title>42Cabi - Backend Test</title>
     <style>
         body { font-family: sans-serif; padding: 20px; text-align: center; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 10px; }
-        .box { border: 1px solid #ddd; padding: 20px; margin: 20px auto; max-width: 500px; border-radius: 10px; }
-        #token-area { word-break: break-all; color: green; font-size: 12px; margin: 10px 0; }
-        #result { margin-top: 20px; font-weight: bold; color: blue; white-space: pre-wrap; }
+        .box { border: 1px solid #ddd; padding: 20px; margin: 20px auto; max-width: 600px; border-radius: 10px; background-color: #f9f9f9; }
+        #token-area { word-break: break-all; color: green; font-size: 12px; margin: 10px 0; background: #e8f5e9; padding: 10px; border-radius: 5px;}
+        #result { margin-top: 20px; font-weight: bold; color: blue; white-space: pre-wrap; text-align: left; background: #e3f2fd; padding: 15px; border-radius: 5px;}
+        .error { color: red !important; background: #ffebee !important; }
+        hr { margin: 20px 0; border: 0; border-top: 1px solid #ccc; }
     </style>
 </head>
 <body>
 
-<h1>🔐 JWT 로그인 테스트</h1>
+<h1>🔐 42Cabi 통합 테스트 (Ver 3.5)</h1>
 
 <div class="box">
     <h3>1. 인증 상태</h3>
@@ -21,20 +23,31 @@
 
     <a href="/oauth2/authorization/42">
         <button style="background-color: #00babc; color: white; border: none;">
-            42 Login (토큰 발급)
+            🚀 42 Login
         </button>
     </a>
+    <button onclick="reissueToken()" style="background-color: #ff9800; color: white; border: none;">
+        🔄 토큰 재발급 (Refresh)
+    </button>
 </div>
 
 <div class="box">
-    <h3>2. 기능 테스트 (토큰 자동 포함)</h3>
+    <h3>2. 일반 기능 테스트</h3>
     <button onclick="requestApi('POST', '/v4/store/buy/1')">🛒 아이템 구매</button>
     <button onclick="requestApi('POST', '/v4/lent/cabinets/1')">🔑 사물함 대여</button>
     <button onclick="requestApi('POST', '/v4/lent/return')">↩️ 사물함 반납</button>
-    <button onclick="requestApi('POST', '/v4/auth/reissue')">🔄 토큰 재발급 (POST)</button>
+
+    <hr>
+    <h3>3. 관리자 기능 (DB 권한 변경 필수)</h3>
+    <button onclick="requestApi('POST', '/admin/test/coins')" style="background-color: #d32f2f; color: white; border: none;">
+        👮‍♂️ [관리자] 전 유저 코인 지급 (Logtime)
+    </button>
 </div>
 
-<div id="result">결과가 여기에 표시됩니다.</div>
+<div class="box">
+    <h3>4. 결과 로그</h3>
+    <div id="result">버튼을 누르면 결과가 표시됩니다.</div>
+</div>
 
 <script>
     let jwtToken = null;
@@ -45,35 +58,84 @@
         const token = urlParams.get('token');
 
         if (token) {
-            jwtToken = token;
-            document.getElementById('token-display').innerHTML =
-                `✅ <b>인증됨!</b><div id="token-area">${token.substring(0, 50)}...</div>`;
-
-            // 토큰을 저장해두고 URL은 깔끔하게 정리 (선택사항)
-            window.history.replaceState({}, document.title, "/");
+            setToken(token);
+            window.history.replaceState({}, document.title, "/"); // URL 정리
         }
     };
 
-    // 2. API 요청 보낼 때 헤더에 토큰 넣기
+    function setToken(token) {
+        jwtToken = token;
+        document.getElementById('token-display').innerHTML =
+            `✅ <b>인증됨!</b><br>(Access Token 보유 중)<div id="token-area">${token}</div>`;
+    }
+
+    // 2. API 요청 (JSON / Text 모두 처리하도록 개선)
     function requestApi(method, url) {
         if (!jwtToken) {
-            alert("먼저 로그인을 해서 토큰을 발급받으세요!");
+            alert("먼저 로그인을 하거나 토큰을 재발급 받으세요!");
             return;
         }
+
+        document.getElementById('result').innerText = "⏳ 요청 중...";
 
         fetch(url, {
             method: method,
             headers: {
-                // 👇 여기가 핵심! Bearer 토큰 추가
                 'Authorization': 'Bearer ' + jwtToken
             }
         })
-            .then(response => response.json()) // JSON 응답으로 변경됨
-            .then(data => {
-                document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+            .then(async response => {
+                const text = await response.text(); // 일단 텍스트로 받음
+
+                // 에러 상태 코드 처리
+                if (!response.ok) {
+                    document.getElementById('result').className = "error";
+                    // JSON이면 파싱해서 보여주고, 아니면 그냥 보여줌
+                    try {
+                        const json = JSON.parse(text);
+                        document.getElementById('result').innerText = `🚨 오류 (${response.status}):\n` + JSON.stringify(json, null, 2);
+                    } catch (e) {
+                        document.getElementById('result').innerText = `🚨 오류 (${response.status}):\n` + text;
+                    }
+                    return;
+                }
+
+                // 성공 처리
+                document.getElementById('result').className = "";
+                try {
+                    // JSON 변환 시도
+                    const json = JSON.parse(text);
+                    document.getElementById('result').innerText = JSON.stringify(json, null, 2);
+                } catch (e) {
+                    // JSON이 아니면 그냥 텍스트로 출력 (AdminController 응답용)
+                    document.getElementById('result').innerText = text;
+                }
             })
             .catch(err => {
-                document.getElementById('result').innerText = "에러: " + err;
+                document.getElementById('result').className = "error";
+                document.getElementById('result').innerText = "통신 에러: " + err;
+            });
+    }
+
+    // 3. 토큰 재발급 요청
+    function reissueToken() {
+        fetch('/v4/auth/reissue', {
+            method: 'POST'
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.accessToken) {
+                    setToken(data.accessToken);
+                    document.getElementById('result').className = "";
+                    document.getElementById('result').innerText = "🎉 토큰 재발급 성공! (유효기간 연장됨)";
+                } else {
+                    document.getElementById('result').className = "error";
+                    document.getElementById('result').innerText = "재발급 실패: " + JSON.stringify(data);
+                }
+            })
+            .catch(err => {
+                document.getElementById('result').className = "error";
+                document.getElementById('result').innerText = "재발급 에러: " + err;
             });
     }
 </script>

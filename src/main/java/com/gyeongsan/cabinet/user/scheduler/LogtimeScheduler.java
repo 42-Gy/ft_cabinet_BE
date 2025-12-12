@@ -26,7 +26,7 @@ public class LogtimeScheduler {
      * 매일 자정(00:00:00)에 실행
      * (테스트를 위해 지금은 1분마다 실행되게 해둠: "0 * * * * *")
      */
-    @Scheduled(cron = "0 0 0 * * *")
+    @Scheduled(cron = "0 0 6 * * *")
     @Transactional
     public void rewardCoins() {
         log.info("💸 로그타임 코인 정산 시작!");

@@ -39,7 +39,7 @@ public class SecurityConfig {
                         // 👇 [수정] 재발급 요청(/v4/auth/**)은 누구나 접근 가능하게 설정 (순서 중요!)
                         .requestMatchers("/v4/auth/**").permitAll()
 
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/admin/**").hasAuthority("ADMIN")
                         .requestMatchers("/v4/**").authenticated() // 나머지 /v4/ API는 인증 필요
                         .anyRequest().permitAll()
                 )
