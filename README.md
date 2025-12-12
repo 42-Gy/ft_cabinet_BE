@@ -13,7 +13,7 @@
 | **Ver 2.0** | **보안 & 안정성** | 민감 정보 분리(`.env`), 스케줄러 N+1 문제 해결, 로깅 시스템 구축 |
 | **Ver 2.5** | **성능 & 운영** | **비동기 처리(Async)**로 알림 속도 개선, **Actuator** 모니터링, 단위 테스트 도입 |
 | **Ver 3.0** | **아키텍처 확장** | **Spring Security + JWT** 도입 (Stateless 전환), 필터 기반 보안 구축 |
-| **Ver 3.5** | **보안 고도화** | **Refresh Token(Redis)** 도입, 예외 처리(401/403) 강화, 42 API 파싱 개선 |
+| **Ver 3.5** | **보안 & 리워드** | **Refresh Token** 도입, **출석 기반 코인 지급 스케줄러** 구현, 예외 처리 강화 |
 
 <br>
 
@@ -38,18 +38,18 @@
 * **Refresh Token 시스템:** Access Token 만료 시, **Redis**에 저장된 Refresh Token을 통해 자동으로 재발급받아 로그인 유지를 돕습니다.
 * **보안 필터 & 예외 처리:** `JwtAuthenticationFilter`로 요청을 검증하며, 인증 실패(401) 및 권한 부족(403) 시 명확한 JSON 응답을 반환합니다.
 
-### 2. 성능 및 비동기 처리 (Async & Ops) - Ver 2.5 ⭐
+### 2. 동기 부여 시스템 (Gamification) - Ver 3.5 ⭐
+* **출석 연동 코인 지급:** 매일 아침 스케줄러가 **42 API**를 호출하여 전날 체류 시간(Logtime)을 조회하고, 시간에 비례하여 유저에게 **코인을 자동 지급**합니다.
+* **KST/UTC 타임존 처리:** 42 API(UTC)와 한국 시간(KST) 간의 시차를 고려하여 정확한 일일 출석 시간을 계산합니다.
+
+### 3. 성능 및 비동기 처리 (Async & Ops)
 * **비동기 이벤트(Event):** 핵심 비즈니스 로직(대여/반납)과 부가 기능(슬랙 알림)을 `Spring Event`로 분리하여 응답 속도를 최적화했습니다.
 * **상태 모니터링:** `Spring Actuator`를 도입하여 운영 중인 서버, DB, Redis의 상태(Health Check)를 실시간으로 추적합니다.
 
-### 3. 사물함 비즈니스 로직
+### 4. 사물함 비즈니스 로직
 * **동시성 제어:** MariaDB의 `Pessimistic Lock`(비관적 락)을 적용하여 중복 대여 문제를 원천 차단했습니다.
-* **아이템 시스템:** '대여권' 아이템을 소모하여 사물함을 대여하는 게임화 요소를 도입했습니다.
 * **자동화 관리:** 매일 자정 스케줄러가 동작하여 블랙홀 유저 강제 반납 및 연체자 상태 변경을 수행합니다.
-
-### 4. 안정성 및 유지보수
-* **쿼리 최적화:** JPA `JOIN FETCH`를 활용하여 연체자 조회 시 발생하는 N+1 문제를 해결했습니다.
-* **로깅 시스템:** AOP 기반 로깅으로 요청/응답 시간을 추적하고, 날짜별 로그 파일로 자동 저장합니다.
+* **안정성:** JPA `JOIN FETCH`를 활용하여 연체자 조회 시 발생하는 N+1 문제를 해결했습니다.
 
 <br>
 
@@ -60,7 +60,7 @@
 
 ### 1. 프로젝트 클론
 ```bash
-git clone https://github.com/farmer0010/42_cabinet_backend_mvpmodel.git
+git clone [https://github.com/farmer0010/42_cabinet_backend_mvpmodel.git](https://github.com/farmer0010/42_cabinet_backend_mvpmodel.git)
 cd 42_cabinet_backend_mvpmodel
 ```
 
@@ -92,8 +92,8 @@ spring.datasource.username=root
 spring.datasource.password=your_secure_password
 
 # 42 API 인증 키 (Intra 42에서 발급받은 키 입력)
-FT_CLIENT_ID=your_42_client_id
-FT_CLIENT_SECRET=your_42_client_secret
+spring.security.oauth2.client.registration.42.client-id=your_42_client_id
+spring.security.oauth2.client.registration.42.client-secret=your_42_client_secret
 
 # Slack 봇 토큰 (Slack API에서 발급받은 토큰 입력)
 SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
@@ -165,7 +165,8 @@ docker-compose up -d
     │   │   ├── item/                    # 아이템/상점 도메인 (Entity, Repository)
     │   │   ├── lent/                    # 대여/반납 핵심 로직 (Facade, Scheduler)
     │   │   ├── user/                    # 사용자 도메인 (Entity, Repository, Scheduler)
-    │   │   └── utils/                   # 유틸리티 (FtApiManager)
+    │   │   │   └── scheduler/           # [Ver 3.5] LogtimeScheduler (코인 지급)
+    │   │   └── utils/                   # 유틸리티 (FtApiManager: 42 API 호출)
     │   └── resources
     │       ├── application.yml          # 스프링 부트 설정
     │       ├── logback-spring.xml       # 로깅 설정 (File Appender)
