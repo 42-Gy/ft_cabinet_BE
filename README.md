@@ -38,7 +38,7 @@
 * **Refresh Token 시스템:** Access Token 만료 시, **Redis**에 저장된 Refresh Token을 통해 자동으로 재발급받아 로그인 유지를 돕습니다.
 * **보안 필터 & 예외 처리:** `JwtAuthenticationFilter`로 요청을 검증하며, 인증 실패(401) 및 권한 부족(403) 시 명확한 JSON 응답을 반환합니다.
 
-### 2. 동기 부여 시스템 (Gamification) - Ver 3.5 ⭐
+### 2. 코인 지급 시스템 (Gamification) - Ver 3.5 ⭐
 * **출석 연동 코인 지급:** 매일 아침 스케줄러가 **42 API**를 호출하여 전날 체류 시간(Logtime)을 조회하고, 시간에 비례하여 유저에게 **코인을 자동 지급**합니다.
 * **KST/UTC 타임존 처리:** 42 API(UTC)와 한국 시간(KST) 간의 시차를 고려하여 정확한 일일 출석 시간을 계산합니다.
 
