@@ -15,6 +15,8 @@ public interface LentRepository extends JpaRepository<LentHistory, Long> {
 
     Optional<LentHistory> findByCabinetIdAndEndedAtIsNull(Long cabinetId);
 
+    long countByEndedAtIsNull();
+
     @Query("SELECT lh FROM LentHistory lh JOIN FETCH lh.cabinet JOIN FETCH lh.user " +
             "WHERE lh.endedAt IS NULL AND lh.expiredAt < :now")
     List<LentHistory> findAllOverdueLentHistories(@Param("now") LocalDateTime now);

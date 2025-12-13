@@ -24,7 +24,13 @@ public class UserPrincipal implements OAuth2User {
         this.name = user.getName();
         this.email = user.getEmail();
         this.attributes = attributes;
-        this.authorities = Collections.singletonList(new SimpleGrantedAuthority("USER"));
+        this.authorities = Collections.singletonList(
+                new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
+        );
+    }
+
+    public Long getUserId() {
+        return userId;
     }
 
     @Override

@@ -90,4 +90,8 @@ public class User {
             this.penaltyDays = newPenaltyDays;
         }
     }
+
+    public void unban() {
+        this.penaltyDays = 0;
+    }
 }

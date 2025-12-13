@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.cabinet.repository;
 
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
+import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -17,4 +18,6 @@ public interface CabinetRepository extends JpaRepository<Cabinet, Long> {
     Optional<Cabinet> findByIdWithLock(@Param("id") Long id);
 
     List<Cabinet> findAllByFloor(Integer floor);
+
+    long countByStatus(CabinetStatus status);
 }
