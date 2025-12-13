@@ -23,21 +23,21 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     private final ObjectMapper objectMapper;
 
     @Override
-    public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
+    public void commence(HttpServletRequest request, HttpServletResponse response,
+                         AuthenticationException authException)
+            throws IOException, ServletException {
+
         log.warn("🚨 [401 Error] 인증되지 않은 사용자 접근: {}", request.getRequestURI());
 
-        // 1. 응답 헤더 설정 (JSON)
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // 401
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
 
-        // 2. 응답 바디 생성
         Map<String, Object> responseMap = new HashMap<>();
         responseMap.put("code", 401);
         responseMap.put("error", "Unauthorized");
         responseMap.put("message", "로그인이 필요하거나, 토큰이 만료되었습니다.");
 
-        // 3. JSON 변환 후 전송
         response.getWriter().write(objectMapper.writeValueAsString(responseMap));
     }
 }

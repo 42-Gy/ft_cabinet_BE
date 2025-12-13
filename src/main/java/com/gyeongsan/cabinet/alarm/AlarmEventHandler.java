@@ -14,12 +14,10 @@ public class AlarmEventHandler {
 
     private final SlackBotService slackBotService;
 
-    @Async // 👈 [핵심] 이 메서드는 별도 스레드(백그라운드)에서 실행됩니다!
-    @EventListener // 👈 누군가 AlarmEvent를 날리면 여기서 받습니다.
+    @Async
+    @EventListener
     public void handleAlarmEvent(AlarmEvent event) {
         log.info("📨 [비동기] 알림 이벤트 수신! 대상: {}", event.getEmail());
-
-        // 실제 느린 작업(슬랙 전송)은 여기서 수행
         slackBotService.sendDm(event.getEmail(), event.getMessage());
     }
 }
