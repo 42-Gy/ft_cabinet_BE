@@ -6,15 +6,12 @@ services:
     restart: always
     environment:
       MARIADB_DATABASE: cabi
-      # 👇 .env 파일에 있는 비밀번호 변수를 가져옵니다. (보안 강화)
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MARIADB_USER: ${DB_USER}
       MARIADB_PASSWORD: ${DB_PASSWORD}
-      # 👇 .env의 타임존(Asia/Seoul) 적용
       TZ: ${TZ}
     ports:
       - "13306:3306"
-    # 👇 [중요] 컨테이너를 꺼도 DB 데이터가 로컬 폴더(db_data)에 저장됩니다.
     volumes:
       - ./db_data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
@@ -24,6 +21,5 @@ services:
     container_name: cabi_redis
     ports:
       - "6379:6379"
-    # 👇 Redis도 한국 시간으로 맞춤
     environment:
       TZ: ${TZ}

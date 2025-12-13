@@ -1,66 +1,68 @@
 package com.gyeongsan.cabinet.lent.scheduler;
 
 import com.gyeongsan.cabinet.alarm.dto.AlarmEvent;
+import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
 import com.gyeongsan.cabinet.lent.domain.LentHistory;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
+import com.gyeongsan.cabinet.user.domain.User;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
-@Log4j2
 public class LentScheduler {
 
     private final LentRepository lentRepository;
-    private final ApplicationEventPublisher eventPublisher; // ⭕ 이벤트 발행기 주입
+    private final ApplicationEventPublisher eventPublisher;
 
-    /**
-     * 연체 감지 스케줄러
-     * cron = "0 0 0 * * *" -> 매일 자정 (실제 배포용)
-     * 테스트할 때는 "0 * * * * *" (매 분 0초)로 바꿔서 쓰세요!
-     */
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0 0 6 * * *")
     @Transactional
     public void checkOverdue() {
-        log.info("⏰ 연체자 단속 시작! (현재 시각: {})", LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        log.info("⏰ 연체자 단속 시작! (현재 시각: {})", now);
 
-        // 1. 지금보다 기한이 지난 대여 기록 찾기
-        List<LentHistory> overdueLents = lentRepository.findAllOverdueLentHistories(LocalDateTime.now());
+        List<LentHistory> overdueLents = lentRepository.findAllOverdueLentHistories(now);
 
         if (overdueLents.isEmpty()) {
             log.info(" - 다행히 연체자가 없습니다.");
             return;
         }
 
-        // 2. 연체 처리 및 알림 발송
         for (LentHistory lh : overdueLents) {
-            // 이미 OVERDUE 상태면 패스
-            if (lh.getCabinet().getStatus() == CabinetStatus.OVERDUE) {
-                continue;
+            User user = lh.getUser();
+            Cabinet cabinet = lh.getCabinet();
+
+            long overdueDays = ChronoUnit.DAYS.between(lh.getExpiredAt(), now);
+            if (overdueDays <= 0) overdueDays = 1;
+
+            int newPenalty = (int) (overdueDays * overdueDays);
+            user.updatePenaltyDays(newPenalty);
+
+            if (cabinet.getStatus() != CabinetStatus.OVERDUE) {
+                cabinet.updateStatus(CabinetStatus.OVERDUE);
+                sendOverdueAlarm(user, cabinet.getId());
             }
 
-            // (1) 사물함 상태 강제 변경 (DB 작업)
-            lh.getCabinet().updateStatus(CabinetStatus.OVERDUE);
-
-            // (2) 알림 이벤트 발행 (비동기 처리 위임)
-            String userEmail = lh.getUser().getEmail(); // 유저 이메일 가져오기
-
-            // 메시지 내용 작성
-            String message = String.format("🚨 *[연체 경고]*\n%s님, %d번 사물함이 연체되었습니다. 즉시 반납해주세요!",
-                    lh.getUser().getName(), lh.getCabinet().getId());
-
-            // 👉 여기서 "쪽지(Event)"를 던집니다! (받는 사람이 알아서 처리함)
-            eventPublisher.publishEvent(new AlarmEvent(userEmail, message));
-
-            log.info("📨 연체 알림 이벤트 발행 완료: {}", userEmail);
+            log.info("🚨 연체 처리: 유저={}, 연체일={}일, 패널티={}일",
+                    user.getName(), overdueDays, newPenalty);
         }
+    }
+
+    private void sendOverdueAlarm(User user, Long cabinetId) {
+        String message = String.format(
+                "🚨 *[연체 경고]*\n%s님, %d번 사물함이 연체되었습니다. 패널티가 누적되고 있으니 즉시 반납해주세요!",
+                user.getName(), cabinetId
+        );
+        eventPublisher.publishEvent(new AlarmEvent(user.getEmail(), message));
     }
 }

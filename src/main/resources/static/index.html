@@ -4,48 +4,77 @@
     <meta charset="UTF-8">
     <title>42Cabi - Backend Test</title>
     <style>
-        body { font-family: sans-serif; padding: 20px; text-align: center; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 10px; }
-        .box { border: 1px solid #ddd; padding: 20px; margin: 20px auto; max-width: 600px; border-radius: 10px; background-color: #f9f9f9; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; text-align: center; background-color: #f0f2f5; }
+        button { padding: 10px 15px; font-size: 14px; cursor: pointer; margin: 5px; border-radius: 5px; border: none; transition: 0.2s; }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        .box { border: 1px solid #ddd; padding: 20px; margin: 20px auto; max-width: 800px; border-radius: 10px; background-color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h3 { border-bottom: 2px solid #eee; padding-bottom: 10px; color: #333; }
         #token-area { word-break: break-all; color: green; font-size: 12px; margin: 10px 0; background: #e8f5e9; padding: 10px; border-radius: 5px;}
-        #result { margin-top: 20px; font-weight: bold; color: blue; white-space: pre-wrap; text-align: left; background: #e3f2fd; padding: 15px; border-radius: 5px;}
-        .error { color: red !important; background: #ffebee !important; }
-        hr { margin: 20px 0; border: 0; border-top: 1px solid #ccc; }
+        #result { margin-top: 20px; font-weight: bold; color: #0d47a1; white-space: pre-wrap; text-align: left; background: #e3f2fd; padding: 15px; border-radius: 5px; min-height: 100px; }
+        .error { color: #b71c1c !important; background: #ffebee !important; }
+
+        /* 버튼 색상 */
+        .btn-auth { background-color: #00babc; color: white; }
+        .btn-refresh { background-color: #ff9800; color: white; }
+        .btn-info { background-color: #2196f3; color: white; }
+        .btn-lent { background-color: #4caf50; color: white; }
+        .btn-item { background-color: #9c27b0; color: white; }
+        .btn-admin { background-color: #d32f2f; color: white; }
+
+        input { padding: 8px; border-radius: 5px; border: 1px solid #ccc; width: 60px; text-align: center; }
     </style>
 </head>
 <body>
 
-<h1>🔐 42Cabi 통합 테스트 (Ver 3.5)</h1>
+<h1>🔐 42Cabi 통합 테스트 (Ver 4.0)</h1>
 
 <div class="box">
-    <h3>1. 인증 상태</h3>
+    <h3>1. 인증 & 조회</h3>
     <div id="token-display">로그인이 필요합니다.</div>
 
     <a href="/oauth2/authorization/42">
-        <button style="background-color: #00babc; color: white; border: none;">
-            🚀 42 Login
-        </button>
+        <button class="btn-auth">🚀 42 Login</button>
     </a>
-    <button onclick="reissueToken()" style="background-color: #ff9800; color: white; border: none;">
-        🔄 토큰 재발급 (Refresh)
-    </button>
-</div>
-
-<div class="box">
-    <h3>2. 일반 기능 테스트</h3>
-    <button onclick="requestApi('POST', '/v4/store/buy/1')">🛒 아이템 구매</button>
-    <button onclick="requestApi('POST', '/v4/lent/cabinets/1')">🔑 사물함 대여</button>
-    <button onclick="requestApi('POST', '/v4/lent/return')">↩️ 사물함 반납</button>
-
+    <button onclick="reissueToken()" class="btn-refresh">🔄 토큰 재발급</button>
     <hr>
-    <h3>3. 관리자 기능 (DB 권한 변경 필수)</h3>
-    <button onclick="requestApi('POST', '/admin/test/coins')" style="background-color: #d32f2f; color: white; border: none;">
-        👮‍♂️ [관리자] 전 유저 코인 지급 (Logtime)
-    </button>
+    <button onclick="requestApi('GET', '/v4/users/me')" class="btn-info">👤 내 정보 (패널티 확인)</button>
+    <button onclick="requestApi('GET', '/v4/cabinets/status-summary?floor=2')" class="btn-info">📊 2층 현황 조회</button>
 </div>
 
 <div class="box">
-    <h3>4. 결과 로그</h3>
+    <h3>2. 🏪 아이템 상점 (구매)</h3>
+    <p style="font-size:12px; color:gray;">(ID 1: 대여권 / 2: 연장권 / 3: 이사권 / 4: 감면권)</p>
+    <button onclick="requestApi('POST', '/v4/store/buy/1')" class="btn-item">🎟️ 대여권 (100)</button>
+    <button onclick="requestApi('POST', '/v4/store/buy/2')" class="btn-item">⏳ 연장권 (80)</button>
+    <button onclick="requestApi('POST', '/v4/store/buy/3')" class="btn-item">🚚 이사권 (60)</button>
+    <button onclick="requestApi('POST', '/v4/store/buy/4')" class="btn-item">🛡️ 감면권 (40)</button>
+</div>
+
+<div class="box">
+    <h3>3. 🔑 대여 및 아이템 사용</h3>
+    <div>
+        <label>사물함 ID: <input type="number" id="cabinetId" value="2001"></label>
+        <button onclick="lentCabinet()" class="btn-lent">📥 대여하기</button>
+        <button onclick="requestApi('POST', '/v4/lent/return')" class="btn-lent">📤 반납하기</button>
+    </div>
+    <hr>
+    <div>
+        <button onclick="requestApi('POST', '/v4/lent/extension')" class="btn-item">⏳ 연장권 사용 (+15일)</button>
+        <button onclick="requestApi('POST', '/v4/lent/penalty-exemption')" class="btn-item">🛡️ 감면권 사용 (-2일)</button>
+    </div>
+    <div style="margin-top: 10px;">
+        <label>이사갈 ID: <input type="number" id="newCabinetId" value="2002"></label>
+        <button onclick="swapCabinet()" class="btn-item">🚚 이사권 사용</button>
+    </div>
+</div>
+
+<div class="box">
+    <h3>4. 👮‍♂️ 관리자 테스트</h3>
+    <button onclick="requestApi('POST', '/admin/test/coins')" class="btn-admin">💰 전 유저 코인 지급</button>
+</div>
+
+<div class="box">
+    <h3>📝 결과 로그</h3>
     <div id="result">버튼을 누르면 결과가 표시됩니다.</div>
 </div>
 
@@ -59,24 +88,39 @@
 
         if (token) {
             setToken(token);
-            window.history.replaceState({}, document.title, "/"); // URL 정리
+            window.history.replaceState({}, document.title, "/");
         }
     };
 
     function setToken(token) {
         jwtToken = token;
         document.getElementById('token-display').innerHTML =
-            `✅ <b>인증됨!</b><br>(Access Token 보유 중)<div id="token-area">${token}</div>`;
+            `✅ <b>인증됨!</b> <span style="font-size:12px;">(Access Token)</span>`;
+        // 토큰 값은 너무 길어서 콘솔에만 출력하거나 필요시 주석 해제
+        // console.log(token);
     }
 
-    // 2. API 요청 (JSON / Text 모두 처리하도록 개선)
+    // 2. 동적 ID 처리 함수들
+    function lentCabinet() {
+        const id = document.getElementById('cabinetId').value;
+        requestApi('POST', '/v4/lent/cabinets/' + id);
+    }
+
+    function swapCabinet() {
+        const id = document.getElementById('newCabinetId').value;
+        requestApi('POST', '/v4/lent/swap/' + id);
+    }
+
+    // 3. API 요청 통합 함수
     function requestApi(method, url) {
         if (!jwtToken) {
-            alert("먼저 로그인을 하거나 토큰을 재발급 받으세요!");
+            alert("먼저 로그인을 해주세요!");
             return;
         }
 
-        document.getElementById('result').innerText = "⏳ 요청 중...";
+        const resultBox = document.getElementById('result');
+        resultBox.innerText = "⏳ 요청 중...";
+        resultBox.className = "";
 
         fetch(url, {
             method: method,
@@ -85,58 +129,46 @@
             }
         })
             .then(async response => {
-                const text = await response.text(); // 일단 텍스트로 받음
+                const text = await response.text();
 
-                // 에러 상태 코드 처리
                 if (!response.ok) {
-                    document.getElementById('result').className = "error";
-                    // JSON이면 파싱해서 보여주고, 아니면 그냥 보여줌
+                    resultBox.className = "error";
                     try {
                         const json = JSON.parse(text);
-                        document.getElementById('result').innerText = `🚨 오류 (${response.status}):\n` + JSON.stringify(json, null, 2);
+                        resultBox.innerText = `🚨 오류 (${response.status}):\n` + JSON.stringify(json, null, 2);
                     } catch (e) {
-                        document.getElementById('result').innerText = `🚨 오류 (${response.status}):\n` + text;
+                        resultBox.innerText = `🚨 오류 (${response.status}):\n` + text;
                     }
                     return;
                 }
 
                 // 성공 처리
-                document.getElementById('result').className = "";
                 try {
-                    // JSON 변환 시도
                     const json = JSON.parse(text);
-                    document.getElementById('result').innerText = JSON.stringify(json, null, 2);
+                    resultBox.innerText = JSON.stringify(json, null, 2);
                 } catch (e) {
-                    // JSON이 아니면 그냥 텍스트로 출력 (AdminController 응답용)
-                    document.getElementById('result').innerText = text;
+                    resultBox.innerText = text;
                 }
             })
             .catch(err => {
-                document.getElementById('result').className = "error";
-                document.getElementById('result').innerText = "통신 에러: " + err;
+                resultBox.className = "error";
+                resultBox.innerText = "통신 에러: " + err;
             });
     }
 
-    // 3. 토큰 재발급 요청
+    // 4. 토큰 재발급
     function reissueToken() {
-        fetch('/v4/auth/reissue', {
-            method: 'POST'
-        })
+        fetch('/v4/auth/reissue', { method: 'POST' })
             .then(response => response.json())
             .then(data => {
                 if (data.accessToken) {
                     setToken(data.accessToken);
-                    document.getElementById('result').className = "";
-                    document.getElementById('result').innerText = "🎉 토큰 재발급 성공! (유효기간 연장됨)";
+                    alert("토큰이 갱신되었습니다!");
                 } else {
-                    document.getElementById('result').className = "error";
-                    document.getElementById('result').innerText = "재발급 실패: " + JSON.stringify(data);
+                    alert("재발급 실패: 로그인을 다시 해주세요.");
                 }
             })
-            .catch(err => {
-                document.getElementById('result').className = "error";
-                document.getElementById('result').innerText = "재발급 에러: " + err;
-            });
+            .catch(err => console.error(err));
     }
 </script>
 </body>

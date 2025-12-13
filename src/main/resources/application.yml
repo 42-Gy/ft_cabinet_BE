@@ -1,12 +1,17 @@
+server:
+  port: 8080
+  forward-headers-strategy: framework
+  tomcat:
+    remote-ip-header: x-forwarded-for
+    protocol-header: x-forwarded-proto
+
 spring:
   config:
-    # 👇 secret.properties 파일 로드
     import: optional:file:src/main/resources/secret.properties
 
   application:
     name: 42cabi-gyeongsan
 
-  # 👇 [Ver 2.0] Redis 설정
   data:
     redis:
       host: localhost
@@ -14,9 +19,7 @@ spring:
 
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    # 👇 타임존 설정 유지
     url: jdbc:mariadb://localhost:13306/cabi?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    # username, password는 secret.properties에서 가져옴
 
   jpa:
     hibernate:
@@ -32,7 +35,6 @@ spring:
       client:
         registration:
           42:
-            # 👇 secret.properties의 변수 사용
             client-id: ${FT_CLIENT_ID}
             client-secret: ${FT_CLIENT_SECRET}
             authorization-grant-type: authorization_code
@@ -46,17 +48,15 @@ spring:
             user-info-uri: https://api.intra.42.fr/v2/me
             user-name-attribute: login
 
-# 👇 [Ver 2.5] Actuator 모니터링 설정
 management:
   endpoints:
     web:
       exposure:
-        include: health, info, metrics
+        include: health, info, graphics, metrics
   endpoint:
     health:
       show-details: always
 
-# 👇 [Ver 3.0 추가] JWT 비밀키 연결 (secret.properties 값 사용)
 jwt:
   secret: ${jwt.secret}
 

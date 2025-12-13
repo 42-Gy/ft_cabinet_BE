@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.security.Principal; // 👈 중요: OAuth2User 대신 Principal 사용
+import java.security.Principal;
 
 @RestController
 @RequiredArgsConstructor
@@ -23,32 +23,55 @@ public class LentController {
     private final UserRepository userRepository;
 
     @PostMapping("/cabinets/{cabinetId}")
-    // 👇 [수정] OAuth2User -> Principal (토큰에서 유저 ID 추출)
     public MessageResponse startLentCabinet(@PathVariable Long cabinetId, Principal principal) {
-        // 1. 토큰의 Subject(유저 ID)를 파싱
         Long userId = Long.valueOf(principal.getName());
 
-        // 2. 유저 조회 (이름을 응답 메시지에 쓰기 위해)
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-        // 3. 대여 서비스 호출
         lentFacadeService.startLentCabinet(userId, cabinetId);
 
-        return new MessageResponse("✅ " + user.getName() + "님, " + cabinetId + "번 사물함 대여 성공!");
+        return new MessageResponse(
+                "✅ " + user.getName() + "님, " + cabinetId + "번 사물함 대여 성공!"
+        );
     }
 
     @PostMapping("/return")
-    // 👇 [수정] OAuth2User -> Principal
     public MessageResponse endLentCabinet(Principal principal) {
         Long userId = Long.valueOf(principal.getName());
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-        // 4. 반납 서비스 호출
         lentFacadeService.endLentCabinet(userId);
 
         return new MessageResponse("✅ " + user.getName() + "님, 반납 성공!");
+    }
+
+    @PostMapping("/extension")
+    public MessageResponse useExtension(Principal principal) {
+        Long userId = Long.valueOf(principal.getName());
+
+        lentFacadeService.useExtension(userId);
+
+        return new MessageResponse("✅ 대여 기간이 15일 연장되었습니다! 🎉");
+    }
+
+    @PostMapping("/swap/{newCabinetId}")
+    public MessageResponse useSwap(@PathVariable Long newCabinetId, Principal principal) {
+        Long userId = Long.valueOf(principal.getName());
+
+        lentFacadeService.useSwap(userId, newCabinetId);
+
+        return new MessageResponse("✅ 사물함 이사 완료! (" + newCabinetId + "번)");
+    }
+
+    @PostMapping("/penalty-exemption")
+    public MessageResponse usePenaltyExemption(Principal principal) {
+        Long userId = Long.valueOf(principal.getName());
+
+        lentFacadeService.usePenaltyExemption(userId);
+
+        return new MessageResponse("✅ 패널티가 2일 감면되었습니다! (해방까지 파이팅 💪)");
     }
 }

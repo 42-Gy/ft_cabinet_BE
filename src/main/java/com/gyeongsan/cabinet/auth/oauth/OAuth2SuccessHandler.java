@@ -60,7 +60,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         // 5. Access Token은 URL 파라미터로 전달 (기존 방식)
         log.info("🎫 Access Token 발급 완료: {}", accessToken);
 
-        String targetUrl = UriComponentsBuilder.fromUriString("/")
+        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:5173")
                 .queryParam("token", accessToken)
                 .build().toUriString();
 

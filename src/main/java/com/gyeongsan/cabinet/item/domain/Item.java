@@ -16,17 +16,17 @@ public class Item {
     private Long id;
 
     @Column(name = "NAME", nullable = false)
-    private String name; // 아이템 이름
+    private String name;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "TYPE", nullable = false)
-    private ItemType type; // 아이템 종류
+    private ItemType type;
 
     @Column(name = "PRICE", nullable = false)
-    private Long price; // 가격
+    private Long price;
 
     @Column(name = "DESCRIPTION")
-    private String description; // 설명
+    private String description;
 
     public Item(String name, ItemType type, Long price, String description) {
         this.name = name;

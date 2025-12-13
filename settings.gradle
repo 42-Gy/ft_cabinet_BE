@@ -1,8 +1,6 @@
 rootProject.name = 'cabinet'
 
-// 👇 [핵심 추가] 최상위 의존성 경로 및 모드 설정
 dependencyResolutionManagement {
-    // 모든 프로젝트가 이 저장소 목록을 사용하도록 강제합니다.
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         mavenCentral()
