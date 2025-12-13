@@ -46,6 +46,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
                         .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/favicon.ico").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/v4/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v4/cabinets/**").permitAll()
                         .requestMatchers("/admin/**").hasAuthority("ADMIN")

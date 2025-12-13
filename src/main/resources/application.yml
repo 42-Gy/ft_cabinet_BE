@@ -48,6 +48,20 @@ spring:
             user-info-uri: https://api.intra.42.fr/v2/me
             user-name-attribute: login
 
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+    groups-order: desc
+    disable-swagger-default-url: true
+
 management:
   endpoints:
     web:
