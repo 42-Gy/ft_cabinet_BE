@@ -37,10 +37,10 @@
 ### 1. 상점 및 아이템 시스템 (Shop & Item) - Ver 4.0 [NEW] ⭐
 * **아이템 상점:** 사용자는 출석 보상으로 얻은 코인을 사용하여 유용한 아이템을 구매할 수 있습니다.
 * **다양한 아이템 구현:**
-    * **대여권:** 사물함을 30일간 대여할 수 있는 권한.
-    * **연장권:** 현재 대여 중인 사물함의 만료일을 **15일 연장**합니다.
-    * **이사권:** 남은 대여 기간을 유지한 채 **다른 사물함으로 이동**합니다.
-    * **감면권:** 누적된 패널티 기간을 **2일 차감**합니다.
+    * **대여권:** 사물함을 30일간 대여할 수 있는 권한.
+    * **연장권:** 현재 대여 중인 사물함의 만료일을 **15일 연장**합니다.
+    * **이사권:** 남은 대여 기간을 유지한 채 **다른 사물함으로 이동**합니다.
+    * **감면권:** 누적된 패널티 기간을 **2일 차감**합니다.
 
 ### 2. 고도화된 패널티 시스템 (Penalty Logic) - Ver 4.0 [NEW] ⭐
 * **제곱 패널티 ($D^2$):** 공정한 사물함 회전을 위해, 연체 시 연체일의 제곱만큼 패널티가 부과됩니다. (예: 3일 연체 시 9일간 대여 불가)
@@ -50,7 +50,7 @@
 * **Stateless 인증:** 기존 세션(Cookie) 방식을 제거하고 **JWT(JSON Web Token)** 기반 인증 시스템을 구축하여 서버 확장성을 확보했습니다.
 * **Refresh Token 시스템:** Access Token 만료 시, **Redis**에 저장된 Refresh Token을 통해 자동으로 재발급받아 로그인 유지를 돕습니다.
 * **API 권한 최적화:** * 사물함 현황 조회(`GET`)는 **인증 없이(Public)** 접근 가능하도록 개방했습니다.
-    * 대여/반납/구매(`POST`)는 철저한 인증을 요구합니다.
+    * 대여/반납/구매(`POST`) 및 **관리자 기능($/v4/admin$)**은 철저한 인증 및 **`ROLE_ADMIN` 인가**를 요구합니다.
 
 ### 4. 코인 지급 시스템 (Gamification)
 * **출석 연동 코인 지급:** 매일 아침 스케줄러가 **42 API**를 호출하여 전날 체류 시간(Logtime)을 조회하고, 시간에 비례하여 유저에게 **코인을 자동 지급**합니다.
@@ -138,13 +138,14 @@ docker-compose up -d
 * **로그인 (토큰 발급):** `GET /oauth2/authorization/42`
 * **토큰 재발급:** `POST /v4/auth/reissue` (Cookie: `refresh_token`)
 * **내 정보 조회:** `GET /v4/users/me` (패널티, 아이템 정보 포함)
+* **출석 체크:** `POST /v4/users/attendance`
 
 ### 📦 Cabinet (Public)
 * **사물함 현황 조회:** `GET /v4/cabinets/status-summary?floor=2` (로그인 불필요)
 
 ### 🛒 Store & Lent (Auth Required)
 * **아이템 구매:** `POST /v4/store/buy/{itemId}`
-    * `1`: 대여권, `2`: 연장권, `3`: 이사권, `4`: 감면권
+    * `1`: 대여권, `2`: 연장권, `3`: 이사권, `4`: 감면권
 * **사물함 대여:** `POST /v4/lent/cabinets/{cabinetId}`
 * **사물함 반납:** `POST /v4/lent/return`
 
@@ -152,6 +153,13 @@ docker-compose up -d
 * **연장권 사용:** `POST /v4/lent/extension`
 * **이사권 사용:** `POST /v4/lent/swap/{newCabinetId}`
 * **감면권 사용:** `POST /v4/lent/penalty-exemption`
+
+### ⚙️ Admin Actions (ROLE_ADMIN Required) [NEW]
+* **대시보드 조회:** `GET /v4/admin/dashboard`
+* **유저 상세 검색:** `GET /v4/admin/users/{name}`
+* **코인 지급:** `POST /v4/admin/users/{userId}/coin`
+* **강제 반납:** `POST /v4/admin/cabinets/{cabinetId}/force-return`
+* **사물함 상태 변경:** `PATCH /v4/admin/cabinets/{cabinetId}`
 
 <br>
 
@@ -172,7 +180,7 @@ docker-compose up -d
     ├── main
     │   ├── java/com/gyeongsan/cabinet
     │   │   ├── CabinetApplication.java  # 메인 애플리케이션
-    │   │   ├── admin/                   # 관리자 기능 (API, Service, DTO)
+    │   │   ├── admin/                   # [NEW] 관리자 기능 (API, Service, DTO)
     │   │   ├── alarm/                   # 알림 서비스 (Slack)
     │   │   │   ├── AlarmEventHandler.java # [Async] 알림 이벤트 리스너
     │   │   │   └── SlackBotService.java   # 슬랙 API 호출
