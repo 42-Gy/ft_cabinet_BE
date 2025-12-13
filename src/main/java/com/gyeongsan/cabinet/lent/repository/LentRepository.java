@@ -21,4 +21,6 @@ public interface LentRepository extends JpaRepository<LentHistory, Long> {
 
     @Query("SELECT lh FROM LentHistory lh JOIN FETCH lh.user JOIN FETCH lh.cabinet c WHERE c.id IN :cabinetIds AND lh.endedAt IS NULL")
     List<LentHistory> findAllActiveLentByCabinetIds(@Param("cabinetIds") List<Long> cabinetIds);
+
+    Optional<LentHistory> findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(Long cabinetId);
 }

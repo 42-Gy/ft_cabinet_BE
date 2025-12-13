@@ -2,6 +2,8 @@ package com.gyeongsan.cabinet.cabinet.service;
 
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
+import com.gyeongsan.cabinet.cabinet.dto.BuildingStatusDto;
+import com.gyeongsan.cabinet.cabinet.dto.CabinetDetailResponseDto;
 import com.gyeongsan.cabinet.cabinet.dto.CabinetListResponseDto;
 import com.gyeongsan.cabinet.cabinet.dto.CabinetStatusDto;
 import com.gyeongsan.cabinet.cabinet.repository.CabinetRepository;
@@ -24,17 +26,14 @@ public class CabinetService {
     private final CabinetRepository cabinetRepository;
     private final LentRepository lentRepository;
 
-    // 1. 사물함 목록 조회 (개별 정보)
     public List<CabinetListResponseDto> getCabinetList(Integer floor) {
         List<Cabinet> cabinets = cabinetRepository.findAllByFloor(floor);
         List<Long> cabinetIds = cabinets.stream().map(Cabinet::getId).collect(Collectors.toList());
 
-        // N+1 문제 방지: 모든 활성 대여 기록을 한 번에 조회
         List<LentHistory> activeLents = lentRepository.findAllActiveLentByCabinetIds(cabinetIds);
 
         return cabinets.stream()
                 .map(cabinet -> {
-                    // 현재 사물함에 해당하는 대여 기록 찾기
                     LentHistory activeLent = activeLents.stream()
                             .filter(lent -> lent.getCabinet().getId().equals(cabinet.getId()))
                             .findFirst().orElse(null);
@@ -48,8 +47,6 @@ public class CabinetService {
                         userName = activeLent.getUser().getName();
                         startedAt = activeLent.getStartedAt();
                         expiredAt = activeLent.getExpiredAt();
-
-                        // 남은 일자 계산
                         daysRemaining = expiredAt != null
                                 ? ChronoUnit.DAYS.between(LocalDateTime.now(), expiredAt)
                                 : 0;
@@ -63,8 +60,6 @@ public class CabinetService {
                             .lentType(cabinet.getLentType().name())
                             .status(cabinet.getStatus())
                             .statusNote(cabinet.getStatusNote())
-
-                            // 대여 정보
                             .lentUserName(userName)
                             .lentStartedAt(startedAt)
                             .lentExpiredAt(expiredAt)
@@ -74,11 +69,66 @@ public class CabinetService {
                 .collect(Collectors.toList());
     }
 
-    // 2. 사물함 현황 통계 조회 (섹션별 개수)
     public List<CabinetStatusDto> getStatusSummaryByFloor(Integer floor) {
         List<Cabinet> cabinets = cabinetRepository.findAllByFloor(floor);
+        return calculateStatus(cabinets);
+    }
 
-        // 섹션별로 그룹화하여 통계 계산
+    public BuildingStatusDto getBuildingStatus() {
+        List<Cabinet> allCabinets = cabinetRepository.findAll();
+
+        long total = allCabinets.size();
+
+        long available = allCabinets.stream()
+                .filter(c -> c.getStatus() == CabinetStatus.AVAILABLE)
+                .count();
+
+        long full = allCabinets.stream()
+                .filter(c -> c.getStatus() == CabinetStatus.FULL || c.getStatus() == CabinetStatus.OVERDUE)
+                .count();
+
+        long broken = allCabinets.stream()
+                .filter(c -> c.getStatus() == CabinetStatus.BROKEN || c.getStatus() == CabinetStatus.DISABLED)
+                .count();
+
+        return BuildingStatusDto.builder()
+                .totalCounts(total)
+                .totalAvailable(available)
+                .totalFull(full)
+                .totalBroken(broken)
+                .build();
+    }
+
+    public CabinetDetailResponseDto getCabinetDetail(Long cabinetId) {
+        Cabinet cabinet = cabinetRepository.findById(cabinetId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사물함입니다."));
+
+        LentHistory activeLent = lentRepository.findByCabinetIdAndEndedAtIsNull(cabinetId).orElse(null);
+        LentHistory previousLent = lentRepository.findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(cabinetId).orElse(null);
+
+        String curName = (activeLent != null) ? activeLent.getUser().getName() : null;
+        LocalDateTime curStart = (activeLent != null) ? activeLent.getStartedAt() : null;
+        LocalDateTime curEnd = (activeLent != null) ? activeLent.getExpiredAt() : null;
+
+        String prevName = (previousLent != null) ? previousLent.getUser().getName() : "-";
+        LocalDateTime prevEnd = (previousLent != null) ? previousLent.getEndedAt() : null;
+
+        return CabinetDetailResponseDto.builder()
+                .cabinetId(cabinet.getId())
+                .visibleNum(cabinet.getVisibleNum())
+                .floor(cabinet.getFloor())
+                .section(cabinet.getSection())
+                .status(cabinet.getStatus())
+                .statusNote(cabinet.getStatusNote())
+                .lentUserName(curName)
+                .lentStartedAt(curStart)
+                .lentExpiredAt(curEnd)
+                .previousUserName(prevName)
+                .previousEndedAt(prevEnd)
+                .build();
+    }
+
+    private List<CabinetStatusDto> calculateStatus(List<Cabinet> cabinets) {
         return cabinets.stream()
                 .collect(Collectors.groupingBy(Cabinet::getSection))
                 .entrySet().stream()
@@ -88,7 +138,6 @@ public class CabinetService {
 
                     long total = sectionCabinets.size();
 
-                    // 상태별 카운트
                     long available = sectionCabinets.stream()
                             .filter(c -> c.getStatus() == CabinetStatus.AVAILABLE)
                             .count();
@@ -96,7 +145,6 @@ public class CabinetService {
                             .filter(c -> c.getStatus() == CabinetStatus.FULL || c.getStatus() == CabinetStatus.OVERDUE)
                             .count();
                     long broken = sectionCabinets.stream()
-                            // 👇 [수정] CabinetStatus.DISABLED가 Enum에 추가되어 이제 인식됨
                             .filter(c -> c.getStatus() == CabinetStatus.BROKEN || c.getStatus() == CabinetStatus.DISABLED)
                             .count();
 
@@ -108,7 +156,6 @@ public class CabinetService {
                             .brokenCount(broken)
                             .build();
                 })
-                // 섹션 이름 순으로 정렬
                 .sorted((a, b) -> a.getSection().compareTo(b.getSection()))
                 .collect(Collectors.toList());
     }
