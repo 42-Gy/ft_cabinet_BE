@@ -36,7 +36,9 @@ public class JwtTokenProvider {
 
     @PostConstruct
     public void init() {
-        byte[] keyBytes = Decoders.BASE64.decode(java.util.Base64.getEncoder().encodeToString(secretKey.getBytes()));
+        byte[] keyBytes =
+                Decoders.BASE64.decode(
+                        java.util.Base64.getEncoder().encodeToString(secretKey.getBytes()));
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -93,6 +95,7 @@ public class JwtTokenProvider {
 
         UserPrincipal userPrincipal = new UserPrincipal(user, Collections.emptyMap());
 
-        return new UsernamePasswordAuthenticationToken(userPrincipal, "", userPrincipal.getAuthorities());
+        return new UsernamePasswordAuthenticationToken(
+                userPrincipal, "", userPrincipal.getAuthorities());
     }
 }
