@@ -72,4 +72,10 @@ public class Cabinet {
     public void updateStatusNote(String statusNote) {
         this.statusNote = statusNote;
     }
+
+    public void updateStatus(CabinetStatus status, LentType lentType, String statusNote) {
+        this.status = status;
+        this.lentType = lentType;
+        this.statusNote = statusNote;
+    }
 }
