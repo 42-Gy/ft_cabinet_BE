@@ -1,5 +1,7 @@
 package com.gyeongsan.cabinet.item.service;
 
+import com.gyeongsan.cabinet.global.exception.ErrorCode;
+import com.gyeongsan.cabinet.global.exception.ServiceException;
 import com.gyeongsan.cabinet.item.domain.Item;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
@@ -25,12 +27,16 @@ public class StoreService {
     @Transactional
     public void buyItem(Long userId, Long itemId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         Item item = itemRepository.findById(itemId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 아이템입니다."));
+                .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND));
 
         log.info("💰 구매 요청 - 유저: {}, 아이템: {}, 가격: {}", user.getName(), item.getName(), item.getPrice());
+
+        if (user.getCoin() < item.getPrice()) {
+            throw new ServiceException(ErrorCode.NOT_ENOUGH_COIN);
+        }
 
         user.useCoin(item.getPrice());
 

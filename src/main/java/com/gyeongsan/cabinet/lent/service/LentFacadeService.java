@@ -3,6 +3,8 @@ package com.gyeongsan.cabinet.lent.service;
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
 import com.gyeongsan.cabinet.cabinet.repository.CabinetRepository;
+import com.gyeongsan.cabinet.global.exception.ErrorCode;
+import com.gyeongsan.cabinet.global.exception.ServiceException;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.domain.ItemType;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
@@ -10,6 +12,7 @@ import com.gyeongsan.cabinet.lent.domain.LentHistory;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -28,44 +31,42 @@ public class LentFacadeService {
     private final LentRepository lentRepository;
     private final ItemHistoryRepository itemHistoryRepository;
 
+    @Value("${cabinet.policy.lent-term}")
+    private int lentTerm;
+
+    @Value("${cabinet.policy.extension-term}")
+    private long extensionTerm;
+
     @Transactional
     public void startLentCabinet(Long userId, Integer visibleNum) {
         log.info("대여 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getPenaltyDays() > 0) {
-            throw new IllegalArgumentException(
-                    "🚫 패널티 기간입니다! " + user.getPenaltyDays() + "일 뒤에 대여 가능합니다."
-            );
+            throw new ServiceException(ErrorCode.PENALTY_USER);
         }
 
         Cabinet cabinet = cabinetRepository.findByVisibleNumWithLock(visibleNum)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사물함 번호입니다: " + visibleNum));
+                .orElseThrow(() -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));
 
         if (lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent()) {
-            throw new IllegalArgumentException("이미 대여 중인 사물함이 있습니다.");
+            throw new ServiceException(ErrorCode.LENT_ALREADY_EXIST);
         }
 
         LocalDateTime blackholedAt = user.getBlackholedAt();
         if (blackholedAt != null && blackholedAt.isBefore(LocalDateTime.now().plusDays(3))) {
-            throw new IllegalArgumentException("블랙홀 예정(D-3일 이내) 유저는 대여할 수 없습니다.");
+            throw new ServiceException(ErrorCode.BLACKHOLED_USER);
         }
 
         if (cabinet.getStatus() != CabinetStatus.AVAILABLE) {
-            throw new IllegalArgumentException(
-                    "사용할 수 없는 사물함입니다. 상태: " + cabinet.getStatus()
-            );
+            throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
         }
 
-        List<ItemHistory> lentTickets =
-                itemHistoryRepository.findUnusedItems(userId, ItemType.LENT);
-
+        List<ItemHistory> lentTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.LENT);
         if (lentTickets.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "대여권(ITEM)이 부족합니다! 상점에서 구매해주세요."
-            );
+            throw new ServiceException(ErrorCode.LENT_TICKET_NOT_FOUND);
         }
 
         ItemHistory ticket = lentTickets.get(0);
@@ -74,7 +75,7 @@ public class LentFacadeService {
         cabinet.updateStatus(CabinetStatus.FULL);
 
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime expiredAt = now.plusDays(30);
+        LocalDateTime expiredAt = now.plusDays(lentTerm);
 
         LentHistory lentHistory = LentHistory.of(user, cabinet, now, expiredAt);
         lentRepository.save(lentHistory);
@@ -87,7 +88,7 @@ public class LentFacadeService {
         log.info("반납 시도 - User: {}, Password: {}", userId, password);
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
-                .orElseThrow(() -> new IllegalArgumentException("현재 대여 중인 사물함이 없습니다."));
+                .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
         Cabinet cabinet = lentHistory.getCabinet();
 
@@ -108,19 +109,17 @@ public class LentFacadeService {
         log.info("연장권 사용 시도 - User: {}", userId);
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
-                .orElseThrow(() -> new IllegalArgumentException("현재 대여 중인 사물함이 없습니다."));
+                .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
-        List<ItemHistory> extensionTickets =
-                itemHistoryRepository.findUnusedItems(userId, ItemType.EXTENSION);
-
+        List<ItemHistory> extensionTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.EXTENSION);
         if (extensionTickets.isEmpty()) {
-            throw new IllegalArgumentException("연장권(ITEM)이 없습니다! 상점에서 구매해주세요.");
+            throw new ServiceException(ErrorCode.EXTENSION_TICKET_NOT_FOUND);
         }
 
         ItemHistory ticket = extensionTickets.get(0);
         ticket.use();
 
-        lentHistory.extendExpiration(15L);
+        lentHistory.extendExpiration(extensionTerm);
 
         log.info("연장 성공! 변경된 만료일: {}", lentHistory.getExpiredAt());
     }
@@ -130,27 +129,25 @@ public class LentFacadeService {
         log.info("이사권 사용 시도 - User: {}, NewCabinet Num: {}, OldCabinet Password: {}", userId, newVisibleNum, password);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         LentHistory oldLent = lentRepository.findByUserIdAndEndedAtIsNull(userId)
-                .orElseThrow(() -> new IllegalArgumentException("현재 대여 중인 사물함이 없습니다. 이사할 수 없습니다."));
+                .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
         if (oldLent.getCabinet().getVisibleNum().equals(newVisibleNum)) {
-            throw new IllegalArgumentException("현재 사용 중인 사물함과 같은 곳으로 이사할 수 없습니다.");
+            throw new ServiceException(ErrorCode.SAME_CABINET_SWAP);
         }
 
         Cabinet newCabinet = cabinetRepository.findByVisibleNumWithLock(newVisibleNum)
-                .orElseThrow(() -> new IllegalArgumentException("이사할 사물함 번호가 존재하지 않습니다: " + newVisibleNum));
+                .orElseThrow(() -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));
 
         if (newCabinet.getStatus() != CabinetStatus.AVAILABLE) {
-            throw new IllegalArgumentException("이사할 사물함이 사용 불가능한 상태입니다.");
+            throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
         }
 
-        List<ItemHistory> swapTickets =
-                itemHistoryRepository.findUnusedItems(userId, ItemType.SWAP);
-
+        List<ItemHistory> swapTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.SWAP);
         if (swapTickets.isEmpty()) {
-            throw new IllegalArgumentException("이사권(ITEM)이 없습니다! 상점에서 구매해주세요.");
+            throw new ServiceException(ErrorCode.SWAP_TICKET_NOT_FOUND);
         }
 
         ItemHistory ticket = swapTickets.get(0);
@@ -185,17 +182,15 @@ public class LentFacadeService {
         log.info("패널티 감면권 사용 시도 - User: {}", userId);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getPenaltyDays() <= 0) {
-            throw new IllegalArgumentException("현재 적용된 패널티가 없습니다! 아이템을 아껴두세요. 😊");
+            throw new ServiceException(ErrorCode.PENALTY_NOT_FOUND);
         }
 
-        List<ItemHistory> penaltyTickets =
-                itemHistoryRepository.findUnusedItems(userId, ItemType.PENALTY_EXEMPTION);
-
+        List<ItemHistory> penaltyTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.PENALTY_EXEMPTION);
         if (penaltyTickets.isEmpty()) {
-            throw new IllegalArgumentException("패널티 감면권(ITEM)이 없습니다! 상점에서 구매해주세요.");
+            throw new ServiceException(ErrorCode.PENALTY_EXEMPTION_TICKET_NOT_FOUND);
         }
 
         ItemHistory ticket = penaltyTickets.get(0);

@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.user.scheduler;
 
 import com.gyeongsan.cabinet.alarm.dto.AlarmEvent;
+import com.gyeongsan.cabinet.lent.domain.ReturnReason;
 import com.gyeongsan.cabinet.lent.service.LentFacadeService;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
@@ -38,7 +39,7 @@ public class BlackholeScheduler {
 
         for (User user : blackholedUsers) {
             try {
-                lentFacadeService.endLentCabinet(user.getId(), "BLACKHOLE");
+                lentFacadeService.endLentCabinet(user.getId(), ReturnReason.BLACKHOLE.getValue());
 
                 String message = String.format(
                         "[블랙홀 진입] %s님, 블랙홀 진입으로 인해 사물함이 자동 반납 처리되었습니다.",

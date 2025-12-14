@@ -5,6 +5,7 @@ import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
 import com.gyeongsan.cabinet.cabinet.repository.CabinetRepository;
 import com.gyeongsan.cabinet.lent.domain.LentHistory;
+import com.gyeongsan.cabinet.lent.domain.ReturnReason;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
@@ -77,7 +78,7 @@ public class AdminService {
         LentHistory activeLent = lentRepository.findByCabinetIdAndEndedAtIsNull(cabinet.getId())
                 .orElseThrow(() -> new IllegalArgumentException("현재 대여 중인 사물함이 아닙니다."));
 
-        activeLent.endLent(LocalDateTime.now(), "ADMIN_FORCE");
+        activeLent.endLent(LocalDateTime.now(), ReturnReason.ADMIN_FORCE.getValue());
 
         activeLent.getCabinet().updateStatus(CabinetStatus.AVAILABLE);
 
