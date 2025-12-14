@@ -146,12 +146,12 @@ docker-compose up -d
 ### 🛒 Store & Lent (Auth Required)
 * **아이템 구매:** `POST /v4/store/buy/{itemId}`
     * `1`: 대여권, `2`: 연장권, `3`: 이사권, `4`: 감면권
-* **사물함 대여:** `POST /v4/lent/cabinets/{cabinetId}`
+* **사물함 대여:** `POST /v4/lent/cabinets/{visiblenum}`
 * **사물함 반납:** `POST /v4/lent/return`
 
 ### ✨ Item Actions (Ver 4.0)
 * **연장권 사용:** `POST /v4/lent/extension`
-* **이사권 사용:** `POST /v4/lent/swap/{newCabinetId}`
+* **이사권 사용:** `POST /v4/lent/swap/{visiblenum}`
 * **감면권 사용:** `POST /v4/lent/penalty-exemption`
 
 ### ⚙️ Admin Actions (ROLE_ADMIN Required) [NEW]
@@ -159,7 +159,7 @@ docker-compose up -d
 * **유저 상세 검색:** `GET /v4/admin/users/{name}`
 * **코인 지급:** `POST /v4/admin/users/{userId}/coin`
 * **강제 반납:** `POST /v4/admin/cabinets/{cabinetId}/force-return`
-* **사물함 상태 변경:** `PATCH /v4/admin/cabinets/{cabinetId}`
+* **사물함 상태 변경:** `PATCH /v4/admin/cabinets/{visiblenum}`
 
 <br>
 
