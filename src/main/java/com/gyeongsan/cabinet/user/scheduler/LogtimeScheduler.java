@@ -5,6 +5,7 @@ import com.gyeongsan.cabinet.user.repository.UserRepository;
 import com.gyeongsan.cabinet.utils.FtApiManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,7 +20,8 @@ public class LogtimeScheduler {
     private final UserRepository userRepository;
     private final FtApiManager ftApiManager;
 
-    private static final int COIN_PER_10_MIN = 1;
+    @Value("${cabinet.policy.coin-per-10-min}")
+    private int coinPer10Min;
 
     @Scheduled(cron = "0 0 6 * * *")
     public void rewardCoins() {
@@ -32,7 +34,7 @@ public class LogtimeScheduler {
                 int minutes = ftApiManager.getYesterdayLogtimeMinutes(user.getName());
 
                 if (minutes > 0) {
-                    long earnedCoin = (minutes / 10) * COIN_PER_10_MIN;
+                    long earnedCoin = (minutes / 10) * coinPer10Min;
 
                     if (earnedCoin > 0) {
                         updateUserCoin(user.getId(), earnedCoin, minutes);

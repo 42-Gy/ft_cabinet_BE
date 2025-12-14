@@ -20,6 +20,8 @@ public class LentController {
     private final LentFacadeService lentFacadeService;
     private final UserRepository userRepository;
 
+    private static final String DEFAULT_PASSWORD = "0000";
+
     @PostMapping("/cabinets/{visibleNum}")
     public MessageResponse startLentCabinet(
             @PathVariable Integer visibleNum,
@@ -47,7 +49,7 @@ public class LentController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-        String password = (request != null && request.password() != null) ? request.password() : "0000";
+        String password = (request != null && request.password() != null) ? request.password() : DEFAULT_PASSWORD;
 
         lentFacadeService.endLentCabinet(userId, password);
 
@@ -73,7 +75,7 @@ public class LentController {
     ) {
         Long userId = userPrincipal.getUserId();
 
-        String password = (request != null && request.password() != null) ? request.password() : "0000";
+        String password = (request != null && request.password() != null) ? request.password() : DEFAULT_PASSWORD;
 
         lentFacadeService.useSwap(userId, newVisibleNum, password);
 

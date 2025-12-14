@@ -1,0 +1,33 @@
+package com.gyeongsan.cabinet.global.exception;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+
+@Getter
+@RequiredArgsConstructor
+public enum ErrorCode {
+
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "유저를 찾을 수 없습니다."),
+    NOT_ENOUGH_COIN(HttpStatus.BAD_REQUEST, "USER_002", "코인이 부족합니다."),
+
+    CABINET_NOT_FOUND(HttpStatus.NOT_FOUND, "CABINET_001", "사물함을 찾을 수 없습니다."),
+    INVALID_CABINET_STATUS(HttpStatus.BAD_REQUEST, "CABINET_002", "사용할 수 없는 사물함 상태입니다."),
+
+    LENT_ALREADY_EXIST(HttpStatus.BAD_REQUEST, "LENT_001", "이미 대여 중인 사물함이 있습니다."),
+    LENT_NOT_FOUND(HttpStatus.NOT_FOUND, "LENT_002", "대여 기록이 없습니다."),
+    BLACKHOLED_USER(HttpStatus.FORBIDDEN, "LENT_003", "블랙홀 유저는 대여할 수 없습니다."),
+    PENALTY_USER(HttpStatus.FORBIDDEN, "LENT_004", "패널티 기간입니다."),
+    SAME_CABINET_SWAP(HttpStatus.BAD_REQUEST, "LENT_005", "현재 사용 중인 사물함과 같은 곳으로 이사할 수 없습니다."),
+
+    ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "ITEM_001", "아이템이 존재하지 않습니다."),
+    LENT_TICKET_NOT_FOUND(HttpStatus.BAD_REQUEST, "ITEM_002", "대여권이 부족합니다."),
+    EXTENSION_TICKET_NOT_FOUND(HttpStatus.BAD_REQUEST, "ITEM_003", "연장권이 부족합니다."),
+    SWAP_TICKET_NOT_FOUND(HttpStatus.BAD_REQUEST, "ITEM_004", "이사권이 부족합니다."),
+    PENALTY_EXEMPTION_TICKET_NOT_FOUND(HttpStatus.BAD_REQUEST, "ITEM_005", "패널티 감면권이 부족합니다."),
+    PENALTY_NOT_FOUND(HttpStatus.BAD_REQUEST, "ITEM_006", "적용된 패널티가 없습니다.");
+
+    private final HttpStatus status;
+    private final String code;
+    private final String message;
+}

@@ -48,6 +48,12 @@ spring:
             user-info-uri: https://api.intra.42.fr/v2/me
             user-name-attribute: login
 
+cabinet:
+  policy:
+    lent-term: 30
+    extension-term: 15
+    coin-per-10-min: 1
+
 springdoc:
   api-docs:
     path: /v3/api-docs
