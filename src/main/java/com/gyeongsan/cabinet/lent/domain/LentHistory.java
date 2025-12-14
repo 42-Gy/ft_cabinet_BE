@@ -31,9 +31,8 @@ public class LentHistory {
     @Column(name = "ENDED_AT")
     private LocalDateTime endedAt;
 
-    // 추후 AI 반납 기능 도입 시 주석 해제 예정
-    // @Column(name = "RETURN_PHOTO", length = 255)
-    // private String returnPhoto;
+    @Column(name = "RETURN_MEMO", length = 64)
+    private String returnMemo;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "USER_ID", nullable = false)
@@ -54,8 +53,9 @@ public class LentHistory {
         return new LentHistory(user, cabinet, startedAt, expiredAt);
     }
 
-    public void endLent(LocalDateTime now) {
+    public void endLent(LocalDateTime now, String returnMemo) {
         this.endedAt = now;
+        this.returnMemo = returnMemo;
     }
 
     public boolean isEnded() {
@@ -67,9 +67,4 @@ public class LentHistory {
             this.expiredAt = this.expiredAt.plusDays(days);
         }
     }
-
-    // 나중에 AI 반납 사진 저장용 메서드 (보류)
-    // public void updateReturnPhoto(String photoUrl) {
-    //     this.returnPhoto = photoUrl;
-    // }
 }

@@ -59,6 +59,7 @@ public class UserService {
         Integer visibleNum = null;
         String section = null;
         String lentStartedAt = null;
+        String previousPassword = null;
 
         if (activeLent != null && activeLent.getCabinet() != null) {
             Cabinet cabinet = activeLent.getCabinet();
@@ -66,6 +67,13 @@ public class UserService {
             visibleNum = cabinet.getVisibleNum();
             section = cabinet.getSection();
             lentStartedAt = activeLent.getStartedAt().toString();
+
+            LentHistory prevHistory = lentRepository.findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(cabinet.getId())
+                    .orElse(null);
+
+            if (prevHistory != null) {
+                previousPassword = prevHistory.getReturnMemo();
+            }
         }
 
         Integer penaltyDays = user.getPenaltyDays();
@@ -81,6 +89,7 @@ public class UserService {
                 .visibleNum(visibleNum)
                 .section(section)
                 .lentStartedAt(lentStartedAt)
+                .previousPassword(previousPassword)
                 .myItems(itemDtos)
                 .build();
     }

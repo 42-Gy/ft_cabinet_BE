@@ -2,16 +2,14 @@ package com.gyeongsan.cabinet.lent.controller;
 
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
 import com.gyeongsan.cabinet.common.dto.MessageResponse;
+import com.gyeongsan.cabinet.lent.dto.LentReturnRequest;
 import com.gyeongsan.cabinet.lent.service.LentFacadeService;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -41,6 +39,7 @@ public class LentController {
 
     @PostMapping("/return")
     public MessageResponse endLentCabinet(
+            @RequestBody(required = false) LentReturnRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getUserId();
@@ -48,7 +47,9 @@ public class LentController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-        lentFacadeService.endLentCabinet(userId);
+        String password = (request != null && request.password() != null) ? request.password() : "0000";
+
+        lentFacadeService.endLentCabinet(userId, password);
 
         return new MessageResponse("✅ " + user.getName() + "님, 반납 성공!");
     }
@@ -67,11 +68,14 @@ public class LentController {
     @PostMapping("/swap/{newVisibleNum}")
     public MessageResponse useSwap(
             @PathVariable Integer newVisibleNum,
+            @RequestBody(required = false) LentReturnRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getUserId();
 
-        lentFacadeService.useSwap(userId, newVisibleNum);
+        String password = (request != null && request.password() != null) ? request.password() : "0000";
+
+        lentFacadeService.useSwap(userId, newVisibleNum, password);
 
         return new MessageResponse("✅ 사물함 이사 완료! (" + newVisibleNum + "번)");
     }

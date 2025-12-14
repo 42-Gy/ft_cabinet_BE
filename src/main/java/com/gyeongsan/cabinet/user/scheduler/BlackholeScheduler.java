@@ -38,7 +38,7 @@ public class BlackholeScheduler {
 
         for (User user : blackholedUsers) {
             try {
-                lentFacadeService.endLentCabinet(user.getId());
+                lentFacadeService.endLentCabinet(user.getId(), "BLACKHOLE");
 
                 String message = String.format(
                         "[블랙홀 진입] %s님, 블랙홀 진입으로 인해 사물함이 자동 반납 처리되었습니다.",

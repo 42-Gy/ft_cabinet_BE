@@ -10,10 +10,10 @@ import com.gyeongsan.cabinet.lent.domain.LentHistory;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -83,24 +83,23 @@ public class LentFacadeService {
     }
 
     @Transactional
-    public void endLentCabinet(Long userId) {
-        log.info("반납 시도 - User: {}", userId);
+    public void endLentCabinet(Long userId, String password) {
+        log.info("반납 시도 - User: {}, Password: {}", userId, password);
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new IllegalArgumentException("현재 대여 중인 사물함이 없습니다."));
 
         Cabinet cabinet = lentHistory.getCabinet();
 
-        lentHistory.endLent(LocalDateTime.now());
+        lentHistory.endLent(LocalDateTime.now(), password);
 
         if (cabinet.getStatus() == CabinetStatus.FULL) {
             cabinet.updateStatus(CabinetStatus.AVAILABLE);
         }
 
         log.info(
-                "반납 성공! 대여 ID: {}, 사물함 번호: {}",
-                lentHistory.getId(),
-                cabinet.getVisibleNum()
+                "반납 성공! 대여 ID: {}, 사물함 번호: {}, 비밀번호: {}",
+                lentHistory.getId(), cabinet.getVisibleNum(), password
         );
     }
 
@@ -127,8 +126,8 @@ public class LentFacadeService {
     }
 
     @Transactional
-    public void useSwap(Long userId, Integer newVisibleNum) {
-        log.info("이사권 사용 시도 - User: {}, NewCabinet Num: {}", userId, newVisibleNum);
+    public void useSwap(Long userId, Integer newVisibleNum, String password) {
+        log.info("이사권 사용 시도 - User: {}, NewCabinet Num: {}, OldCabinet Password: {}", userId, newVisibleNum, password);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
@@ -158,7 +157,8 @@ public class LentFacadeService {
         ticket.use();
 
         Cabinet oldCabinet = oldLent.getCabinet();
-        oldLent.endLent(LocalDateTime.now());
+
+        oldLent.endLent(LocalDateTime.now(), password);
 
         if (oldCabinet.getStatus() == CabinetStatus.FULL) {
             oldCabinet.updateStatus(CabinetStatus.AVAILABLE);
@@ -175,9 +175,8 @@ public class LentFacadeService {
         lentRepository.save(newLent);
 
         log.info(
-                "이사 성공! 🚚 Old: {} -> New: {}",
-                oldCabinet.getVisibleNum(),
-                newCabinet.getVisibleNum()
+                "이사 성공! 🚚 Old: {} (PW:{}) -> New: {}",
+                oldCabinet.getVisibleNum(), password, newCabinet.getVisibleNum()
         );
     }
 
