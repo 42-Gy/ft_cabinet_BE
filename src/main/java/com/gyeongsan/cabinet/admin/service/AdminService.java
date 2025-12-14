@@ -2,6 +2,7 @@ package com.gyeongsan.cabinet.admin.service;
 
 import com.gyeongsan.cabinet.admin.dto.*;
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
+import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
 import com.gyeongsan.cabinet.cabinet.repository.CabinetRepository;
 import com.gyeongsan.cabinet.lent.domain.LentHistory;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
@@ -32,7 +33,7 @@ public class AdminService {
                 userRepository.count(),
                 cabinetRepository.count(),
                 lentRepository.countByEndedAtIsNull(),
-                cabinetRepository.countByStatus(com.gyeongsan.cabinet.cabinet.domain.CabinetStatus.BROKEN),
+                cabinetRepository.countByStatus(CabinetStatus.BROKEN),
                 bannedUserCount
         );
     }
@@ -61,19 +62,25 @@ public class AdminService {
         log.info("[Admin] 유저({})에게 코인 {}개 지급. 사유: {}", userId, request.amount(), request.reason());
     }
 
-    public void updateCabinetStatus(Long cabinetId, CabinetStatusRequest request) {
-        Cabinet cabinet = cabinetRepository.findById(cabinetId)
-                .orElseThrow(() -> new IllegalArgumentException("사물함이 없습니다."));
+    public void updateCabinetStatus(Integer visibleNum, CabinetStatusRequest request) {
+        Cabinet cabinet = cabinetRepository.findByVisibleNumWithLock(visibleNum)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사물함 번호입니다: " + visibleNum));
 
         cabinet.updateStatus(request.status(), request.lentType(), request.statusNote());
-        log.info("[Admin] 사물함({}) 상태 변경: {}, {}, {}", cabinetId, request.status(), request.lentType(), request.statusNote());
+        log.info("[Admin] 사물함({}) 상태 변경: {}, {}, {}", visibleNum, request.status(), request.lentType(), request.statusNote());
     }
 
-    public void forceReturn(Long cabinetId) {
-        LentHistory activeLent = lentRepository.findByCabinetIdAndEndedAtIsNull(cabinetId)
+    public void forceReturn(Integer visibleNum) {
+        Cabinet cabinet = cabinetRepository.findByVisibleNumWithLock(visibleNum)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사물함 번호입니다: " + visibleNum));
+
+        LentHistory activeLent = lentRepository.findByCabinetIdAndEndedAtIsNull(cabinet.getId())
                 .orElseThrow(() -> new IllegalArgumentException("현재 대여 중인 사물함이 아닙니다."));
 
-        activeLent.endLent(LocalDateTime.now());
-        log.info("[Admin] 사물함({}) 강제 반납 처리 완료", cabinetId);
+        activeLent.endLent(LocalDateTime.now(), "ADMIN_FORCE");
+
+        activeLent.getCabinet().updateStatus(CabinetStatus.AVAILABLE);
+
+        log.info("[Admin] 사물함({}) 강제 반납 처리 완료 (AVAILABLE 상태로 변경됨)", visibleNum);
     }
 }

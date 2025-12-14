@@ -38,18 +38,18 @@ public class AdminController {
         return ResponseEntity.ok("코인 지급 완료");
     }
 
-    @PatchMapping("/cabinets/{cabinetId}")
+    @PatchMapping("/cabinets/{visibleNum}")
     public ResponseEntity<String> updateCabinet(
-            @PathVariable Long cabinetId,
+            @PathVariable Integer visibleNum,
             @RequestBody CabinetStatusRequest request
     ) {
-        adminService.updateCabinetStatus(cabinetId, request);
+        adminService.updateCabinetStatus(visibleNum, request);
         return ResponseEntity.ok("사물함 상태 변경 완료");
     }
 
-    @PostMapping("/cabinets/{cabinetId}/force-return")
-    public ResponseEntity<String> forceReturn(@PathVariable Long cabinetId) {
-        adminService.forceReturn(cabinetId);
+    @PostMapping("/cabinets/{visibleNum}/force-return")
+    public ResponseEntity<String> forceReturn(@PathVariable Integer visibleNum) {
+        adminService.forceReturn(visibleNum);
         return ResponseEntity.ok("강제 반납 완료");
     }
 }

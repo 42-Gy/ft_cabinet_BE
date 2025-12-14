@@ -25,6 +25,8 @@ public class MyProfileResponseDto {
     private Integer visibleNum;
     private String section;
 
+    private String previousPassword;
+
     private String lentStartedAt;
 
     private List<MyItemDto> myItems;
