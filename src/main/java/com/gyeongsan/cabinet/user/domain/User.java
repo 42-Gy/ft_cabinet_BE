@@ -36,6 +36,9 @@ public class User {
     @Column(name = "PENALTY_DAYS", nullable = false)
     private Integer penaltyDays = 0;
 
+    @Column(name = "MONTHLY_LOGTIME", nullable = false)
+    private Integer monthlyLogtime = 0;
+
     @Column(name = "BLACKHOLED_AT")
     private LocalDateTime blackholedAt;
 
@@ -93,5 +96,13 @@ public class User {
 
     public void unban() {
         this.penaltyDays = 0;
+    }
+
+    public void addMonthlyLogtime(int minutes) {
+        this.monthlyLogtime += minutes;
+    }
+
+    public void resetMonthlyLogtime() {
+        this.monthlyLogtime = 0;
     }
 }

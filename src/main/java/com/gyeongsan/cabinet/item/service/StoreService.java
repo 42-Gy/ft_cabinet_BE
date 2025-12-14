@@ -4,6 +4,7 @@ import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
 import com.gyeongsan.cabinet.item.domain.Item;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
+import com.gyeongsan.cabinet.item.domain.ItemType;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
 import com.gyeongsan.cabinet.item.repository.ItemRepository;
 import com.gyeongsan.cabinet.user.domain.User;
@@ -31,6 +32,11 @@ public class StoreService {
 
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND));
+
+        if (item.getType() == ItemType.LENT) {
+            log.warn("⛔ 대여권 구매 시도 차단: User {}", user.getName());
+            throw new IllegalArgumentException("대여권은 상점에서 구매할 수 없습니다. (월 50시간 학습 보상으로만 획득 가능)");
+        }
 
         log.info("💰 구매 요청 - 유저: {}, 아이템: {}, 가격: {}", user.getName(), item.getName(), item.getPrice());
 

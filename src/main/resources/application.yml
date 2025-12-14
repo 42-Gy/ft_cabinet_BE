@@ -52,7 +52,10 @@ cabinet:
   policy:
     lent-term: 30
     extension-term: 15
-    coin-per-10-min: 1
+  items:
+    extension-price: 1000
+    swap-price: 100
+    penalty-exemption-price: 600
 
 springdoc:
   api-docs:
