@@ -52,7 +52,9 @@ public class FtApiManager {
     }
 
     public int getYesterdayLogtimeMinutes(String intraId) {
-        if (this.accessToken == null) generateToken();
+        if (this.accessToken == null) {
+            generateToken();
+        }
 
         ZoneId kstZone = ZoneId.of("Asia/Seoul");
         ZonedDateTime nowKst = ZonedDateTime.now(kstZone);

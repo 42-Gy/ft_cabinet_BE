@@ -22,7 +22,6 @@ public class LogtimeScheduler {
     private static final int COIN_PER_10_MIN = 1;
 
     @Scheduled(cron = "0 0 6 * * *")
-    @Transactional
     public void rewardCoins() {
         log.info("로그타임 코인 정산 시작");
 
@@ -36,8 +35,7 @@ public class LogtimeScheduler {
                     long earnedCoin = (minutes / 10) * COIN_PER_10_MIN;
 
                     if (earnedCoin > 0) {
-                        user.addCoin(earnedCoin);
-                        log.info("{}: {}분 공부 -> {} 코인 지급 완료", user.getName(), minutes, earnedCoin);
+                        updateUserCoin(user.getId(), earnedCoin, minutes);
                     }
                 }
 
@@ -49,5 +47,13 @@ public class LogtimeScheduler {
         }
 
         log.info("코인 정산 종료");
+    }
+
+    @Transactional
+    public void updateUserCoin(Long userId, Long earnedCoin, int minutes) {
+        userRepository.findById(userId).ifPresent(user -> {
+            user.addCoin(earnedCoin);
+            log.info("{}: {}분 공부 -> {} 코인 지급 완료", user.getName(), minutes, earnedCoin);
+        });
     }
 }
