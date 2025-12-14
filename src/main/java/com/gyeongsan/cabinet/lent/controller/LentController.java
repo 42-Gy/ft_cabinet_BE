@@ -22,9 +22,9 @@ public class LentController {
     private final LentFacadeService lentFacadeService;
     private final UserRepository userRepository;
 
-    @PostMapping("/cabinets/{cabinetId}")
+    @PostMapping("/cabinets/{visibleNum}")
     public MessageResponse startLentCabinet(
-            @PathVariable Long cabinetId,
+            @PathVariable Integer visibleNum,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getUserId();
@@ -32,10 +32,10 @@ public class LentController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-        lentFacadeService.startLentCabinet(userId, cabinetId);
+        lentFacadeService.startLentCabinet(userId, visibleNum);
 
         return new MessageResponse(
-                "✅ " + user.getName() + "님, " + cabinetId + "번 사물함 대여 성공!"
+                "✅ " + user.getName() + "님, " + visibleNum + "번 사물함 대여 성공!"
         );
     }
 
@@ -64,16 +64,16 @@ public class LentController {
         return new MessageResponse("✅ 대여 기간이 15일 연장되었습니다! 🎉");
     }
 
-    @PostMapping("/swap/{newCabinetId}")
+    @PostMapping("/swap/{newVisibleNum}")
     public MessageResponse useSwap(
-            @PathVariable Long newCabinetId,
+            @PathVariable Integer newVisibleNum,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getUserId();
 
-        lentFacadeService.useSwap(userId, newCabinetId);
+        lentFacadeService.useSwap(userId, newVisibleNum);
 
-        return new MessageResponse("✅ 사물함 이사 완료! (" + newCabinetId + "번)");
+        return new MessageResponse("✅ 사물함 이사 완료! (" + newVisibleNum + "번)");
     }
 
     @PostMapping("/penalty-exemption")

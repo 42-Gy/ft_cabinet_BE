@@ -17,6 +17,10 @@ public interface CabinetRepository extends JpaRepository<Cabinet, Long> {
     @Query("SELECT c FROM Cabinet c WHERE c.id = :id")
     Optional<Cabinet> findByIdWithLock(@Param("id") Long id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Cabinet c WHERE c.visibleNum = :visibleNum")
+    Optional<Cabinet> findByVisibleNumWithLock(@Param("visibleNum") Integer visibleNum);
+
     List<Cabinet> findAllByFloor(Integer floor);
 
     long countByStatus(CabinetStatus status);
