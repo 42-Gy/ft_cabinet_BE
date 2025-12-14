@@ -1,5 +1,10 @@
 package com.gyeongsan.cabinet.auth.service;
 
+import com.gyeongsan.cabinet.item.domain.Item;
+import com.gyeongsan.cabinet.item.domain.ItemHistory;
+import com.gyeongsan.cabinet.item.domain.ItemType;
+import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
+import com.gyeongsan.cabinet.item.repository.ItemRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.domain.UserRole;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
@@ -27,6 +32,8 @@ import java.util.Map;
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
+    private final ItemRepository itemRepository;
+    private final ItemHistoryRepository itemHistoryRepository;
 
     @Override
     @Transactional
@@ -83,15 +90,31 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private void saveOrUpdateUser(String intraId, String email, LocalDateTime blackholedAt) {
-        User user = userRepository.findByName(intraId)
-                .orElseGet(() -> {
-                    log.info("🎉 신규 유저 발견! 회원가입: {}", intraId);
-                    return User.of(intraId, email, UserRole.USER);
-                });
+        User user = userRepository.findByName(intraId).orElse(null);
+
+        if (user == null) {
+            log.info("🎉 신규 유저 발견! 회원가입: {}", intraId);
+            user = User.of(intraId, email, UserRole.USER);
+            user = userRepository.save(user);
+            giveWelcomeGift(user);
+        }
 
         user.updateBlackholedAt(blackholedAt);
-
         userRepository.save(user);
-        log.info("✅ 유저 정보 업데이트 완료: {} (블랙홀: {})", intraId, blackholedAt);
+
+        log.info("✅ 유저 로그인 처리 완료: {} (블랙홀: {})", intraId, blackholedAt);
+    }
+
+    private void giveWelcomeGift(User user) {
+        Item lentItem = itemRepository.findByType(ItemType.LENT)
+                .orElse(null);
+
+        if (lentItem != null) {
+            ItemHistory ticket = new ItemHistory(LocalDateTime.now(), null, user, lentItem);
+            itemHistoryRepository.save(ticket);
+            log.info("🎁 [Welcome] 신규 유저 {}님께 웰컴 선물(대여권) 지급 완료!", user.getName());
+        } else {
+            log.warn("⚠️ [Welcome] 지급 실패: DB에 대여권(LENT) 아이템이 없습니다.");
+        }
     }
 }

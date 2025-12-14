@@ -11,7 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Item {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "ID")
     private Long id;
 
@@ -33,5 +34,9 @@ public class Item {
         this.type = type;
         this.price = price;
         this.description = description;
+    }
+
+    public void updatePrice(Long price) {
+        this.price = price;
     }
 }
