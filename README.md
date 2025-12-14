@@ -1,4 +1,4 @@
-# 🗄️ 42Cabi Gyeongsan Ver 4.0 (Backend)
+# 🗄️ 42Cabi Gyeongsan Ver 4.5 (Backend)
 
 > **42 경산 캠퍼스 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성과 공정한 사물함 이용을 위해 개발된 REST API 서버입니다.
@@ -15,6 +15,7 @@
 | **Ver 3.0** | **아키텍처 확장** | **Spring Security + JWT** 도입 (Stateless 전환), 필터 기반 보안 구축 |
 | **Ver 3.5** | **보안 & 리워드** | **Refresh Token** 도입, **출석 기반 코인 지급 스케줄러** 구현, 예외 처리 강화 |
 | **Ver 4.0** | **게임화 & 상점** | **제곱 패널티($D^2$)**, **아이템 상점(연장/이사/감면)** 구현, API 권한 최적화 |
+| **Ver 4.5** | **안정성 & UX** | **커스텀 예외(`ErrorCode`)** 도입, **설정 파일 정책 관리**, **사물함 번호(`visibleNum`)** 사용 |
 
 <br>
 
@@ -37,10 +38,10 @@
 ### 1. 상점 및 아이템 시스템 (Shop & Item) - Ver 4.0 [NEW] ⭐
 * **아이템 상점:** 사용자는 출석 보상으로 얻은 코인을 사용하여 유용한 아이템을 구매할 수 있습니다.
 * **다양한 아이템 구현:**
-    * **대여권:** 사물함을 30일간 대여할 수 있는 권한.
-    * **연장권:** 현재 대여 중인 사물함의 만료일을 **15일 연장**합니다.
-    * **이사권:** 남은 대여 기간을 유지한 채 **다른 사물함으로 이동**합니다.
-    * **감면권:** 누적된 패널티 기간을 **2일 차감**합니다.
+    * **대여권:** 사물함을 30일간 대여할 수 있는 권한.
+    * **연장권:** 현재 대여 중인 사물함의 만료일을 **15일 연장**합니다.
+    * **이사권:** 남은 대여 기간을 유지한 채 **다른 사물함으로 이동**합니다.
+    * **감면권:** 누적된 패널티 기간을 **2일 차감**합니다.
 
 ### 2. 고도화된 패널티 시스템 (Penalty Logic) - Ver 4.0 [NEW] ⭐
 * **제곱 패널티 ($D^2$):** 공정한 사물함 회전을 위해, 연체 시 연체일의 제곱만큼 패널티가 부과됩니다. (예: 3일 연체 시 9일간 대여 불가)
@@ -49,8 +50,9 @@
 ### 3. 보안 및 인증 (Security & Auth)
 * **Stateless 인증:** 기존 세션(Cookie) 방식을 제거하고 **JWT(JSON Web Token)** 기반 인증 시스템을 구축하여 서버 확장성을 확보했습니다.
 * **Refresh Token 시스템:** Access Token 만료 시, **Redis**에 저장된 Refresh Token을 통해 자동으로 재발급받아 로그인 유지를 돕습니다.
-* **API 권한 최적화:** * 사물함 현황 조회(`GET`)는 **인증 없이(Public)** 접근 가능하도록 개방했습니다.
-    * 대여/반납/구매(`POST`) 및 **관리자 기능($/v4/admin$)**은 철저한 인증 및 **`ROLE_ADMIN` 인가**를 요구합니다.
+* **API 권한 최적화:**
+    * 사물함 현황 조회(`GET`)는 **인증 없이(Public)** 접근 가능하도록 개방했습니다.
+    * 대여/반납/구매(`POST`) 및 **관리자 기능($/v4/admin$)**은 철저한 인증 및 **`ROLE_ADMIN` 인가**를 요구합니다.
 
 ### 4. 코인 지급 시스템 (Gamification)
 * **출석 연동 코인 지급:** 매일 아침 스케줄러가 **42 API**를 호출하여 전날 체류 시간(Logtime)을 조회하고, 시간에 비례하여 유저에게 **코인을 자동 지급**합니다.
@@ -74,7 +76,7 @@
 
 ### 1. 프로젝트 클론
 ```bash
-git clone [https://github.com/farmer0010/42_cabinet_backend_mvpmodel.git](https://github.com/farmer0010/42_cabinet_backend_mvpmodel.git)
+git clone https://github.com/farmer0010/42_cabinet_backend_mvpmodel.git
 cd 42_cabinet_backend_mvpmodel
 ```
 
@@ -145,21 +147,21 @@ docker-compose up -d
 
 ### 🛒 Store & Lent (Auth Required)
 * **아이템 구매:** `POST /v4/store/buy/{itemId}`
-    * `1`: 대여권, `2`: 연장권, `3`: 이사권, `4`: 감면권
-* **사물함 대여:** `POST /v4/lent/cabinets/{cabinetId}`
-* **사물함 반납:** `POST /v4/lent/return`
+    * `1`: 대여권, `2`: 연장권, `3`: 이사권, `4`: 감면권
+* **사물함 대여:** `POST /v4/lent/cabinets/{visibleNum}`
+* **사물함 반납:** `POST /v4/lent/return` (Body: `{ "password": "..." }`)
 
 ### ✨ Item Actions (Ver 4.0)
 * **연장권 사용:** `POST /v4/lent/extension`
-* **이사권 사용:** `POST /v4/lent/swap/{newCabinetId}`
+* **이사권 사용:** `POST /v4/lent/swap/{visibleNum}` (Body: `{ "password": "..." }`)
 * **감면권 사용:** `POST /v4/lent/penalty-exemption`
 
 ### ⚙️ Admin Actions (ROLE_ADMIN Required) [NEW]
 * **대시보드 조회:** `GET /v4/admin/dashboard`
 * **유저 상세 검색:** `GET /v4/admin/users/{name}`
 * **코인 지급:** `POST /v4/admin/users/{userId}/coin`
-* **강제 반납:** `POST /v4/admin/cabinets/{cabinetId}/force-return`
-* **사물함 상태 변경:** `PATCH /v4/admin/cabinets/{cabinetId}`
+* **강제 반납:** `POST /v4/admin/cabinets/{visibleNum}/force-return`
+* **사물함 상태 변경:** `PATCH /v4/admin/cabinets/{visibleNum}`
 
 <br>
 
@@ -168,40 +170,40 @@ docker-compose up -d
 ```text
 .
 ├── .github/workflows/
-│   └── gradle.yml       # Github Actions CI 설정 (빌드 자동화)
-├── .env                 # [Secret] Docker 환경 변수 (DB 접속 정보 등)
-├── .gitignore           # Git 제외 파일 설정
-├── build.gradle         # Gradle 의존성 및 플러그인 설정
-├── docker-compose.yaml  # Docker 컨테이너 설정 (MariaDB, Redis)
-├── gradlew              # Gradle Wrapper 실행 스크립트
-├── gradlew.bat          # Gradle Wrapper 실행 스크립트 (Windows)
-├── settings.gradle      # 프로젝트 설정
+│   └── gradle.yml        # Github Actions CI 설정 (빌드 자동화)
+├── .env                  # [Secret] Docker 환경 변수 (DB 접속 정보 등)
+├── .gitignore            # Git 제외 파일 설정
+├── build.gradle          # Gradle 의존성 및 플러그인 설정
+├── docker-compose.yaml   # Docker 컨테이너 설정 (MariaDB, Redis)
+├── gradlew               # Gradle Wrapper 실행 스크립트
+├── gradlew.bat           # Gradle Wrapper 실행 스크립트 (Windows)
+├── settings.gradle       # 프로젝트 설정
 └── src
-    ├── main
-    │   ├── java/com/gyeongsan/cabinet
-    │   │   ├── CabinetApplication.java  # 메인 애플리케이션
-    │   │   ├── admin/                   # [NEW] 관리자 기능 (API, Service, DTO)
-    │   │   ├── alarm/                   # 알림 서비스 (Slack)
-    │   │   │   ├── AlarmEventHandler.java # [Async] 알림 이벤트 리스너
-    │   │   │   └── SlackBotService.java   # 슬랙 API 호출
-    │   │   ├── auth/                    # 인증/인가 (JWT & Security)
-    │   │   │   ├── config/              # Security Config (필터, 핸들러 설정)
-    │   │   │   ├── jwt/                 # JWT Provider & Filter
-    │   │   │   └── oauth/               # OAuth Success Handler
-    │   │   ├── cabinet/                 # 사물함 도메인 (Entity, Lock)
-    │   │   ├── common/                  # 공통 모듈 (DTO)
-    │   │   ├── config/                  # 전역 설정 (Redis, WebConfig)
-    │   │   ├── global/                  # 전역 예외 및 로깅
-    │   │   ├── item/                    # [Ver 4.0] 아이템/상점 도메인
-    │   │   ├── lent/                    # 대여/반납 핵심 로직 (Facade)
-    │   │   ├── user/                    # 사용자 도메인 (패널티, 스케줄러)
-    │   │   │   └── scheduler/           # LogtimeScheduler (코인 지급)
-    │   │   └── utils/                   # 유틸리티 (FtApiManager)
-    │   └── resources
-    │       ├── application.yml          # 스프링 부트 설정
-    │       ├── logback-spring.xml       # 로깅 설정
-    │       ├── secret.properties        # [Secret] 비밀 설정
-    │       └── static/                  # 정적 리소스 (테스트용)
-    └── test
-        └── java/com/gyeongsan/cabinet   # 테스트 코드
+    ├── main
+    │   ├── java/com/gyeongsan/cabinet
+    │   │   ├── CabinetApplication.java  # 메인 애플리케이션
+    │   │   ├── admin/                   # [NEW] 관리자 기능 (API, Service, DTO)
+    │   │   ├── alarm/                   # 알림 서비스 (Slack)
+    │   │   │   ├── AlarmEventHandler.java # [Async] 알림 이벤트 리스너
+    │   │   │   └── SlackBotService.java   # 슬랙 API 호출
+    │   │   ├── auth/                    # 인증/인가 (JWT & Security)
+    │   │   │   ├── config/              # Security Config (필터, 핸들러 설정)
+    │   │   │   ├── jwt/                 # JWT Provider & Filter
+    │   │   │   └── oauth/               # OAuth Success Handler
+    │   │   ├── cabinet/                 # 사물함 도메인 (Entity, Lock)
+    │   │   ├── common/                  # 공통 모듈 (DTO)
+    │   │   ├── config/                  # 전역 설정 (Redis, WebConfig)
+    │   │   ├── global/                  # 전역 예외 및 로깅
+    │   │   ├── item/                    # [Ver 4.0] 아이템/상점 도메인
+    │   │   ├── lent/                    # 대여/반납 핵심 로직 (Facade)
+    │   │   ├── user/                    # 사용자 도메인 (패널티, 스케줄러)
+    │   │   │   └── scheduler/           # LogtimeScheduler (코인 지급)
+    │   │   └── utils/                   # 유틸리티 (FtApiManager)
+    │   └── resources
+    │       ├── application.yml          # 스프링 부트 설정
+    │       ├── logback-spring.xml       # 로깅 설정
+    │       ├── secret.properties        # [Secret] 비밀 설정
+    │       └── static/                  # 정적 리소스 (테스트용)
+    └── test
+        └── java/com/gyeongsan/cabinet   # 테스트 코드
 ```
