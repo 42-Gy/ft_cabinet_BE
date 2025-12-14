@@ -10,10 +10,10 @@ import com.gyeongsan.cabinet.lent.domain.LentHistory;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,8 +29,8 @@ public class LentFacadeService {
     private final ItemHistoryRepository itemHistoryRepository;
 
     @Transactional
-    public void startLentCabinet(Long userId, Long cabinetId) {
-        log.info("대여 시도 - User: {}, Cabinet: {}", userId, cabinetId);
+    public void startLentCabinet(Long userId, Integer visibleNum) {
+        log.info("대여 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
@@ -41,8 +41,8 @@ public class LentFacadeService {
             );
         }
 
-        Cabinet cabinet = cabinetRepository.findByIdWithLock(cabinetId)
-                .orElseThrow(() -> new IllegalArgumentException("사물함이 없습니다."));
+        Cabinet cabinet = cabinetRepository.findByVisibleNumWithLock(visibleNum)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사물함 번호입니다: " + visibleNum));
 
         if (lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent()) {
             throw new IllegalArgumentException("이미 대여 중인 사물함이 있습니다.");
@@ -98,9 +98,9 @@ public class LentFacadeService {
         }
 
         log.info(
-                "반납 성공! 대여 ID: {}, 사물함 ID: {}",
+                "반납 성공! 대여 ID: {}, 사물함 번호: {}",
                 lentHistory.getId(),
-                cabinet.getId()
+                cabinet.getVisibleNum()
         );
     }
 
@@ -127,8 +127,8 @@ public class LentFacadeService {
     }
 
     @Transactional
-    public void useSwap(Long userId, Long newCabinetId) {
-        log.info("이사권 사용 시도 - User: {}, NewCabinet: {}", userId, newCabinetId);
+    public void useSwap(Long userId, Integer newVisibleNum) {
+        log.info("이사권 사용 시도 - User: {}, NewCabinet Num: {}", userId, newVisibleNum);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
@@ -136,12 +136,12 @@ public class LentFacadeService {
         LentHistory oldLent = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new IllegalArgumentException("현재 대여 중인 사물함이 없습니다. 이사할 수 없습니다."));
 
-        if (oldLent.getCabinet().getId().equals(newCabinetId)) {
+        if (oldLent.getCabinet().getVisibleNum().equals(newVisibleNum)) {
             throw new IllegalArgumentException("현재 사용 중인 사물함과 같은 곳으로 이사할 수 없습니다.");
         }
 
-        Cabinet newCabinet = cabinetRepository.findByIdWithLock(newCabinetId)
-                .orElseThrow(() -> new IllegalArgumentException("이사할 사물함이 존재하지 않습니다."));
+        Cabinet newCabinet = cabinetRepository.findByVisibleNumWithLock(newVisibleNum)
+                .orElseThrow(() -> new IllegalArgumentException("이사할 사물함 번호가 존재하지 않습니다: " + newVisibleNum));
 
         if (newCabinet.getStatus() != CabinetStatus.AVAILABLE) {
             throw new IllegalArgumentException("이사할 사물함이 사용 불가능한 상태입니다.");
@@ -175,14 +175,12 @@ public class LentFacadeService {
         lentRepository.save(newLent);
 
         log.info(
-                "이사 성공! 🚚 Old: {} -> New: {}, 만료일: {}",
-                oldCabinet.getId(),
-                newCabinet.getId(),
-                newLent.getExpiredAt()
+                "이사 성공! 🚚 Old: {} -> New: {}",
+                oldCabinet.getVisibleNum(),
+                newCabinet.getVisibleNum()
         );
     }
 
-    // 👇 [추가] 패널티 감면권 사용 로직 (패널티 -2일)
     @Transactional
     public void usePenaltyExemption(Long userId) {
         log.info("패널티 감면권 사용 시도 - User: {}", userId);
