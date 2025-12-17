@@ -105,4 +105,12 @@ public class User {
     public void resetMonthlyLogtime() {
         this.monthlyLogtime = 0;
     }
+
+    public void updateMonthlyLogtime(Integer monthlyLogtime) {
+        if (monthlyLogtime == null || monthlyLogtime < 0) {
+            this.monthlyLogtime = 0;
+        } else {
+            this.monthlyLogtime = monthlyLogtime;
+        }
+    }
 }
