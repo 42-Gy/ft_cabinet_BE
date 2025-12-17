@@ -85,7 +85,7 @@ public class LentFacadeService {
 
     @Transactional
     public void endLentCabinet(Long userId, String password) {
-        log.info("반납 시도 - User: {}, Password(Memo): {}", userId, password);
+        log.info("반납 시도 - User: {}, Memo: {}", userId, password);
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
