@@ -20,6 +20,7 @@ public class MyProfileResponseDto {
     private Long coin;
 
     private Integer penaltyDays;
+    private Integer monthlyLogtime;
 
     private Long lentCabinetId;
     private Integer visibleNum;
@@ -28,6 +29,8 @@ public class MyProfileResponseDto {
     private String previousPassword;
 
     private String lentStartedAt;
+
+    private LocalDateTime expiredAt;
 
     private List<MyItemDto> myItems;
 

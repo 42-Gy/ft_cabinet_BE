@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>42Cabi - Backend Test</title>
+    <title>42Cabi - Backend Test (Ver 5.0)</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; text-align: center; background-color: #f0f2f5; }
         button { padding: 10px 15px; font-size: 14px; cursor: pointer; margin: 5px; border-radius: 5px; border: none; transition: 0.2s; }
@@ -21,12 +21,12 @@
         .btn-item { background-color: #9c27b0; color: white; }
         .btn-admin { background-color: #d32f2f; color: white; }
 
-        input { padding: 8px; border-radius: 5px; border: 1px solid #ccc; width: 60px; text-align: center; }
+        input { padding: 8px; border-radius: 5px; border: 1px solid #ccc; width: 120px; text-align: center; }
     </style>
 </head>
 <body>
 
-<h1>🔐 42Cabi 통합 테스트 (Ver 4.0)</h1>
+<h1>🔐 42Cabi 통합 테스트 (Ver 5.0)</h1>
 
 <div class="box">
     <h3>1. 인증 & 조회</h3>
@@ -37,26 +37,34 @@
     </a>
     <button onclick="reissueToken()" class="btn-refresh">🔄 토큰 재발급</button>
     <hr>
-    <button onclick="requestApi('GET', '/v4/users/me')" class="btn-info">👤 내 정보 (패널티 확인)</button>
+    <button onclick="requestApi('GET', '/v4/users/me')" class="btn-info">👤 내 정보 (반납일/메모 확인)</button>
     <button onclick="requestApi('GET', '/v4/cabinets/status-summary?floor=2')" class="btn-info">📊 2층 현황 조회</button>
 </div>
 
 <div class="box">
-    <h3>2. 🏪 아이템 상점 (구매)</h3>
-    <p style="font-size:12px; color:gray;">(ID 1: 대여권 / 2: 연장권 / 3: 이사권 / 4: 감면권)</p>
-    <button onclick="requestApi('POST', '/v4/store/buy/1')" class="btn-item">🎟️ 대여권 (100)</button>
-    <button onclick="requestApi('POST', '/v4/store/buy/2')" class="btn-item">⏳ 연장권 (80)</button>
-    <button onclick="requestApi('POST', '/v4/store/buy/3')" class="btn-item">🚚 이사권 (60)</button>
-    <button onclick="requestApi('POST', '/v4/store/buy/4')" class="btn-item">🛡️ 감면권 (40)</button>
+    <h3>2. 🏪 아이템 상점</h3>
+    <p style="font-size:12px; color:gray;">(대여권은 월간 보상으로 자동 지급됨)</p>
+    <button onclick="requestApi('POST', '/v4/store/buy/2')" class="btn-item">⏳ 연장권 (80 coin)</button>
+    <button onclick="requestApi('POST', '/v4/store/buy/3')" class="btn-item">🚚 이사권 (60 coin)</button>
+    <button onclick="requestApi('POST', '/v4/store/buy/4')" class="btn-item">🛡️ 감면권 (40 coin)</button>
 </div>
 
 <div class="box">
-    <h3>3. 🔑 대여 및 아이템 사용</h3>
+    <h3>3. 🔑 대여 및 반납 (메모 저장)</h3>
     <div>
         <label>사물함 ID: <input type="number" id="cabinetId" value="2001"></label>
         <button onclick="lentCabinet()" class="btn-lent">📥 대여하기</button>
-        <button onclick="requestApi('POST', '/v4/lent/return')" class="btn-lent">📤 반납하기</button>
     </div>
+
+    <div style="margin-top: 15px; background-color: #fff3e0; padding: 15px; border-radius: 8px;">
+        <p style="margin: 0 0 10px 0; font-size: 13px; color: #ef6c00;">
+            <b>🔒 반납 시 메모 남기기</b><br>
+            다음 사용자가 사용할 자물쇠 비밀번호를 입력해주세요.
+        </p>
+        <label>비밀번호: <input type="text" id="returnMemo" placeholder="예: 0000"></label>
+        <button onclick="returnCabinet()" class="btn-lent" style="background-color: #d32f2f;">📤 반납하기</button>
+    </div>
+
     <hr>
     <div>
         <button onclick="requestApi('POST', '/v4/lent/extension')" class="btn-item">⏳ 연장권 사용 (+15일)</button>
@@ -69,8 +77,17 @@
 </div>
 
 <div class="box">
-    <h3>4. 👮‍♂️ 관리자 테스트</h3>
-    <button onclick="requestApi('POST', '/admin/test/coins')" class="btn-admin">💰 전 유저 코인 지급</button>
+    <h3>4. 👮‍♂️ 관리자 기능 (Name 기반)</h3>
+    <div>
+        <label>User Name: <input type="text" id="adminUserName" placeholder="예: juyoukim"></label>
+        <button onclick="adminProvideCoin()" class="btn-admin">💰 코인 500 지급</button>
+        <button onclick="adminUpdateLogtime()" class="btn-admin">🕒 로그타임 수정 (3000분)</button>
+        <button onclick="adminSyncAllLogtime()" class="btn-admin" style="background-color: #00796b;">🔄 전체 로그타임 동기화</button>
+    </div>
+    <div style="margin-top: 10px;">
+        <label>Cab Num: <input type="number" id="forceCabinetNum" placeholder="사물함번호"></label>
+        <button onclick="adminForceReturn()" class="btn-admin">🚨 강제 반납 (BROKEN)</button>
+    </div>
 </div>
 
 <div class="box">
@@ -81,11 +98,9 @@
 <script>
     let jwtToken = null;
 
-    // 1. 페이지 로드 시 URL에서 토큰 찾기
     window.onload = function() {
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
-
         if (token) {
             setToken(token);
             window.history.replaceState({}, document.title, "/");
@@ -96,23 +111,67 @@
         jwtToken = token;
         document.getElementById('token-display').innerHTML =
             `✅ <b>인증됨!</b> <span style="font-size:12px;">(Access Token)</span>`;
-        // 토큰 값은 너무 길어서 콘솔에만 출력하거나 필요시 주석 해제
-        // console.log(token);
     }
 
-    // 2. 동적 ID 처리 함수들
+    // 2. 일반 기능 함수들
     function lentCabinet() {
         const id = document.getElementById('cabinetId').value;
         requestApi('POST', '/v4/lent/cabinets/' + id);
     }
 
+    // ✅ [수정됨] 반납 함수: 비밀번호(메모)를 같이 전송
+    function returnCabinet() {
+        const memo = document.getElementById('returnMemo').value;
+        if (!memo) {
+            if(!confirm("비밀번호(메모) 없이 반납하시겠습니까? (다음 사용자가 곤란할 수 있습니다)")) return;
+        }
+
+        // DTO의 필드명 shareCode에 맞춰서 전송
+        requestApi('POST', '/v4/lent/return', {
+            shareCode: memo
+        });
+    }
+
     function swapCabinet() {
         const id = document.getElementById('newCabinetId').value;
+        // 이사갈 때도 기존 사물함 비번을 남기고 싶다면 로직 추가 가능 (현재는 그냥 호출)
         requestApi('POST', '/v4/lent/swap/' + id);
     }
 
-    // 3. API 요청 통합 함수
-    function requestApi(method, url) {
+    // 3. 관리자 기능 함수들
+    function adminProvideCoin() {
+        const name = document.getElementById('adminUserName').value;
+        if (!name) return alert("유저 이름을 입력하세요");
+
+        requestApi('POST', `/v4/admin/users/${name}/coin`, {
+            amount: 500,
+            reason: "테스트 지급"
+        });
+    }
+
+    function adminUpdateLogtime() {
+        const name = document.getElementById('adminUserName').value;
+        if (!name) return alert("유저 이름을 입력하세요");
+
+        requestApi('PATCH', `/v4/admin/users/${name}/logtime`, {
+            monthlyLogtime: 3000
+        });
+    }
+
+    function adminSyncAllLogtime() {
+        if(!confirm("모든 유저의 1일~어제 로그타임을 42API에서 긁어옵니다. 오래 걸릴 수 있습니다.")) return;
+        requestApi('POST', '/v4/admin/logtime/sync-all');
+    }
+
+    function adminForceReturn() {
+        const visibleNum = document.getElementById('forceCabinetNum').value;
+        if (!visibleNum) return alert("사물함 번호를 입력하세요");
+
+        requestApi('POST', `/v4/admin/cabinets/${visibleNum}/force-return`);
+    }
+
+    // 4. API 요청 통합 함수
+    function requestApi(method, url, body = null) {
         if (!jwtToken) {
             alert("먼저 로그인을 해주세요!");
             return;
@@ -122,15 +181,21 @@
         resultBox.innerText = "⏳ 요청 중...";
         resultBox.className = "";
 
-        fetch(url, {
+        const options = {
             method: method,
             headers: {
-                'Authorization': 'Bearer ' + jwtToken
+                'Authorization': 'Bearer ' + jwtToken,
+                'Content-Type': 'application/json'
             }
-        })
+        };
+
+        if (body) {
+            options.body = JSON.stringify(body);
+        }
+
+        fetch(url, options)
             .then(async response => {
                 const text = await response.text();
-
                 if (!response.ok) {
                     resultBox.className = "error";
                     try {
@@ -141,8 +206,6 @@
                     }
                     return;
                 }
-
-                // 성공 처리
                 try {
                     const json = JSON.parse(text);
                     resultBox.innerText = JSON.stringify(json, null, 2);
@@ -156,7 +219,6 @@
             });
     }
 
-    // 4. 토큰 재발급
     function reissueToken() {
         fetch('/v4/auth/reissue', { method: 'POST' })
             .then(response => response.json())

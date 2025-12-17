@@ -58,6 +58,14 @@ public class LentHistory {
         this.returnMemo = returnMemo;
     }
 
+    public void endLent(LocalDateTime now) {
+        this.endedAt = now;
+    }
+
+    public void setReturnMemo(String returnMemo) {
+        this.returnMemo = returnMemo;
+    }
+
     public boolean isEnded() {
         return this.endedAt != null;
     }

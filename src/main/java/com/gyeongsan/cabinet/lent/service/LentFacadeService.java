@@ -85,7 +85,7 @@ public class LentFacadeService {
 
     @Transactional
     public void endLentCabinet(Long userId, String password) {
-        log.info("반납 시도 - User: {}, Password: {}", userId, password);
+        log.info("반납 시도 - User: {}, Password(Memo): {}", userId, password);
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
@@ -99,7 +99,7 @@ public class LentFacadeService {
         }
 
         log.info(
-                "반납 성공! 대여 ID: {}, 사물함 번호: {}, 비밀번호: {}",
+                "반납 성공! 대여 ID: {}, 사물함 번호: {}, 다음 공유 비번: {}",
                 lentHistory.getId(), cabinet.getVisibleNum(), password
         );
     }
@@ -172,7 +172,7 @@ public class LentFacadeService {
         lentRepository.save(newLent);
 
         log.info(
-                "이사 성공! 🚚 Old: {} (PW:{}) -> New: {}",
+                "이사 성공! 🚚 Old: {} (Saved PW:{}) -> New: {}",
                 oldCabinet.getVisibleNum(), password, newCabinet.getVisibleNum()
         );
     }

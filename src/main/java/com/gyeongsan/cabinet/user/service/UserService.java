@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.user.service;
 
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
+import com.gyeongsan.cabinet.item.domain.Item;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
 import com.gyeongsan.cabinet.lent.domain.LentHistory;
@@ -11,10 +12,13 @@ import com.gyeongsan.cabinet.user.dto.MyProfileResponseDto;
 import com.gyeongsan.cabinet.user.repository.AttendanceRepository;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -22,12 +26,15 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Log4j2
 public class UserService {
 
     private final UserRepository userRepository;
     private final LentRepository lentRepository;
     private final ItemHistoryRepository itemHistoryRepository;
     private final AttendanceRepository attendanceRepository;
+
+    private static final int MONTHLY_TARGET_MINUTES = 3000;
 
     public MyProfileResponseDto getMyProfile(Long userId) {
         User user = userRepository.findById(userId)
@@ -59,6 +66,7 @@ public class UserService {
         Integer visibleNum = null;
         String section = null;
         String lentStartedAt = null;
+        LocalDateTime expiredAt = null;
         String previousPassword = null;
 
         if (activeLent != null && activeLent.getCabinet() != null) {
@@ -66,9 +74,12 @@ public class UserService {
             cabinetId = cabinet.getId();
             visibleNum = cabinet.getVisibleNum();
             section = cabinet.getSection();
-            lentStartedAt = activeLent.getStartedAt().toString();
 
-            LentHistory prevHistory = lentRepository.findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(cabinet.getId())
+            lentStartedAt = activeLent.getStartedAt().toString();
+            expiredAt = activeLent.getExpiredAt();
+
+            LentHistory prevHistory = lentRepository
+                    .findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(cabinet.getId())
                     .orElse(null);
 
             if (prevHistory != null) {
@@ -85,10 +96,12 @@ public class UserService {
                 .email(user.getEmail())
                 .coin(user.getCoin())
                 .penaltyDays(penaltyDays)
+                .monthlyLogtime(user.getMonthlyLogtime())
                 .lentCabinetId(cabinetId)
                 .visibleNum(visibleNum)
                 .section(section)
                 .lentStartedAt(lentStartedAt)
+                .expiredAt(expiredAt)
                 .previousPassword(previousPassword)
                 .myItems(itemDtos)
                 .build();
@@ -115,5 +128,26 @@ public class UserService {
         return attendanceRepository.findAllByUserId(userId).stream()
                 .map(Attendance::getAttendanceDate)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void processLogtimeTransaction(Long userId, Item lentTicketItem, int totalMinutes, boolean isPayDay) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+
+        if (totalMinutes >= 0) {
+            user.updateMonthlyLogtime(totalMinutes);
+            log.info("User {}: 이번 달 누적 시간 업데이트 -> {}분", user.getName(), totalMinutes);
+        }
+
+        if (isPayDay) {
+            if (lentTicketItem != null && user.getMonthlyLogtime() >= MONTHLY_TARGET_MINUTES) {
+                ItemHistory reward =
+                        new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
+                itemHistoryRepository.save(reward);
+                log.info("🎉 [Reward] {}님 지난달 50시간 달성! 대여권 지급 완료.", user.getName());
+            }
+            user.resetMonthlyLogtime();
+        }
     }
 }
