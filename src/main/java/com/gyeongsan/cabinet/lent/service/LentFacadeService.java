@@ -22,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -40,6 +41,8 @@ public class LentFacadeService {
     private final CabinetRepository cabinetRepository;
     private final LentRepository lentRepository;
     private final ItemHistoryRepository itemHistoryRepository;
+    private final TransactionTemplate transactionTemplate;
+    private final RestTemplate restTemplate;
 
     @Value("${cabinet.policy.lent-term}")
     private int lentTerm;
@@ -78,6 +81,7 @@ public class LentFacadeService {
         }
 
         List<ItemHistory> lentTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.LENT);
+
         if (lentTickets.isEmpty()) {
             throw new ServiceException(ErrorCode.LENT_TICKET_NOT_FOUND);
         }
@@ -96,12 +100,18 @@ public class LentFacadeService {
         log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
     }
 
-    @Transactional
     public void endLentCabinetWithAi(Long userId, String shareCode, MultipartFile cabinetImage) {
         log.info("AI 반납 시도 - User: {}, Memo: {}", userId, shareCode);
 
         checkCabinetStatusViaAi(cabinetImage);
 
+        transactionTemplate.execute(status -> {
+            processReturnTransaction(userId, shareCode);
+            return null;
+        });
+    }
+
+    protected void processReturnTransaction(Long userId, String shareCode) {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
@@ -112,17 +122,12 @@ public class LentFacadeService {
             cabinet.updateStatus(CabinetStatus.AVAILABLE);
         }
 
-        log.info(
-                "반납 성공! 대여 ID: {}, 사물함: {}, 공유 비번: {}",
-                lentHistory.getId(),
-                cabinet.getVisibleNum(),
-                shareCode
-        );
+        log.info("반납 성공! 대여 ID: {}, 사물함: {}, 공유 비번: {}",
+                lentHistory.getId(), cabinet.getVisibleNum(), shareCode);
     }
 
     private void checkCabinetStatusViaAi(MultipartFile image) {
         try {
-            RestTemplate restTemplate = new RestTemplate();
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
@@ -136,11 +141,9 @@ public class LentFacadeService {
             MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("file", fileResource);
 
-            HttpEntity<MultiValueMap<String, Object>> requestEntity =
-                    new HttpEntity<>(body, headers);
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
 
-            ResponseEntity<Map> response =
-                    restTemplate.postForEntity(aiServerUrl, requestEntity, Map.class);
+            ResponseEntity<Map> response = restTemplate.postForEntity(aiServerUrl, requestEntity, Map.class);
 
             Map<String, Object> result = response.getBody();
             if (result == null) {
@@ -169,8 +172,7 @@ public class LentFacadeService {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
-        List<ItemHistory> extensionTickets =
-                itemHistoryRepository.findUnusedItems(userId, ItemType.EXTENSION);
+        List<ItemHistory> extensionTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.EXTENSION);
 
         if (extensionTickets.isEmpty()) {
             throw new ServiceException(ErrorCode.EXTENSION_TICKET_NOT_FOUND);
@@ -186,12 +188,7 @@ public class LentFacadeService {
 
     @Transactional
     public void useSwap(Long userId, Integer newVisibleNum, String password) {
-        log.info(
-                "이사권 사용 시도 - User: {}, NewCabinet Num: {}, OldCabinet Password: {}",
-                userId,
-                newVisibleNum,
-                password
-        );
+        log.info("이사권 사용 시도 - User: {}, NewCabinet Num: {}, OldCabinet Password: {}", userId, newVisibleNum, password);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
@@ -210,8 +207,7 @@ public class LentFacadeService {
             throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
         }
 
-        List<ItemHistory> swapTickets =
-                itemHistoryRepository.findUnusedItems(userId, ItemType.SWAP);
+        List<ItemHistory> swapTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.SWAP);
 
         if (swapTickets.isEmpty()) {
             throw new ServiceException(ErrorCode.SWAP_TICKET_NOT_FOUND);
@@ -230,19 +226,10 @@ public class LentFacadeService {
 
         newCabinet.updateStatus(CabinetStatus.FULL);
 
-        LentHistory newLent = LentHistory.of(
-                user,
-                newCabinet,
-                LocalDateTime.now(),
-                oldLent.getExpiredAt()
-        );
+        LentHistory newLent = LentHistory.of(user, newCabinet, LocalDateTime.now(), oldLent.getExpiredAt());
         lentRepository.save(newLent);
 
-        log.info(
-                "이사 성공! 🚚 Old: {} -> New: {}",
-                oldCabinet.getVisibleNum(),
-                newCabinet.getVisibleNum()
-        );
+        log.info("이사 성공! 🚚 Old: {} -> New: {}", oldCabinet.getVisibleNum(), newCabinet.getVisibleNum());
     }
 
     @Transactional
@@ -256,8 +243,7 @@ public class LentFacadeService {
             throw new ServiceException(ErrorCode.PENALTY_NOT_FOUND);
         }
 
-        List<ItemHistory> penaltyTickets =
-                itemHistoryRepository.findUnusedItems(userId, ItemType.PENALTY_EXEMPTION);
+        List<ItemHistory> penaltyTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.PENALTY_EXEMPTION);
 
         if (penaltyTickets.isEmpty()) {
             throw new ServiceException(ErrorCode.PENALTY_EXEMPTION_TICKET_NOT_FOUND);
@@ -269,10 +255,6 @@ public class LentFacadeService {
         int newPenalty = user.getPenaltyDays() - 2;
         user.updatePenaltyDays(newPenalty);
 
-        log.info(
-                "감면 성공! 패널티: {}일 -> {}일",
-                newPenalty + 2,
-                user.getPenaltyDays()
-        );
+        log.info("감면 성공! 패널티: {}일 -> {}일", newPenalty + 2, user.getPenaltyDays());
     }
 }
