@@ -68,8 +68,8 @@ cabinet:
     extension-term: 15
   items:
     extension-price: 1000
-    swap-price: 100
-    penalty-exemption-price: 600
+    swap-price: 1000
+    penalty-exemption-price: 100
 
 springdoc:
   api-docs:
