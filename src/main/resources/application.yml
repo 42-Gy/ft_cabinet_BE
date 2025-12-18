@@ -89,3 +89,7 @@ slack:
 ai:
   server:
     url: https://cameron-hereditary-suppositively.ngrok-free.dev/predict
+
+app:
+  cors:
+    allowed-origins: "http://localhost:5173,http://localhost:3000"
