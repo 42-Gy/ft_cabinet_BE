@@ -8,7 +8,6 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,7 +21,6 @@ public class BlackholeScheduler {
     private final ApplicationEventPublisher eventPublisher;
 
     @Scheduled(cron = "0 0 6 * * *")
-    @Transactional
     public void processBlackholedUsers() {
         log.info("블랙홀 대상 유저 체크 시작");
         LocalDateTime now = LocalDateTime.now();

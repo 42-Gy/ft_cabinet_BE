@@ -23,3 +23,6 @@ services:
       - "6379:6379"
     environment:
       TZ: ${TZ}
+    command: redis-server --appendonly yes
+    volumes:
+      - ./redis_data:/data

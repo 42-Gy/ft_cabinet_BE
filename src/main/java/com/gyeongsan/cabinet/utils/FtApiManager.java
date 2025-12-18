@@ -33,7 +33,7 @@ public class FtApiManager {
 
     private final RestTemplate restTemplate;
 
-    private String accessToken;
+    private volatile String accessToken;
 
     private synchronized void generateToken() {
         String url = "https://api.intra.42.fr/oauth/token";
