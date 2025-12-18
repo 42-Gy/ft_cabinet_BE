@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,6 +60,7 @@ public class FtApiManager {
         }
     }
 
+    @RateLimiter(name = "ftApi")
     public int getYesterdayLogtimeMinutes(String intraId) {
         synchronized (this) {
             if (this.accessToken == null) {
@@ -84,6 +86,7 @@ public class FtApiManager {
         return callApiWithRetry(url, intraId);
     }
 
+    @RateLimiter(name = "ftApi")
     public int getLogtimeBetween(String intraId, LocalDateTime start, LocalDateTime end) {
         synchronized (this) {
             if (this.accessToken == null) {

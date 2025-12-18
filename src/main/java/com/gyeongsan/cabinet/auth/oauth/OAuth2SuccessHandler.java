@@ -67,7 +67,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         log.info("🎫 Access Token 발급 완료: {}", accessToken);
 
-        String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:5173")
+        String targetUrl = UriComponentsBuilder.fromUriString("https://d1cgxw6sqqa9fo.cloudfront.net")
                 .queryParam("token", accessToken)
                 .build()
                 .toUriString();
