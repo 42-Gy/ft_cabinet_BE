@@ -186,10 +186,18 @@ public class LentFacadeService {
         log.info("연장 성공! 변경된 만료일: {}", lentHistory.getExpiredAt());
     }
 
-    @Transactional
-    public void useSwap(Long userId, Integer newVisibleNum, String password) {
-        log.info("이사권 사용 시도 - User: {}, NewCabinet Num: {}, OldCabinet Password: {}", userId, newVisibleNum, password);
+    public void useSwap(Long userId, Integer newVisibleNum, String password, MultipartFile file) {
+        log.info("이사 시도 (AI 검사 포함) - User: {}, NewCabinet: {}", userId, newVisibleNum);
 
+        checkCabinetStatusViaAi(file);
+
+        transactionTemplate.execute(status -> {
+            processSwapTransaction(userId, newVisibleNum, password);
+            return null;
+        });
+    }
+
+    protected void processSwapTransaction(Long userId, Integer newVisibleNum, String password) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
