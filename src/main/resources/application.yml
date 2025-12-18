@@ -12,6 +12,11 @@ spring:
   application:
     name: 42cabi-gyeongsan
 
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 20MB
+
   data:
     redis:
       host: localhost
@@ -70,7 +75,6 @@ springdoc:
   api-docs:
     path: /v3/api-docs
     enabled: true
-
   swagger-ui:
     enabled: true
     path: /swagger-ui.html

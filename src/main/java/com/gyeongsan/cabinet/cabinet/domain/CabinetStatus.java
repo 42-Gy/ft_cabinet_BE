@@ -5,5 +5,6 @@ public enum CabinetStatus {
     FULL,
     OVERDUE,
     BROKEN,
-    DISABLED
+    DISABLED,
+    PENDING
 }
