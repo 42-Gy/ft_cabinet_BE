@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
@@ -41,19 +42,27 @@ public class LentController {
 
     @PostMapping("/return")
     public MessageResponse endLentCabinet(
-            @RequestBody(required = false) LentReturnRequest request,
+            @RequestPart(value = "shareCode", required = false) String shareCode,
+            @RequestPart(value = "file", required = false) MultipartFile file,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getUserId();
-
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-        String password = (request != null && request.password() != null) ? request.password() : DEFAULT_PASSWORD;
+        String password = (shareCode != null && !shareCode.isEmpty())
+                ? shareCode
+                : DEFAULT_PASSWORD;
 
-        lentFacadeService.endLentCabinet(userId, password);
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("사물함 내부 사진을 첨부해주세요!");
+        }
 
-        return new MessageResponse("✅ " + user.getName() + "님, 반납 성공!");
+        lentFacadeService.endLentCabinetWithAi(userId, password, file);
+
+        return new MessageResponse(
+                "✅ " + user.getName() + "님, 반납 성공! (AI 청결도 검사 통과 🧹)"
+        );
     }
 
     @PostMapping("/extension")
@@ -75,7 +84,9 @@ public class LentController {
     ) {
         Long userId = userPrincipal.getUserId();
 
-        String password = (request != null && request.password() != null) ? request.password() : DEFAULT_PASSWORD;
+        String password = (request != null && request.password() != null)
+                ? request.password()
+                : DEFAULT_PASSWORD;
 
         lentFacadeService.useSwap(userId, newVisibleNum, password);
 
