@@ -12,14 +12,24 @@ import com.gyeongsan.cabinet.lent.domain.LentHistory;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +46,9 @@ public class LentFacadeService {
 
     @Value("${cabinet.policy.extension-term}")
     private long extensionTerm;
+
+    @Value("${ai.server.url}")
+    private String aiServerUrl;
 
     @Transactional
     public void startLentCabinet(Long userId, Integer visibleNum) {
@@ -84,24 +97,69 @@ public class LentFacadeService {
     }
 
     @Transactional
-    public void endLentCabinet(Long userId, String password) {
-        log.info("반납 시도 - User: {}, Memo: {}", userId, password);
+    public void endLentCabinetWithAi(Long userId, String shareCode, MultipartFile cabinetImage) {
+        log.info("AI 반납 시도 - User: {}, Memo: {}", userId, shareCode);
+
+        checkCabinetStatusViaAi(cabinetImage);
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
         Cabinet cabinet = lentHistory.getCabinet();
-
-        lentHistory.endLent(LocalDateTime.now(), password);
+        lentHistory.endLent(LocalDateTime.now(), shareCode);
 
         if (cabinet.getStatus() == CabinetStatus.FULL) {
             cabinet.updateStatus(CabinetStatus.AVAILABLE);
         }
 
         log.info(
-                "반납 성공! 대여 ID: {}, 사물함 번호: {}, 다음 공유 비번: {}",
-                lentHistory.getId(), cabinet.getVisibleNum(), password
+                "반납 성공! 대여 ID: {}, 사물함: {}, 공유 비번: {}",
+                lentHistory.getId(),
+                cabinet.getVisibleNum(),
+                shareCode
         );
+    }
+
+    private void checkCabinetStatusViaAi(MultipartFile image) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            ByteArrayResource fileResource = new ByteArrayResource(image.getBytes()) {
+                @Override
+                public String getFilename() {
+                    return image.getOriginalFilename();
+                }
+            };
+
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+            body.add("file", fileResource);
+
+            HttpEntity<MultiValueMap<String, Object>> requestEntity =
+                    new HttpEntity<>(body, headers);
+
+            ResponseEntity<Map> response =
+                    restTemplate.postForEntity(aiServerUrl, requestEntity, Map.class);
+
+            Map<String, Object> result = response.getBody();
+            if (result == null) {
+                throw new RuntimeException("AI 응답이 비어있습니다.");
+            }
+
+            String status = (String) result.get("status");
+            log.info("🤖 AI 판독 결과: {}", status);
+
+            if ("OCCUPIED".equals(status)) {
+                throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+            }
+
+        } catch (ServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("AI 서버 통신 오류: {}", e.getMessage());
+            throw new ServiceException(ErrorCode.AI_SERVER_ERROR);
+        }
     }
 
     @Transactional
@@ -111,7 +169,9 @@ public class LentFacadeService {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
-        List<ItemHistory> extensionTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.EXTENSION);
+        List<ItemHistory> extensionTickets =
+                itemHistoryRepository.findUnusedItems(userId, ItemType.EXTENSION);
+
         if (extensionTickets.isEmpty()) {
             throw new ServiceException(ErrorCode.EXTENSION_TICKET_NOT_FOUND);
         }
@@ -126,7 +186,12 @@ public class LentFacadeService {
 
     @Transactional
     public void useSwap(Long userId, Integer newVisibleNum, String password) {
-        log.info("이사권 사용 시도 - User: {}, NewCabinet Num: {}, OldCabinet Password: {}", userId, newVisibleNum, password);
+        log.info(
+                "이사권 사용 시도 - User: {}, NewCabinet Num: {}, OldCabinet Password: {}",
+                userId,
+                newVisibleNum,
+                password
+        );
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
@@ -145,7 +210,9 @@ public class LentFacadeService {
             throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
         }
 
-        List<ItemHistory> swapTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.SWAP);
+        List<ItemHistory> swapTickets =
+                itemHistoryRepository.findUnusedItems(userId, ItemType.SWAP);
+
         if (swapTickets.isEmpty()) {
             throw new ServiceException(ErrorCode.SWAP_TICKET_NOT_FOUND);
         }
@@ -172,8 +239,9 @@ public class LentFacadeService {
         lentRepository.save(newLent);
 
         log.info(
-                "이사 성공! 🚚 Old: {} (Saved PW:{}) -> New: {}",
-                oldCabinet.getVisibleNum(), password, newCabinet.getVisibleNum()
+                "이사 성공! 🚚 Old: {} -> New: {}",
+                oldCabinet.getVisibleNum(),
+                newCabinet.getVisibleNum()
         );
     }
 
@@ -188,7 +256,9 @@ public class LentFacadeService {
             throw new ServiceException(ErrorCode.PENALTY_NOT_FOUND);
         }
 
-        List<ItemHistory> penaltyTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.PENALTY_EXEMPTION);
+        List<ItemHistory> penaltyTickets =
+                itemHistoryRepository.findUnusedItems(userId, ItemType.PENALTY_EXEMPTION);
+
         if (penaltyTickets.isEmpty()) {
             throw new ServiceException(ErrorCode.PENALTY_EXEMPTION_TICKET_NOT_FOUND);
         }
@@ -199,6 +269,10 @@ public class LentFacadeService {
         int newPenalty = user.getPenaltyDays() - 2;
         user.updatePenaltyDays(newPenalty);
 
-        log.info("감면 성공! 패널티: {}일 -> {}일", newPenalty + 2, user.getPenaltyDays());
+        log.info(
+                "감면 성공! 패널티: {}일 -> {}일",
+                newPenalty + 2,
+                user.getPenaltyDays()
+        );
     }
 }
