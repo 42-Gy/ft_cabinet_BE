@@ -31,20 +31,24 @@ public class FtApiManager {
     @Value("${spring.security.oauth2.client.registration.42.client-secret}")
     private String clientSecret;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+
     private String accessToken;
 
-    private void generateToken() {
+    private synchronized void generateToken() {
         String url = "https://api.intra.42.fr/oauth/token";
+
         HttpHeaders headers = new HttpHeaders();
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("grant_type", "client_credentials");
         body.add("client_id", clientId);
         body.add("client_secret", clientSecret);
+
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
         try {
             ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
+
             if (response.getBody() != null) {
                 this.accessToken = response.getBody().get("access_token").asText();
                 log.info("✅ 42 API 토큰 발급/갱신 성공");
@@ -56,8 +60,10 @@ public class FtApiManager {
     }
 
     public int getYesterdayLogtimeMinutes(String intraId) {
-        if (this.accessToken == null) {
-            generateToken();
+        synchronized (this) {
+            if (this.accessToken == null) {
+                generateToken();
+            }
         }
 
         ZoneId kstZone = ZoneId.of("Asia/Seoul");
@@ -79,14 +85,18 @@ public class FtApiManager {
     }
 
     public int getLogtimeBetween(String intraId, LocalDateTime start, LocalDateTime end) {
-        if (this.accessToken == null) {
-            generateToken();
+        synchronized (this) {
+            if (this.accessToken == null) {
+                generateToken();
+            }
         }
 
         ZoneId zone = ZoneId.of("Asia/Seoul");
+
         String rangeStart = start.atZone(zone)
                 .withZoneSameInstant(ZoneId.of("UTC"))
                 .format(DateTimeFormatter.ISO_INSTANT);
+
         String rangeEnd = end.atZone(zone)
                 .withZoneSameInstant(ZoneId.of("UTC"))
                 .format(DateTimeFormatter.ISO_INSTANT);
@@ -120,20 +130,20 @@ public class FtApiManager {
     private int requestLogtime(String url) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer " + this.accessToken);
+
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
-        ResponseEntity<JsonNode> response =
-                restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
-        JsonNode locations = response.getBody();
+        ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
 
+        JsonNode locations = response.getBody();
         long totalSeconds = 0;
+
         if (locations != null) {
             for (JsonNode loc : locations) {
                 String beginStr = loc.get("begin_at").asText();
                 JsonNode endNode = loc.get("end_at");
-                String endStr = (endNode == null || endNode.isNull())
-                        ? null
-                        : endNode.asText();
+
+                String endStr = (endNode == null || endNode.isNull()) ? null : endNode.asText();
 
                 if (endStr == null) continue;
 
@@ -143,6 +153,7 @@ public class FtApiManager {
                 totalSeconds += Duration.between(begin, end).getSeconds();
             }
         }
+
         return (int) (totalSeconds / 60);
     }
 }
