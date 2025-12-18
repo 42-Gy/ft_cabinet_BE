@@ -12,9 +12,11 @@ public record AdminUserDetailResponse(
         Integer penaltyDays,
         LocalDateTime blackholedAt,
         LocalDateTime unbannedAt,
-        UserRole role
+        UserRole role,
+        Integer currentCabinetNum,
+        Integer monthlyLogtime
 ) {
-    public static AdminUserDetailResponse from(User user) {
+    public static AdminUserDetailResponse of(User user, Integer currentCabinetNum) {
         LocalDateTime unbannedAtVal = (user.getPenaltyDays() != null && user.getPenaltyDays() > 0)
                 ? LocalDateTime.now().plusDays(user.getPenaltyDays())
                 : null;
@@ -27,7 +29,9 @@ public record AdminUserDetailResponse(
                 user.getPenaltyDays(),
                 user.getBlackholedAt(),
                 unbannedAtVal,
-                user.getRole()
+                user.getRole(),
+                currentCabinetNum,
+                user.getMonthlyLogtime()
         );
     }
 }

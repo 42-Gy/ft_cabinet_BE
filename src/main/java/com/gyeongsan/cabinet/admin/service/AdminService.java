@@ -43,7 +43,11 @@ public class AdminService {
         User user = userRepository.findByName(name)
                 .orElseThrow(() -> new IllegalArgumentException("해당 유저를 찾을 수 없습니다: " + name));
 
-        return AdminUserDetailResponse.from(user);
+        Integer currentCabinetNum = lentRepository.findByUserIdAndEndedAtIsNull(user.getId())
+                .map(lent -> lent.getCabinet().getVisibleNum())
+                .orElse(null);
+
+        return AdminUserDetailResponse.of(user, currentCabinetNum);
     }
 
     public void updateUserLogtime(String username, Integer newLogtime) {

@@ -15,22 +15,12 @@ import com.gyeongsan.cabinet.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -42,16 +32,12 @@ public class LentFacadeService {
     private final LentRepository lentRepository;
     private final ItemHistoryRepository itemHistoryRepository;
     private final TransactionTemplate transactionTemplate;
-    private final RestTemplate restTemplate;
 
     @Value("${cabinet.policy.lent-term}")
     private int lentTerm;
 
     @Value("${cabinet.policy.extension-term}")
     private long extensionTerm;
-
-    @Value("${ai.server.url}")
-    private String aiServerUrl;
 
     @Transactional
     public void startLentCabinet(Long userId, Integer visibleNum) {
@@ -100,10 +86,8 @@ public class LentFacadeService {
         log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
     }
 
-    public void endLentCabinetWithAi(Long userId, String shareCode, MultipartFile cabinetImage) {
-        log.info("AI 반납 시도 - User: {}, Memo: {}", userId, shareCode);
-
-        checkCabinetStatusViaAi(cabinetImage);
+    public void endLentCabinet(Long userId, String shareCode) {
+        log.info("반납 시도 - User: {}, Memo: {}", userId, shareCode);
 
         transactionTemplate.execute(status -> {
             processReturnTransaction(userId, shareCode);
@@ -124,45 +108,6 @@ public class LentFacadeService {
 
         log.info("반납 성공! 대여 ID: {}, 사물함: {}, 공유 비번: {}",
                 lentHistory.getId(), cabinet.getVisibleNum(), shareCode);
-    }
-
-    private void checkCabinetStatusViaAi(MultipartFile image) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-            ByteArrayResource fileResource = new ByteArrayResource(image.getBytes()) {
-                @Override
-                public String getFilename() {
-                    return image.getOriginalFilename();
-                }
-            };
-
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("file", fileResource);
-
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-
-            ResponseEntity<Map> response = restTemplate.postForEntity(aiServerUrl, requestEntity, Map.class);
-
-            Map<String, Object> result = response.getBody();
-            if (result == null) {
-                throw new RuntimeException("AI 응답이 비어있습니다.");
-            }
-
-            String status = (String) result.get("status");
-            log.info("🤖 AI 판독 결과: {}", status);
-
-            if ("OCCUPIED".equals(status)) {
-                throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
-            }
-
-        } catch (ServiceException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("AI 서버 통신 오류: {}", e.getMessage());
-            throw new ServiceException(ErrorCode.AI_SERVER_ERROR);
-        }
     }
 
     @Transactional
@@ -186,10 +131,8 @@ public class LentFacadeService {
         log.info("연장 성공! 변경된 만료일: {}", lentHistory.getExpiredAt());
     }
 
-    public void useSwap(Long userId, Integer newVisibleNum, String password, MultipartFile file) {
-        log.info("이사 시도 (AI 검사 포함) - User: {}, NewCabinet: {}", userId, newVisibleNum);
-
-        checkCabinetStatusViaAi(file);
+    public void useSwap(Long userId, Integer newVisibleNum, String password) {
+        log.info("이사 시도 - User: {}, NewCabinet: {}", userId, newVisibleNum);
 
         transactionTemplate.execute(status -> {
             processSwapTransaction(userId, newVisibleNum, password);
@@ -260,15 +203,15 @@ public class LentFacadeService {
         ItemHistory ticket = penaltyTickets.get(0);
         ticket.use();
 
-        int newPenalty = user.getPenaltyDays() - 2;
+        int newPenalty = user.getPenaltyDays() - 1;
         user.updatePenaltyDays(newPenalty);
 
-        log.info("감면 성공! 패널티: {}일 -> {}일", newPenalty + 2, user.getPenaltyDays());
+        log.info("감면 성공! 패널티: {}일 -> {}일", newPenalty + 1, user.getPenaltyDays());
     }
 
     @Transactional
     public void processBlackholeReturn(Long userId) {
-        log.info("🪐 블랙홀 유저 반납(보류) 처리 시작 - User: {}", userId);
+        log.info("🪐 블랙홀 유저 반납 처리 시작 - User: {}", userId);
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElse(null);
@@ -285,6 +228,6 @@ public class LentFacadeService {
             cabinet.updateStatus(CabinetStatus.PENDING);
         }
 
-        log.info("✅ 처리 완료: 사물함 {}번 상태 -> PENDING", cabinet.getVisibleNum());
+        log.info("처리 완료: 사물함 {}번 상태 -> PENDING", cabinet.getVisibleNum());
     }
 }
