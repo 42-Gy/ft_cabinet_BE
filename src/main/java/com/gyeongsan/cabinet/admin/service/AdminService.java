@@ -82,11 +82,11 @@ public class AdminService {
         }
 
         cabinet.updateStatus(
-                CabinetStatus.BROKEN,
+                CabinetStatus.PENDING,
                 cabinet.getLentType(),
                 "강제 반납: 물품 수거 및 청소 필요"
         );
 
-        log.info("[Admin] 사물함({}) 강제 반납 완료 -> 상태: BROKEN", visibleNum);
+        log.info("[Admin] 사물함({}) 강제 반납 완료 -> 상태: PENDING", visibleNum);
     }
 }

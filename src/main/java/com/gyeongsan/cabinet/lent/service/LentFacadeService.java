@@ -265,4 +265,26 @@ public class LentFacadeService {
 
         log.info("감면 성공! 패널티: {}일 -> {}일", newPenalty + 2, user.getPenaltyDays());
     }
+
+    @Transactional
+    public void processBlackholeReturn(Long userId) {
+        log.info("🪐 블랙홀 유저 반납(보류) 처리 시작 - User: {}", userId);
+
+        LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
+                .orElse(null);
+
+        if (lentHistory == null) {
+            return;
+        }
+
+        Cabinet cabinet = lentHistory.getCabinet();
+
+        lentHistory.endLent(LocalDateTime.now(), "블랙홀(퇴소) 반납 보류");
+
+        if (cabinet.getStatus() == CabinetStatus.FULL) {
+            cabinet.updateStatus(CabinetStatus.PENDING);
+        }
+
+        log.info("✅ 처리 완료: 사물함 {}번 상태 -> PENDING", cabinet.getVisibleNum());
+    }
 }
