@@ -1,7 +1,7 @@
-# 🗄️ 42Cabi Gyeongsan Ver 4.5+ (AI Edition)
+# 🗄️ 42Cabi Gyeongsan Ver 4.6 (Safe Mode Edition)
 
 > **42 경산 캠퍼스 사물함 대여/반납 서비스**<br>
-> 사용자의 편의성, 공정한 이용, 그리고 **AI 기술을 활용한 쾌적한 환경 조성**을 위해 개발된 REST API 서버입니다.
+> 사용자의 편의성, 공정한 이용, 그리고 **안전한 운영**을 위해 개발된 REST API 서버입니다.
 
 <br>
 
@@ -14,7 +14,7 @@
 | **Ver 3.0** | **아키텍처 확장** | **Spring Security + JWT** 도입 (Stateless 전환), 필터 기반 보안 구축 |
 | **Ver 4.0** | **게임화 & 상점** | **제곱 패널티($D^2$)**, **아이템 상점** 구현, API 권한 최적화 |
 | **Ver 4.5** | **운영 고도화** | 관리자 리팩토링(Intra ID), 반납 메모(Share Code) 기능 |
-| **Ver 4.5+** | **AI & 성능 최적화** | **이사/반납 시 AI 검사 강제**, **비동기 알림(@Async)**, **DB 풀 튜닝(HikariCP)**, **API 속도 제한(RateLimiter)** |
+| **Ver 4.6** | **AI 보류 & 정책 변경** | **AI 청결도 검사 임시 중단 (Safe Mode)**, **패널티 감면 정책 완화(-1일)**, **블랙홀 유저 반납 보류(PENDING)** |
 
 <br>
 
@@ -23,32 +23,35 @@
 | 분류 | 기술 |
 | :--- | :--- |
 | **Backend** | Java 17, **Spring Boot 3.5.8**, Spring Security, JPA |
-| **AI Server** | **Python 3.10+**, **FastAPI**, Scikit-learn, OpenCV (HOG) |
 | **Database** | MariaDB 10.6, **Redis** (Token/Cache) |
 | **Stability** | **Resilience4j** (CircuitBreaker, RateLimiter), **HikariCP** (Connection Pool) |
 | **Infra** | Docker, Docker Compose, AWS EC2 |
-| **Tools** | Gradle, Slack Webhook, **Spring Actuator** |
+| **Tools** | Gradle, Slack Webhook, **Spring Actuator**, Swagger UI |
+| **AI (Temporarily Disabled)** | Python, FastAPI, OpenCV (현재 모델 정확도 이슈로 기능 비활성화) |
 
 <br>
 
 ## 🚀 Key Features (핵심 기능)
 
-### 1. AI 기반 반납/이사 청결도 검사 (AI Cleanliness Check) - Ver 4.5+ [UPDATED] ⭐
-* **사진 인증 필수:** 사물함 **반납** 및 **이사(Swap)** 시 **내부 사진**을 반드시 첨부해야 합니다.
-* **실시간 AI 분석:** 업로드된 사진은 **FastAPI AI 서버**로 전송되어, 사물함이 비어있는지(`EMPTY`) 짐이 남아있는지(`OCCUPIED`) 판별합니다.
-* **반납 거부:** 짐이 감지되면 즉시 요청이 거부되며, "물품을 수거해주세요"라는 안내가 전달됩니다.
-* **목적:** 쓰레기가 방치된 사물함을 다음 사용자에게 넘기는(일명 폭탄 돌리기) 문제를 원천 차단합니다.
+### 1. [보류] AI 기반 반납/이사 청결도 검사
+> **⚠️ 현재 상태: 비활성화 (Disabled)**<br>
+> AI 모델의 청결도 판독 정확도 개선을 위해 해당 기능은 **임시 중단**되었습니다.<br>
+> 추후 모델 학습 데이터 확보 및 고도화 후 재가동될 예정입니다.
 
-### 2. 고성능/안정성 아키텍처 (Performance & Stability) - Ver 4.5+ [NEW]
+### 2. 스마트 반납 로직 (Smart Return) - Ver 4.6 [UPDATED]
+* **반납 메모(Share Code):** 다음 사용자를 위해 **4자리 비밀번호**를 필수로 입력받습니다.
+* **간편 반납:** 사진 촬영 절차 없이, 비밀번호 입력만으로 즉시 반납 및 이사가 가능합니다.
+
+### 3. 블랙홀 유저 정책 변경 (Return Hold Policy) - Ver 4.6 [UPDATED]
+* **변경:** 블랙홀(퇴소) 진입 시 사물함이 즉시 '사용 가능'으로 풀리지 않고, **'반납 보류(PENDING)'** 상태로 전환됩니다.
+* **목적:** 퇴소자가 짐을 두고 가는 문제를 방지하며, 관리자가 직접 확인 후 상태를 변경할 수 있도록 안전장치를 마련했습니다.
+
+### 4. 패널티 감면 정책 완화
+* **변경:** '패널티 감면권' 아이템 사용 시 차감되는 일수가 **기존 2일에서 1일로 조정**되었습니다.
+
+### 5. 고성능/안정성 아키텍처 (Performance & Stability)
 * **비동기 처리:** 슬랙 알림 등 부가 작업은 **`@Async`** 스레드로 분리하여 메인 로직의 응답 속도를 보장합니다.
 * **API 보호:** 42 Intra API 호출 시 **RateLimiter**가 초당 요청 횟수를 조절하여 IP 차단을 방지합니다.
-* **DB 튜닝:** HikariCP 커넥션 풀을 최적화하여 동시 접속자가 몰려도 DB 연결이 고갈되지 않도록 방어합니다.
-
-### 3. 블랙홀 유저 정책 변경 (Return Hold Policy)
-* **변경:** 블랙홀(퇴소) 진입 시 **'반납 보류'** 상태로 전환되며, 관리자가 직접 개입하기 전까지 데이터 무결성을 유지합니다.
-
-### 4. 스마트 반납 로직 (Smart Return)
-* **반납 메모(Share Code):** AI 검사를 통과하면, 사용자가 입력한 **4자리 비밀번호**가 다음 사용자를 위한 메모로 저장됩니다. (필수 입력)
 
 <br>
 
@@ -56,8 +59,8 @@
 
 ### 1. 프로젝트 클론
 ```bash
-git clone [https://github.com/farmer0010/42_cabinet_backend_ai.git](https://github.com/farmer0010/42_cabinet_backend_ai.git)
-cd 42_cabinet_backend_ai
+git clone [https://github.com/farmer0010/42_cabinet_backend.git](https://github.com/farmer0010/42_cabinet_backend.git)
+cd 42_cabinet_backend
 ```
 
 ### 2. 환경 변수 설정 (For DevOps) ⚠️
@@ -88,8 +91,8 @@ jwt.secret=
 # Slack Notification
 SLACK_BOT_TOKEN=
 
-# AI Server Connection (FastAPI)
-ai.server.url=
+# AI Server Connection (Disabled)
+# ai.server.url=http://localhost:8000/predict
 ```
 
 ### 3. 실행 (Docker Compose)
@@ -97,43 +100,39 @@ ai.server.url=
 # 1. DB & Redis 실행
 docker-compose up -d
 
-# 2. AI 서버 실행 (Python 환경 필요)
-cd ai_server
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-
-# 3. 백엔드 서버 실행
+# 2. 백엔드 서버 실행
 ./gradlew bootRun
 ```
 
 <br>
 
-## 🧪 API Usage (Updated)
+## 🧪 API Usage (Ver 4.6 Updated)
 
 * **Base URL:** `http://localhost:8080`
-* **중요 변경 사항:** 반납 및 이사 API는 **Multipart/form-data** 필수입니다.
+* **Swagger UI:** `http://localhost:8080/swagger-ui.html`
+* **중요 변경 사항:** 반납 및 이사 API는 `application/json` 형식을 사용합니다. (Multipart 제거됨)
 
-### 📦 Cabinet Lent & Return (AI Integrated)
+### 📦 Cabinet Lent & Return
 
-#### 1. 사물함 대여
-* **URL:** `POST /v4/lent/cabinets/{visibleNum}`
-
-#### 2. 사물함 반납 (Return)
+#### 1. 사물함 반납 (Return)
 * **URL:** `POST /v4/lent/return`
-* **Content-Type:** `multipart/form-data`
+* **Content-Type:** `application/json`
 * **Body:**
-    * `file`: **(Required)** 사물함 내부 촬영 이미지 파일 (`.jpg`, `.png`)
-    * `shareCode`: **(Required)** 4자리 숫자 비밀번호 (String, 예: "1234")
+    ```json
+    {
+      "shareCode": "1234"
+    }
+    ```
 
-#### 3. 사물함 이사 (Swap) [NEW]
+#### 2. 사물함 이사 (Swap)
 * **URL:** `POST /v4/lent/swap/{newVisibleNum}`
-* **Content-Type:** `multipart/form-data`
+* **Content-Type:** `application/json`
 * **Body:**
-    * `file`: **(Required)** **기존 사물함** 내부 촬영 이미지 파일
-    * `shareCode`: **(Required)** **기존 사물함**의 4자리 비밀번호
-* **Response:**
-    * `200 OK`: "✅ AI 검사 통과! 사물함 이사 완료!"
-    * `400 Bad Request`: "사물함 안에 물품이 감지되었습니다." (AI 판독)
+    ```json
+    {
+      "shareCode": "1234"
+    }
+    ```
 
 ### 👤 User & Auth
 * **로그인:** `GET /oauth2/authorization/42`
@@ -142,6 +141,7 @@ uvicorn app.main:app --reload --port 8000
 ### ⚙️ Admin Actions
 * **유저 검색 (Intra ID):** `GET /v4/admin/users/{name}`
 * **강제 반납:** `POST /v4/admin/cabinets/{visibleNum}/force-return`
+    * 실행 시 사물함 상태가 `PENDING`(보류)으로 변경됩니다.
 
 <br>
 
@@ -151,26 +151,28 @@ uvicorn app.main:app --reload --port 8000
 .
 ├── .github
 │   └── workflows
-│       └── gradle.yml             # Github Actions CI/CD 설정
-├── .env                           # [Secret] DB 및 TimeZone 환경 변수
-├── build.gradle                   # 의존성 설정 (Spring Cloud, Resilience4j 등)
-├── docker-compose.yaml            # MariaDB, Redis 컨테이너 설정
+│       └── gradle.yml              # Github Actions CI/CD 설정
+├── .env                            # [Secret] DB 및 TimeZone 환경 변수
+├── build.gradle                    # 의존성 설정
+├── docker-compose.yaml             # MariaDB, Redis 컨테이너 설정
 ├── src
 │   ├── main
 │   │   ├── java/com/gyeongsan/cabinet
-│   │   │   ├── CabinetApplication.java  # @EnableAsync, @EnableScheduling
+│   │   │   ├── CabinetApplication.java  # 메인 실행 파일 (@EnableAsync)
 │   │   │   │
-│   │   │   ├── admin                  # [Admin] 관리자 기능
+│   │   │   ├── admin               # [Admin] 관리자 기능
 │   │   │   │   ├── controller/AdminController.java
-│   │   │   │   ├── dto/AdminUserDetailResponse.java
-│   │   │   │   └── service/AdminService.java
+│   │   │   │   ├── dto/AdminUserDetailResponse.java  # 유저 상세 + 사물함 정보
+│   │   │   │   ├── dto/CabinetStatusRequest.java
+│   │   │   │   ├── dto/CoinProvideRequest.java
+│   │   │   │   └── service/AdminService.java         # 강제 반납(PENDING) 로직
 │   │   │   │
-│   │   │   ├── alarm                  # [Alarm] 슬랙 알림 시스템
+│   │   │   ├── alarm               # [Alarm] 비동기 알림 시스템
 │   │   │   │   ├── dto/AlarmEvent.java
-│   │   │   │   ├── AlarmEventHandler.java      # @Async 비동기 리스너
+│   │   │   │   ├── AlarmEventHandler.java            # @Async 이벤트 리스너
 │   │   │   │   └── SlackBotService.java
 │   │   │   │
-│   │   │   ├── auth                   # [Auth] 인증 및 보안 (JWT/OAuth2)
+│   │   │   ├── auth                # [Auth] 인증 및 보안
 │   │   │   │   ├── config/SecurityConfig.java
 │   │   │   │   ├── controller/AuthController.java
 │   │   │   │   ├── domain/UserPrincipal.java
@@ -182,14 +184,15 @@ uvicorn app.main:app --reload --port 8000
 │   │   │   │   │   └── OAuth2SuccessHandler.java
 │   │   │   │   └── service/AuthService.java
 │   │   │   │
-│   │   │   ├── cabinet                # [Cabinet] 사물함 도메인
+│   │   │   ├── cabinet             # [Cabinet] 사물함 도메인
 │   │   │   │   ├── controller/CabinetController.java
 │   │   │   │   ├── domain/Cabinet.java
+│   │   │   │   ├── domain/CabinetStatus.java         # PENDING 상태 추가됨
 │   │   │   │   ├── dto/CabinetDetailResponseDto.java
 │   │   │   │   ├── repository/CabinetRepository.java
 │   │   │   │   └── service/CabinetService.java
 │   │   │   │
-│   │   │   ├── global                 # [Global] 공통 설정 및 예외 처리
+│   │   │   ├── global              # [Global] 공통 설정
 │   │   │   │   ├── aspect/LoggingAspect.java
 │   │   │   │   ├── config/
 │   │   │   │   │   ├── RedisConfig.java
@@ -199,7 +202,7 @@ uvicorn app.main:app --reload --port 8000
 │   │   │   │       ├── GlobalExceptionHandler.java
 │   │   │   │       └── ServiceException.java
 │   │   │   │
-│   │   │   ├── item                   # [Item] 상점 및 아이템
+│   │   │   ├── item                # [Item] 상점 및 아이템
 │   │   │   │   ├── controller/StoreController.java
 │   │   │   │   ├── domain/
 │   │   │   │   │   ├── Item.java
@@ -209,32 +212,32 @@ uvicorn app.main:app --reload --port 8000
 │   │   │   │       ├── ItemPriceInitializer.java
 │   │   │   │       └── StoreService.java
 │   │   │   │
-│   │   │   ├── lent                   # [Lent] 대여/반납 (핵심 로직)
-│   │   │   │   ├── controller/LentController.java  # Multipart (사진 업로드)
+│   │   │   ├── lent                # [Lent] 대여/반납 (핵심 로직)
+│   │   │   │   ├── controller/LentController.java    # AI 로직 제거, JSON 방식 적용
 │   │   │   │   ├── domain/LentHistory.java
-│   │   │   │   ├── dto/LentReturnRequest.java
+│   │   │   │   ├── dto/LentReturnRequest.java        # 반납 DTO (비밀번호 검증)
 │   │   │   │   ├── repository/LentRepository.java
-│   │   │   │   └── service/LentFacadeService.java  # AI 검사 & 트랜잭션 분리
+│   │   │   │   └── service/LentFacadeService.java    # 트랜잭션 분리 및 정책 적용
 │   │   │   │
-│   │   │   ├── user                   # [User] 사용자 및 스케줄러
+│   │   │   ├── user                # [User] 사용자 및 스케줄러
 │   │   │   │   ├── controller/UserController.java
 │   │   │   │   ├── domain/User.java
 │   │   │   │   ├── repository/UserRepository.java
 │   │   │   │   ├── scheduler/
-│   │   │   │   │   ├── BlackholeScheduler.java
+│   │   │   │   │   ├── BlackholeScheduler.java       # 블랙홀 처리 (PENDING 전환)
 │   │   │   │   │   └── LogtimeScheduler.java
 │   │   │   │   └── service/UserService.java
 │   │   │   │
-│   │   │   └── utils                  # [Utils] 유틸리티
-│   │   │       └── FtApiManager.java               # 42 Intra API 연동 (@RateLimiter)
+│   │   │   └── utils               # [Utils] 유틸리티
+│   │   │       └── FtApiManager.java                 # 42 API 통신 (@RateLimiter)
 │   │   │
 │   │   └── resources
-│   │       ├── application.yml        # 메인 설정 (HikariCP, RateLimiter 등)
-│   │       ├── logback-spring.xml     # 로그 설정
-│   │       ├── secret.properties      # [Secret] API 키 관리
-│   │       └── static/index.html      # 테스트용 프론트 페이지
+│   │       ├── application.yml     # 메인 설정 (Multipart, HikariCP 등)
+│   │       ├── logback-spring.xml  # 로깅 설정
+│   │       ├── secret.properties   # [Secret] API 키
+│   │       └── static/index.html   # 웰컴 페이지
 │   │
-│   └── test                           # 테스트 코드
+│   └── test                        # 테스트 코드
 │       └── java/com/gyeongsan/cabinet
 │           └── CabinetApplicationTests.java
 ```
