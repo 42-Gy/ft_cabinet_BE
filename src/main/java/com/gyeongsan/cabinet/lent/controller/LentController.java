@@ -9,8 +9,10 @@ import com.gyeongsan.cabinet.user.repository.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
@@ -37,20 +39,39 @@ public class LentController {
         );
     }
 
-    @PostMapping("/return")
+    @PostMapping(value = "/return", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public MessageResponse endLentCabinet(
-            @Valid @RequestBody LentReturnRequest request,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("shareCode") String shareCode,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getUserId();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-        lentFacadeService.endLentCabinet(userId, request.shareCode());
+        if (shareCode == null || shareCode.isBlank()) {
+            shareCode = "0000";
+        }
+
+        lentFacadeService.endLentCabinet(userId, shareCode, file);
 
         return new MessageResponse(
-                "✅ " + user.getName() + "님, 반납 성공! (비밀번호 저장 완료 🔒)"
+                "✅ " + user.getName() + "님, 반납 성공! (AI 청결도 검사 통과 🧹)"
         );
+    }
+
+    @PostMapping("/return/manual")
+    public MessageResponse endLentCabinetManual(
+            @Valid @RequestBody LentReturnRequest request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        Long userId = userPrincipal.getUserId();
+
+        String reason = (request.reason() != null) ? request.reason() : "AI 인식 실패 및 수동 요청";
+
+        lentFacadeService.endLentCabinetManual(userId, request.shareCode(), reason);
+
+        return new MessageResponse("✅ 수동 반납 요청이 접수되었습니다. 관리자 확인 후 처리됩니다.");
     }
 
     @PostMapping("/extension")
@@ -62,15 +83,17 @@ public class LentController {
         return new MessageResponse("✅ 대여 기간이 15일 연장되었습니다! 🎉");
     }
 
-    @PostMapping("/swap/{newVisibleNum}")
+    @PostMapping(value = "/swap/{newVisibleNum}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public MessageResponse useSwap(
             @PathVariable Integer newVisibleNum,
-            @Valid @RequestBody LentReturnRequest request,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("shareCode") String shareCode,
             @AuthenticationPrincipal UserPrincipal userPrincipal
     ) {
         Long userId = userPrincipal.getUserId();
+        if (shareCode == null || shareCode.isBlank()) shareCode = "0000";
 
-        lentFacadeService.useSwap(userId, newVisibleNum, request.shareCode());
+        lentFacadeService.useSwap(userId, newVisibleNum, shareCode, file);
 
         return new MessageResponse("✅ 사물함 이사 완료! (" + newVisibleNum + "번) 🚚");
     }

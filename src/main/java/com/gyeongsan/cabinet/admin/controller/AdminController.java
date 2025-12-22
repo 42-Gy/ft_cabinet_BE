@@ -2,10 +2,12 @@ package com.gyeongsan.cabinet.admin.controller;
 
 import com.gyeongsan.cabinet.admin.dto.*;
 import com.gyeongsan.cabinet.admin.service.AdminService;
+import com.gyeongsan.cabinet.cabinet.dto.CabinetPendingResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -61,6 +63,32 @@ public class AdminController {
     @PostMapping("/cabinets/{visibleNum}/force-return")
     public ResponseEntity<String> forceReturn(@PathVariable Integer visibleNum) {
         adminService.forceReturn(visibleNum);
-        return ResponseEntity.ok("강제 반납 완료 (상태: 사용불가)");
+        return ResponseEntity.ok("강제 반납 완료 (상태: 수동 확인 대기(PENDING)로 변경됨)");
+    }
+
+    @GetMapping("/cabinets/pending")
+    public ResponseEntity<List<CabinetPendingResponseDto>> getPendingCabinets() {
+        return ResponseEntity.ok(adminService.getPendingCabinets());
+    }
+
+    @PostMapping("/cabinets/{visibleNum}/approve")
+    public ResponseEntity<String> approveManualReturn(@PathVariable Integer visibleNum) {
+        adminService.approveManualReturn(visibleNum);
+        return ResponseEntity.ok("수동 반납 승인 완료! (사물함이 사용 가능 상태로 변경되었습니다)");
+    }
+
+    @PatchMapping("/items/{itemName}/price")
+    public ResponseEntity<String> updateItemPrice(
+            @PathVariable String itemName,
+            @RequestBody Map<String, Long> body
+    ) {
+        Long newPrice = body.get("price");
+
+        if (newPrice == null) {
+            return ResponseEntity.badRequest().body("가격(price) 정보가 필요합니다.");
+        }
+
+        adminService.updateItemPrice(itemName, newPrice);
+        return ResponseEntity.ok("아이템 가격이 변경되었습니다.");
     }
 }

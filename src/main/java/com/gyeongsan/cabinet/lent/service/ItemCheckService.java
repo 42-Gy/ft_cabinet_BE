@@ -1,18 +1,98 @@
 package com.gyeongsan.cabinet.lent.service;
 
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.domain.ItemType;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.Date;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class ItemCheckService {
 
     private final ItemHistoryRepository itemHistoryRepository;
+    private final WebClient webClient;
+
+    @Value("${ai.server.url:http://localhost:8000}")
+    private String aiServerUrl;
+
+    public boolean checkItem(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            log.warn("❌ AI 검사 실패: 사진 파일이 없습니다.");
+            return false;
+        }
+
+        if (!isRecentPhoto(file)) {
+            log.warn("❌ 사진 검증 실패: 촬영 후 10분이 지났거나 메타데이터가 없습니다.");
+            return false;
+        }
+
+        try {
+            MultipartBodyBuilder builder = new MultipartBodyBuilder();
+            builder.part("file", file.getResource());
+
+            String response = webClient.post()
+                    .uri(aiServerUrl + "/check")
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(BodyInserters.fromMultipartData(builder.build()))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            log.info("🤖 AI Server Response: {}", response);
+
+            return "EMPTY".equalsIgnoreCase(response);
+
+        } catch (Exception e) {
+            log.error("🚨 AI 서버 통신 오류: ", e);
+            return false;
+        }
+    }
+
+    private boolean isRecentPhoto(MultipartFile file) {
+        try {
+            Metadata metadata = ImageMetadataReader.readMetadata(file.getInputStream());
+            ExifSubIFDDirectory directory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
+
+            if (directory == null) {
+                log.warn("⚠️ 사진에 Exif 메타데이터가 없습니다. (스크린샷 의심)");
+                return false;
+            }
+
+            Date dateTaken = directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+            if (dateTaken == null) {
+                log.warn("⚠️ 사진에 촬영 날짜 정보가 없습니다.");
+                return false;
+            }
+
+            long currentTime = System.currentTimeMillis();
+            long photoTime = dateTaken.getTime();
+            long diffMinutes = (currentTime - photoTime) / (1000 * 60);
+
+            log.info("📸 사진 촬영 경과 시간: {}분", diffMinutes);
+
+            return diffMinutes >= 0 && diffMinutes <= 10;
+
+        } catch (Exception e) {
+            log.error("🚨 메타데이터 분석 중 오류 발생", e);
+            return false;
+        }
+    }
 
     @Transactional(readOnly = true)
     public List<ItemHistory> getUnusedLentTickets(Long userId, ItemType itemType) {

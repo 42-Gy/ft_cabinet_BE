@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +33,7 @@ public class LentFacadeService {
     private final LentRepository lentRepository;
     private final ItemHistoryRepository itemHistoryRepository;
     private final TransactionTemplate transactionTemplate;
+    private final ItemCheckService itemCheckService;
 
     @Value("${cabinet.policy.lent-term}")
     private int lentTerm;
@@ -86,8 +88,14 @@ public class LentFacadeService {
         log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
     }
 
-    public void endLentCabinet(Long userId, String shareCode) {
-        log.info("반납 시도 - User: {}, Memo: {}", userId, shareCode);
+    public void endLentCabinet(Long userId, String shareCode, MultipartFile file) {
+        log.info("AI 반납 시도 - User: {}, Next Password: {}", userId, shareCode);
+
+        boolean isClean = itemCheckService.checkItem(file);
+        if (!isClean) {
+            log.warn("AI 검사 실패 (짐 감지) - User: {}", userId);
+            throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+        }
 
         transactionTemplate.execute(status -> {
             processReturnTransaction(userId, shareCode);
@@ -95,18 +103,34 @@ public class LentFacadeService {
         });
     }
 
+    @Transactional
+    public void endLentCabinetManual(Long userId, String shareCode, String reason) {
+        log.info("수동 반납 요청 - User: {}, Password: {}, Reason: {}", userId, shareCode, reason);
+
+        LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
+
+        lentHistory.endLent(LocalDateTime.now(), shareCode);
+
+        Cabinet cabinet = lentHistory.getCabinet();
+        cabinet.updateStatus(CabinetStatus.PENDING);
+
+        log.info("수동 반납 완료. 사물함 {}번 상태 -> PENDING", cabinet.getVisibleNum());
+    }
+
     protected void processReturnTransaction(Long userId, String shareCode) {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
         Cabinet cabinet = lentHistory.getCabinet();
+
         lentHistory.endLent(LocalDateTime.now(), shareCode);
 
         if (cabinet.getStatus() == CabinetStatus.FULL) {
             cabinet.updateStatus(CabinetStatus.AVAILABLE);
         }
 
-        log.info("반납 성공! 대여 ID: {}, 사물함: {}, 공유 비번: {}",
+        log.info("반납 성공! 대여 ID: {}, 사물함: {}, 저장된 비번: {}",
                 lentHistory.getId(), cabinet.getVisibleNum(), shareCode);
     }
 
@@ -131,16 +155,22 @@ public class LentFacadeService {
         log.info("연장 성공! 변경된 만료일: {}", lentHistory.getExpiredAt());
     }
 
-    public void useSwap(Long userId, Integer newVisibleNum, String password) {
-        log.info("이사 시도 - User: {}, NewCabinet: {}", userId, newVisibleNum);
+    public void useSwap(Long userId, Integer newVisibleNum, String shareCode, MultipartFile file) {
+        log.info("이사 시도(AI) - User: {}, NewCabinet: {}", userId, newVisibleNum);
+
+        boolean isClean = itemCheckService.checkItem(file);
+        if (!isClean) {
+            log.warn("AI 이사 검사 실패 - User: {}", userId);
+            throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+        }
 
         transactionTemplate.execute(status -> {
-            processSwapTransaction(userId, newVisibleNum, password);
+            processSwapTransaction(userId, newVisibleNum, shareCode);
             return null;
         });
     }
 
-    protected void processSwapTransaction(Long userId, Integer newVisibleNum, String password) {
+    protected void processSwapTransaction(Long userId, Integer newVisibleNum, String shareCode) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
@@ -169,7 +199,7 @@ public class LentFacadeService {
 
         Cabinet oldCabinet = oldLent.getCabinet();
 
-        oldLent.endLent(LocalDateTime.now(), password);
+        oldLent.endLent(LocalDateTime.now(), shareCode);
 
         if (oldCabinet.getStatus() == CabinetStatus.FULL) {
             oldCabinet.updateStatus(CabinetStatus.AVAILABLE);
@@ -180,7 +210,7 @@ public class LentFacadeService {
         LentHistory newLent = LentHistory.of(user, newCabinet, LocalDateTime.now(), oldLent.getExpiredAt());
         lentRepository.save(newLent);
 
-        log.info("이사 성공! 🚚 Old: {} -> New: {}", oldCabinet.getVisibleNum(), newCabinet.getVisibleNum());
+        log.info("이사 성공! 🚚 Old(PW:{}): {} -> New: {}", shareCode, oldCabinet.getVisibleNum(), newCabinet.getVisibleNum());
     }
 
     @Transactional

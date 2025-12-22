@@ -20,7 +20,7 @@ services:
     image: redis:alpine
     container_name: cabi_redis
     ports:
-      - "6379:6379"
+      - "16379:6379"
     environment:
       TZ: ${TZ}
     command: redis-server --appendonly yes
