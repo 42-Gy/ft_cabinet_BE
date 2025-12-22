@@ -7,10 +7,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public interface CabinetRepository extends JpaRepository<Cabinet, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -22,6 +24,8 @@ public interface CabinetRepository extends JpaRepository<Cabinet, Long> {
     Optional<Cabinet> findByVisibleNumWithLock(@Param("visibleNum") Integer visibleNum);
 
     List<Cabinet> findAllByFloor(Integer floor);
+
+    List<Cabinet> findAllByStatus(CabinetStatus status);
 
     long countByStatus(CabinetStatus status);
 }

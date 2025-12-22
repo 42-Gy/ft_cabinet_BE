@@ -34,7 +34,7 @@ public class UserService {
     private final ItemHistoryRepository itemHistoryRepository;
     private final AttendanceRepository attendanceRepository;
 
-    private static final int MONTHLY_TARGET_MINUTES = 3000;
+    private static final int MONTHLY_TARGET_MINUTES = 4800;
 
     public MyProfileResponseDto getMyProfile(Long userId) {
         User user = userRepository.findById(userId)

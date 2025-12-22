@@ -13,7 +13,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -53,15 +55,54 @@ public class LentScheduler {
                 sendOverdueAlarm(user, cabinet.getId());
             }
 
-            log.info("🚨 연체 처리: 유저={}, 연체일={}일, 패널티={}일",
-                    user.getName(), overdueDays, newPenalty);
+            log.info(
+                    "🚨 연체 처리: 유저={}, 연체일={}일, 패널티={}일",
+                    user.getName(), overdueDays, newPenalty
+            );
         }
+    }
+
+    @Scheduled(cron = "0 0 9 * * *")
+    @Transactional(readOnly = true)
+    public void checkThreeDaysLeft() {
+        log.info("🔔 [D-3] 반납 임박 알림 체크 시작");
+
+        LocalDate targetDate = LocalDate.now().plusDays(3);
+        LocalDateTime startOfDay = targetDate.atStartOfDay();
+        LocalDateTime endOfDay = targetDate.atTime(LocalTime.MAX);
+
+        List<LentHistory> targetLents =
+                lentRepository.findAllActiveLentsByExpiredAtBetween(startOfDay, endOfDay);
+
+        if (targetLents.isEmpty()) {
+            log.info(" - 3일 뒤 반납 예정자가 없습니다.");
+            return;
+        }
+
+        for (LentHistory lh : targetLents) {
+            sendImminentAlarm(
+                    lh.getUser(),
+                    lh.getExpiredAt(),
+                    lh.getCabinet().getVisibleNum()
+            );
+        }
+
+        log.info("✅ 총 {}명에게 반납 임박(D-3) 알림 전송 완료", targetLents.size());
     }
 
     private void sendOverdueAlarm(User user, Long cabinetId) {
         String message = String.format(
                 "🚨 *[연체 경고]*\n%s님, %d번 사물함이 연체되었습니다. 패널티가 누적되고 있으니 즉시 반납해주세요!",
                 user.getName(), cabinetId
+        );
+        eventPublisher.publishEvent(new AlarmEvent(user.getEmail(), message));
+    }
+
+    private void sendImminentAlarm(User user, LocalDateTime expiredAt, Integer visibleNum) {
+        String dateStr = expiredAt.toLocalDate().toString();
+        String message = String.format(
+                "⏳ *[반납 알림]*\n%s님, 사용 중인 사물함(%d번)의 반납 기한이 3일 남았습니다.\n(반납 예정일: %s)\n잊지 말고 반납해주세요! 😊",
+                user.getName(), visibleNum, dateStr
         );
         eventPublisher.publishEvent(new AlarmEvent(user.getEmail(), message));
     }

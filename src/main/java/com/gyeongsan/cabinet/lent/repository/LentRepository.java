@@ -1,6 +1,8 @@
 package com.gyeongsan.cabinet.lent.repository;
 
 import com.gyeongsan.cabinet.lent.domain.LentHistory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,4 +27,20 @@ public interface LentRepository extends JpaRepository<LentHistory, Long> {
     List<LentHistory> findAllActiveLentByCabinetIds(@Param("cabinetIds") List<Long> cabinetIds);
 
     Optional<LentHistory> findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(Long cabinetId);
+
+    @Query("SELECT lh FROM LentHistory lh " +
+            "JOIN FETCH lh.user u " +
+            "JOIN lh.cabinet c " +
+            "WHERE c.visibleNum = :visibleNum " +
+            "ORDER BY lh.startedAt DESC")
+    Page<LentHistory> findHistoryByCabinet(@Param("visibleNum") Integer visibleNum, Pageable pageable);
+
+    @Query("SELECT lh FROM LentHistory lh " +
+            "JOIN FETCH lh.user " +
+            "JOIN FETCH lh.cabinet " +
+            "WHERE lh.expiredAt BETWEEN :start AND :end " +
+            "AND lh.endedAt IS NULL")
+    List<LentHistory> findAllActiveLentsByExpiredAtBetween(
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 }
