@@ -15,6 +15,9 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Component
 @RequiredArgsConstructor
@@ -26,9 +29,11 @@ public class LogtimeScheduler {
     private final FtApiManager ftApiManager;
     private final UserService userService;
 
+    private static final int THREAD_POOL_SIZE = 10;
+
     @Scheduled(cron = "0 0 6 * * *")
     public void processDailyLogtime() {
-        log.info("📅 [Daily] 로그타임 집계 시작 (누적 덮어쓰기 모드)");
+        log.info("📅 [Daily] 로그타임 집계 시작 (병렬 처리 모드)");
 
         boolean isPayDay = LocalDate.now().getDayOfMonth() == 1;
 
@@ -41,6 +46,7 @@ public class LogtimeScheduler {
 
             if (lentTicketItem == null) {
                 log.error("⚠️ [Error] 보상 지급 실패: LENT 아이템이 DB에 없습니다.");
+                return;
             }
         }
 
@@ -60,32 +66,43 @@ public class LogtimeScheduler {
 
         List<User> allUsers = userRepository.findAll();
 
-        for (User user : allUsers) {
-            try {
-                int totalMinutes = ftApiManager.getLogtimeBetween(
-                        user.getName(),
-                        startOfMonth,
-                        endOfYesterday
-                );
+        ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
-                userService.processLogtimeTransaction(
-                        user.getId(),
-                        lentTicketItem,
-                        totalMinutes,
-                        isPayDay
-                );
+        Item finalRewardItem = lentTicketItem;
 
-                Thread.sleep(50);
+        List<CompletableFuture<Void>> futures = allUsers.stream()
+                .map(user -> CompletableFuture.runAsync(() -> {
+                    try {
+                        processUserLogtime(user, startOfMonth, endOfYesterday, finalRewardItem, isPayDay);
+                    } catch (Exception e) {
+                        log.error("{} 로그타임 처리 중 에러: {}", user.getName(), e.getMessage());
+                    }
+                }, executor))
+                .toList();
 
-            } catch (Exception e) {
-                log.error("{} 로그타임 처리 중 에러: {}", user.getName(), e.getMessage());
-            }
-        }
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        executor.shutdown();
 
         if (isPayDay) {
             log.info("✅ [Monthly] 월간 보상 지급 및 초기화 완료");
         } else {
             log.info("✅ [Daily] 일일 집계(동기화) 완료");
         }
+    }
+
+    private void processUserLogtime(User user, LocalDateTime start, LocalDateTime end, Item rewardItem, boolean isPayDay) {
+        int totalMinutes = ftApiManager.getLogtimeBetween(
+                user.getName(),
+                start,
+                end
+        );
+
+        userService.processLogtimeTransaction(
+                user.getId(),
+                rewardItem,
+                totalMinutes,
+                isPayDay
+        );
     }
 }
