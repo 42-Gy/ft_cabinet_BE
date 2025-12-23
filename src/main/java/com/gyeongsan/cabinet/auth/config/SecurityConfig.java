@@ -49,7 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/v4/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/v4/cabinets/**").permitAll()
-                        .requestMatchers("/v4/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/v4/admin/**", "/actuator/**").hasRole("ADMIN")
                         .requestMatchers("/v4/**").authenticated()
                         .anyRequest().permitAll()
                 )
@@ -82,13 +82,23 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(
-                List.of("http://localhost:5173", "http://localhost:3000")
-        );
-        configuration.setAllowedMethods(
-                List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
-        );
-        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:3000"
+        ));
+
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "Accept",
+                "Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers"
+        ));
+
         configuration.setAllowCredentials(true);
         configuration.setExposedHeaders(List.of("Authorization"));
 
