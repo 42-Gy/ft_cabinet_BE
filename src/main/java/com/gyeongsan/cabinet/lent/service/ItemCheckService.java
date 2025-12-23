@@ -19,6 +19,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -46,17 +47,22 @@ public class ItemCheckService {
             MultipartBodyBuilder builder = new MultipartBodyBuilder();
             builder.part("file", file.getResource());
 
-            String response = webClient.post()
-                    .uri(aiServerUrl + "/check")
+            Map response = webClient.post()
+                    .uri(aiServerUrl + "/predict")
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .body(BodyInserters.fromMultipartData(builder.build()))
                     .retrieve()
-                    .bodyToMono(String.class)
+                    .bodyToMono(Map.class)
                     .block();
 
             log.info("🤖 AI Server Response: {}", response);
 
-            return "EMPTY".equalsIgnoreCase(response);
+            if (response != null && response.containsKey("result")) {
+                String resultValue = String.valueOf(response.get("result"));
+                return "EMPTY".equalsIgnoreCase(resultValue);
+            }
+
+            return false;
 
         } catch (Exception e) {
             log.error("🚨 AI 서버 통신 오류: ", e);
