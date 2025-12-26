@@ -1,11 +1,14 @@
 server:
   port: 8080
   forward-headers-strategy: framework
+  shutdown: graceful
   tomcat:
     remote-ip-header: x-forwarded-for
     protocol-header: x-forwarded-proto
 
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   config:
     import: optional:file:src/main/resources/secret.properties
 

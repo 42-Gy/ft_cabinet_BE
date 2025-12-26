@@ -11,7 +11,11 @@ import lombok.ToString;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "LENT_HISTORY")
+@Table(name = "LENT_HISTORY", indexes = {
+        @Index(name = "idx_lent_user_id", columnList = "USER_ID"),
+        @Index(name = "idx_lent_cabinet_id", columnList = "CABINET_ID"),
+        @Index(name = "idx_lent_ended_at", columnList = "ENDED_AT")
+})
 @Getter
 @ToString
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
