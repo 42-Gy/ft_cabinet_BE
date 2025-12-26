@@ -1,20 +1,157 @@
-# 🗄️ 42Cabi Gyeongsan Ver 4.8 (AI Enhanced Edition)
+# 🗄️ 42Cabi Gyeongsan Ver 5.0 (Ultimate Edition)
 
-> **42 경산 캠퍼스 사물함 대여/반납 서비스**<br>
-> 사용자의 편의성, 공정한 이용, 그리고 **지능형 운영**을 위해 개발된 REST API 서버입니다.
+> **42 경산 캠퍼스 지능형 사물함 대여/반납 서비스**<br>
+> 사용자의 편의성, 공정한 이용, 게임화(Gamification), 그리고 **시스템의 안정성**을 모두 갖춘 REST API 서버입니다.
 
 <br>
 
-## 📜 Version History (업데이트 내역)
+## 🏗️ System Architecture (시스템 아키텍처)
+
+> **Micro-Service Oriented Architecture (MSA) with AI Module**
+
+```mermaid
+graph TD
+    %% 클라이언트 계층
+    Client([User Client<br>Web/Mobile]) -->|REST API / HTTPS| SpringBoot
+    
+    %% 백엔드 계층
+    subgraph "Backend Server (Spring Boot)"
+        SpringBoot[Core API Server<br>Java 17]
+        Security[Spring Security<br>JWT Filter]
+        Scheduler[Schedulers<br>Lent/Logtime]
+    end
+
+    %% 데이터 계층
+    subgraph "Data Persistence"
+        MariaDB[(MariaDB 10.6<br>Main DB)]
+        Redis[(Redis<br>Token/Cache)]
+    end
+
+    %% 외부 서비스 계층
+    subgraph "External Services"
+        AI_Server[AI Server<br>Python FastAPI]
+        Intra_API[42 Intra API<br>OAuth2]
+        Slack[Slack Webhook<br>Notification]
+    end
+
+    %% 연결 관계
+    SpringBoot -->|Read/Write| MariaDB
+    SpringBoot -->|Cache/Session| Redis
+    
+    SpringBoot -->|WebClient<br>Async Request| AI_Server
+    AI_Server -->|Analysis Result| SpringBoot
+    
+    SpringBoot -->|OAuth2 Auth| Intra_API
+    SpringBoot -->|Alert| Slack
+```
+
+<br>
+
+## 📂 Project Structure (상세 프로젝트 구조)
+
+> **Core Architecture:** Layered Architecture (Controller - Service - Repository)<br>
+> **Updates:** `admin`, `item`, `scheduler`, `global/config` 패키지가 확장되었습니다.
+
+```text
+.
+├── .github
+│   └── workflows
+│       └── gradle.yml              # Github Actions CI/CD 파이프라인
+├── .env                            # [Secret] DB, TimeZone, Root Password
+├── build.gradle                    # 의존성: WebFlux, Actuator, Resilience4j, QueryDSL
+├── docker-compose.yaml             # Infra: MariaDB, Redis Container
+├── src
+│   ├── main
+│   │   ├── java/com/gyeongsan/cabinet
+│   │   │   ├── CabinetApplication.java  # 메인 실행 파일 (@EnableAsync)
+│   │   │   │
+│   │   │   ├── admin               # [Admin] 관리자 도메인
+│   │   │   │   ├── controller/AdminController.java   # 강제 반납, 가격 변경 API
+│   │   │   │   ├── dto/
+│   │   │   │   │   ├── AdminUserDetailResponseDto.java
+│   │   │   │   │   ├── CabinetPendingResponseDto.java # 수동 승인 대기 목록
+│   │   │   │   │   └── CoinProvideRequestDto.java
+│   │   │   │   └── service/AdminService.java         # 관리자 비즈니스 로직
+│   │   │   │
+│   │   │   ├── alarm               # [Alarm] 비동기 알림
+│   │   │   │   ├── dto/AlarmEvent.java
+│   │   │   │   ├── AlarmEventHandler.java            # @Async 이벤트 리스너
+│   │   │   │   └── SlackBotService.java              # 슬랙 웹훅 연동
+│   │   │   │
+│   │   │   ├── auth                # [Auth] 인증 및 보안
+│   │   │   │   ├── config/SecurityConfig.java        # Security Filter, CORS, Actuator 제한
+│   │   │   │   ├── controller/AuthController.java
+│   │   │   │   ├── domain/UserPrincipal.java
+│   │   │   │   ├── jwt/JwtTokenProvider.java
+│   │   │   │   └── oauth/CustomOAuth2UserService.java
+│   │   │   │
+│   │   │   ├── cabinet             # [Cabinet] 사물함 도메인
+│   │   │   │   ├── controller/CabinetController.java
+│   │   │   │   ├── domain/Cabinet.java
+│   │   │   │   ├── domain/CabinetStatus.java         # AVAILABLE, FULL, BROKEN, PENDING
+│   │   │   │   ├── repository/CabinetRepository.java
+│   │   │   │   └── service/CabinetService.java
+│   │   │   │
+│   │   │   ├── global              # [Global] 전역 설정
+│   │   │   │   ├── config/
+│   │   │   │   │   ├── WebConfig.java                # [New] WebClient Timeout (3s)
+│   │   │   │   │   ├── RedisConfig.java
+│   │   │   │   │   └── SwaggerConfig.java
+│   │   │   │   ├── exception/
+│   │   │   │   │   ├── ErrorCode.java
+│   │   │   │   │   └── GlobalExceptionHandler.java
+│   │   │   │   └── response/ApiResponse.java         # 공통 응답 래퍼
+│   │   │   │
+│   │   │   ├── item                # [Item] 상점 및 아이템
+│   │   │   │   ├── controller/StoreController.java
+│   │   │   │   ├── domain/Item.java                  # 아이템 엔티티 (가격 필드 포함)
+│   │   │   │   ├── repository/ItemRepository.java
+│   │   │   │   └── service/StoreService.java
+│   │   │   │
+│   │   │   ├── lent                # [Lent] 대여/반납 (Core)
+│   │   │   │   ├── controller/LentController.java    # 대여, 반납, 이사, 연장
+│   │   │   │   ├── domain/LentHistory.java
+│   │   │   │   ├── repository/LentRepository.java
+│   │   │   │   └── service/
+│   │   │   │       ├── ItemCheckService.java         # [AI] Exif 검증 & Python 통신
+│   │   │   │       └── LentFacadeService.java        # 대여 프로세스 통합 관리
+│   │   │   │
+│   │   │   ├── user                # [User] 사용자 및 스케줄러
+│   │   │   │   ├── controller/UserController.java    # [Update] 수동 출석 API
+│   │   │   │   ├── domain/User.java
+│   │   │   │   ├── repository/
+│   │   │   │   │   ├── UserRepository.java
+│   │   │   │   │   └── AttendanceRepository.java     # [New] 출석 기록 관리
+│   │   │   │   ├── scheduler/
+│   │   │   │   │   ├── LogtimeScheduler.java         # 42 API 로그타임 집계
+│   │   │   │   │   └── LentScheduler.java            # 연체자 처리 및 D-3 알림
+│   │   │   │   └── service/UserService.java          # [Update] 황금수박 이벤트 로직
+│   │   │   │
+│   │   │   └── utils               # [Utils] 유틸리티
+│   │   │       └── FtApiManager.java                 # 42 API 통신 모듈
+│   │   │
+│   │   └── resources
+│   │       ├── application.yml     # [Update] CORS, Timeout 외부 설정
+│   │       ├── logback-spring.xml  # [Update] Rolling Policy (10MB/3GB)
+│   │       ├── secret.properties   # [Secret] API Keys
+│   │       └── static/index.html
+│   │
+│   └── test                        # JUnit5 Tests
+│       └── java/com/gyeongsan/cabinet/CabinetApplicationTests.java
+```
+
+<br>
+
+## 📜 Version History (개발 연혁)
 
 | 버전 | 주요 변화 | 상세 내용 |
 | :--- | :--- | :--- |
-| **Ver 1.0** | **MVP 모델** | 기본적인 대여/반납 로직 구현, DB 비관적 락(Lock) 적용 |
-| **Ver 2.0** | **보안 & 안정성** | 민감 정보 분리(`.env`), 스케줄러 N+1 문제 해결, 로깅 시스템 구축 |
-| **Ver 3.0** | **아키텍처 확장** | **Spring Security + JWT** 도입 (Stateless 전환), 필터 기반 보안 구축 |
-| **Ver 4.0** | **게임화 & 상점** | **제곱 패널티($D^2$)**, **아이템 상점** 구현, API 권한 최적화 |
-| **Ver 4.6** | **Safe Mode** | AI 모델 이슈로 인한 임시 기능 축소 (JSON 반납) 및 정책 완화 |
-| **Ver 4.8** | **AI 재가동 & 관리자** | **AI 청결도 검사 재활성화(+Exif 보안)**, **블랙홀 스케줄러 중단**, **관리자 아이템 가격 변경**, **D-3 알림** |
+| **Ver 1.0** | **MVP** | 핵심 대여/반납 로직 구현, DB 비관적 락(Pessimistic Lock) 적용 |
+| **Ver 2.0** | **Security** | 민감 정보 분리(`.env`), 스케줄러 N+1 문제 해결, 로깅 시스템 구축 |
+| **Ver 3.0** | **Auth** | **Spring Security + JWT** 도입 (Stateless 전환), 42 OAuth2 연동 |
+| **Ver 4.0** | **Gamification** | **제곱 패널티($D^2$)**, **아이템 상점(이사/연장/감면)** 구현 |
+| **Ver 4.8** | **AI & Admin** | **AI 청결도 검사**, **Exif 보안**, 관리자 수동 승인 프로세스, 블랙홀 유저 보호 |
+| **Ver 5.0** | **Stability** | **수동 출석(황금 수박)**, **WebClient 타임아웃**, **Actuator 보안**, **로그 정책(Rolling)** 적용 |
 
 <br>
 
@@ -22,270 +159,131 @@
 
 | 분류 | 기술 |
 | :--- | :--- |
-| **Backend** | Java 17, **Spring Boot 3.5.8**, Spring Security, JPA |
-| **Database** | MariaDB 10.6, **Redis** (Token/Cache) |
-| **Stability** | **Resilience4j** (CircuitBreaker, RateLimiter), **HikariCP** (Connection Pool) |
+| **Backend** | Java 17, **Spring Boot 3.5.8**, Spring Security, Spring Data JPA |
+| **Database** | MariaDB 10.6, **Redis** (Token Storage & Caching) |
+| **Stability** | **Resilience4j** (CircuitBreaker), **HikariCP**, **Logback (Rolling)** |
 | **Infra** | Docker, Docker Compose, AWS EC2 |
-| **Tools** | Gradle, Slack Webhook, **Spring Actuator** |
-| **AI Module** | **WebFlux (WebClient)**, Metadata-extractor (Exif 검증) |
+| **Tools** | Gradle, Slack Webhook, **Spring Actuator (Admin Only)** |
+| **AI Module** | **WebFlux (WebClient)**, Metadata-extractor (Exif Analysis) |
 
 <br>
 
-## 🚀 Key Features (핵심 기능 상세)
+## 🚀 Key Features (상세 기능 설명)
 
-### 1. 지능형 AI 반납 시스템 & 보안 (AI-Powered Return)
-> **"단순한 반납을 넘어, 다음 사용자를 위한 배려를 시스템화하다."**
-* **AI 청결도 검사:** 사용자가 반납 시 업로드한 사물함 내부 사진을 Python(FastAPI) AI 서버로 실시간 전송합니다. 짐이나 쓰레기가 남아있는지 자동으로 분석하여, 깨끗한 상태일 때만 반납을 승인합니다.
-* **Exif 메타데이터 보안 (Anti-Replay):** 사진의 촬영 시각 정보를 추출하여 **"현재 시점 기준 10분 이내"**에 촬영된 원본 사진인지 검증합니다. 캡처본이나 과거 사진을 악용한 부정 반납을 원천 차단합니다.
+### 1. 🤖 지능형 AI 반납 시스템 (AI-Powered Return)
+* **AI 청결도 검사:** 반납 시 업로드한 사물함 내부 사진을 Python(FastAPI) AI 서버로 실시간 전송. 쓰레기나 짐 방치 여부를 분석하여 자동 승인/거절 처리.
+* **Exif 보안 (Anti-Replay):** 사진의 메타데이터를 분석하여 **"촬영 후 10분 이내"**의 원본 사진인지 검증. 캡처본이나 과거 사진을 이용한 어뷰징 차단.
+* **수동 승인 프로세스:** AI 장애 발생 시 유저가 사유를 적어 '수동 반납'을 요청하면 사물함은 `PENDING` 상태가 되며, 관리자가 직접 확인 후 승인.
 
-### 2. 수동 승인 및 예외 처리 프로세스 (Manual Approval Flow)
-> **"AI가 해결하지 못하는 예외 상황을 관리자가 유연하게 처리합니다."**
-* **수동 반납 요청:** AI 검사가 반복적으로 실패하거나 서버 장애 시, 사용자는 사유와 함께 '수동 반납'을 요청할 수 있습니다.
-* **PENDING(보류) 상태:** 수동 요청이 접수되면 사물함은 즉시 **`PENDING`** 상태로 잠기며, 다른 사용자가 대여할 수 없게 됩니다.
-* **관리자 최종 승인:** 관리자가 현장을 확인한 뒤 대시보드에서 **[승인]** 버튼을 눌러야 비로소 사물함이 `AVAILABLE`(사용 가능) 상태로 전환됩니다.
+### 2. 🍉 수동 출석 & 황금 수박 이벤트 (New in v5.0)
+* **수동 출석:** 기존 자동 집계 방식을 폐지하고, 유저가 홈페이지의 **[출석하기]** 버튼을 직접 눌러야 코인을 획득하도록 변경 (유저 리텐션 강화).
+* **보상 체계:**
+    * **Daily:** 매일 1회 **100 코인** 지급.
+    * **Golden Watermelon:** 매월 **20회차** 출석 달성 시 **2,000 코인** 보너스 지급.
 
-### 3. 블랙홀(퇴소) 유저 안전 장치
-* **기존 문제:** 퇴소자가 발생하면 시스템이 자동으로 반납 처리를 해버려, 짐이 방치되는 문제가 있었습니다.
-* **개선된 정책:** 블랙홀 유저는 자동으로 반납되지 않고 관리자 목록에 별도로 집계됩니다. 관리자가 직접 연락하여 짐 수거를 확인한 후, **강제 반납(Force Return)** 기능을 통해 처리합니다.
+### 3. 🛡️ 시스템 안정성 및 보안 (Robustness)
+* **WebClient Timeout:** AI 서버 통신 시 Connection/Read Timeout(3초)을 강제 적용하여, 외부 서버 장애 시 백엔드 스레드가 고갈되는 것을 방지.
+* **Logback Rolling Policy:** 로그 파일 하나당 10MB, 전체 보관 용량 3GB로 제한하여 서버 디스크 용량 부족(Disk Full) 사태 예방.
+* **Actuator Security:** 서버 상태를 보여주는 Actuator 엔드포인트 접근을 ADMIN 권한으로 제한하여 보안 강화.
 
-### 4. 게임화 요소 및 아이템 상점 (Gamification)
-* **제곱 패널티($D^2$):** 연체 일수의 제곱만큼 패널티가 부여되는 강력한 제재 정책으로 정시 반납을 유도합니다.
-* **코인 & 상점:** 출석체크와 로그타임 보상으로 코인을 획득하고, **[연장권], [패널티 감면권], [이사권]** 등을 구매하여 사용할 수 있습니다.
-* **동적 가격 정책:** 관리자가 API를 통해 아이템의 가격을 실시간으로 조정하여 경제 밸런스를 맞출 수 있습니다.
+### 4. 🎮 게임화 및 상점 (Gamification)
+* **제곱 패널티($D^2$):** 연체 시 `연체일수 * 연체일수` 만큼 대여 불가 기간을 부여하여 정시 반납 유도.
+* **아이템 상점:** 출석과 로그타임으로 모은 코인을 사용하여 아이템 구매.
+    * **🚚 이사권 (Swap):** 반납 절차 없이 즉시 다른 빈 사물함으로 이동.
+    * **⏳ 연장권 (Extension):** 현재 대여 중인 사물함 기간을 15일 연장.
+    * **🛡️ 감면권 (Exemption):** 연체 패널티 기간 1일 감면.
 
-### 5. 고성능/안정성 아키텍처 (Robust Architecture)
-* **비동기 처리(Async):** 슬랙 알림, 로그 기록 등 사용자 응답에 영향을 주지 않는 작업은 별도 스레드에서 비동기로 처리합니다.
-* **장애 격리(Circuit Breaker):** 42 API나 AI 서버 등 외부 시스템 장애 시, 전체 서비스가 멈추지 않도록 차단기를 작동시킵니다.
-* **API 보호(Rate Limiter):** 과도한 API 호출을 제어하여 외부 서비스(42 Intra)의 IP 차단을 방지합니다.
+### 5. 👑 관리자 기능 (Admin Dashboard)
+* **블랙홀 유저 보호:** 퇴소자 발생 시 자동 반납되지 않고 별도 목록으로 관리, 관리자가 짐 수거 확인 후 **강제 반납**.
+* **경제 밸런스 조절:** 상점의 아이템 가격을 API로 실시간 변경 가능.
+* **유저/사물함 관리:** 코인 수동 지급, 사물함 고장/복구 처리, 강제 반납, 로그타임 수정 등.
 
 <br>
 
-## ⚙️ Setup & Run (실행 방법)
+## 🧪 API Specification (전체 API 목록)
 
-### 1. 프로젝트 클론
-```bash
-git clone [https://github.com/farmer0010/42_cabinet_backend.git](https://github.com/farmer0010/42_cabinet_backend.git)
-cd 42_cabinet_backend
+### 1. 🔐 인증 (Auth)
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `GET` | `/oauth2/authorization/42` | 42 Intra 로그인 (OAuth2) |
+| `POST` | `/v4/auth/reissue` | Access Token 재발급 |
+| `POST` | `/v4/auth/logout` | 로그아웃 (Refresh Token 삭제) |
+
+### 2. 👤 유저 (User)
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `GET` | `/v4/users/me` | 내 정보 (대여, 연체, 코인 등) 조회 |
+| `GET` | `/v4/users/me/lent-histories` | 나의 과거 대여 기록 조회 |
+| `POST` | `/v4/users/attendance` | **[NEW]** 수동 출석 체크 (코인 획득) |
+| `GET` | `/v4/users/attendance` | 이번 달 출석 현황 조회 |
+
+### 3. 📦 사물함 조회 (Cabinet)
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `GET` | `/v4/cabinets` | 건물/층별 사물함 배치도 및 상태 조회 |
+| `GET` | `/v4/cabinets/status-summary` | 층별 잔여 좌석 요약 정보 |
+| `GET` | `/v4/cabinets/{cabinetId}` | 사물함 상세 정보 (공유 사물함 인원 등) |
+
+### 4. 🔑 대여 및 반납 (Lent)
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `POST` | `/v4/lent/cabinets/{visibleNum}` | 사물함 대여 시작 |
+| `POST` | `/v4/lent/return` | **[AI]** 사물함 반납 (사진 검증 + 공유코드) |
+| `POST` | `/v4/lent/return/manual` | **[Manual]** 수동 반납 요청 (AI 실패 시) |
+| `POST` | `/v4/lent/swap/{newVisibleNum}` | **[Item]** 이사권을 사용해 사물함 이동 |
+| `POST` | `/v4/lent/extension` | **[Item]** 연장권을 사용해 기간 연장 |
+| `POST` | `/v4/lent/penalty-exemption` | **[Item]** 패널티 감면권 사용 |
+
+### 5. 🏪 상점 (Store)
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `GET` | `/v4/store/items` | 구매 가능한 아이템 목록 및 가격 조회 |
+| `POST` | `/v4/store/buy/{itemId}` | 아이템 구매 (코인 차감) |
+
+### 6. 🛡️ 관리자 (Admin)
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `GET` | `/v4/admin/dashboard` | 전체 통계 대시보드 |
+| `GET` | `/v4/admin/users/{name}` | 특정 유저 정보 및 대여 이력 검색 |
+| `POST` | `/v4/admin/users/{name}/coin` | 유저에게 코인 수동 지급 |
+| `PATCH` | `/v4/admin/users/{name}/logtime` | 유저 로그타임 수동 수정 |
+| `PATCH` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상태(고장 등) 변경 |
+| `POST` | `/v4/admin/cabinets/{visibleNum}/force-return` | 관리자 권한 강제 반납 |
+| `GET` | `/v4/admin/cabinets/pending` | 수동 반납 승인 대기 목록 조회 |
+| `POST` | `/v4/admin/cabinets/{visibleNum}/approve` | 수동 반납 최종 승인 (잠금 해제) |
+| `PATCH` | `/v4/admin/items/{itemName}/price` | 상점 아이템 가격 변경 |
+
+<br>
+
+## ⚙️ Setup & Run
+
+### 1. 환경 변수 설정 (Configuration)
+`src/main/resources` 위치에 아래 파일들을 생성해야 합니다.
+
+**A. `application.yml` (설정 외부화)**
+```yaml
+app:
+  cors:
+    allowed-origins:
+      - "http://localhost:3000"
+      - "[https://cabi.42gyeongsan.kr](https://cabi.42gyeongsan.kr)"
+  client:
+    connect-timeout: 3000
+    read-timeout: 3000
 ```
 
-### 2. 환경 변수 설정 (For DevOps) ⚠️
-보안을 위해 실제 값은 포함되어 있지 않습니다. 아래 템플릿을 참고하여 설정 파일을 생성하세요.
-
-#### A. `.env` (Project Root)
+**B. `secret.properties` (보안 키)**
 ```properties
-# Database Configuration
-DB_ROOT_PASSWORD=
-DB_USER=
-DB_PASSWORD=
-TZ=Asia/Seoul
+spring.datasource.password=YOUR_DB_PASSWORD
+jwt.secret=YOUR_JWT_SECRET_KEY
+SLACK_BOT_TOKEN=YOUR_SLACK_TOKEN
 ```
 
-#### B. `src/main/resources/secret.properties`
-```properties
-# Database Connection
-spring.datasource.username=
-spring.datasource.password=
-
-# OAuth2 (42 API)
-spring.security.oauth2.client.registration.42.client-id=
-spring.security.oauth2.client.registration.42.client-secret=
-
-# JWT
-jwt.secret=
-
-# Slack Notification
-SLACK_BOT_TOKEN=
-
-# AI Server Connection
-ai.server.url=http://localhost:8000
-```
-
-### 3. 실행 (Docker Compose)
+### 2. 실행 (Docker Compose)
 ```bash
 # 1. DB & Redis 실행
 docker-compose up -d
 
 # 2. 백엔드 서버 실행
 ./gradlew bootRun
-```
-
-<br>
-
-## 🧪 API Usage (Full Specification)
-
-* **Base URL:** `http://localhost:8080`
-
-### 🔐 Auth & User (인증 및 사용자)
-
-| Method | URI | 설명 |
-| :--- | :--- | :--- |
-| `GET` | `/oauth2/authorization/42` | 42 Intra 로그인 (OAuth2) |
-| `GET` | `/v4/users/me` | 내 정보 조회 (대여 정보, 연체 일수, 코인 등) |
-| `GET` | `/v4/users/me/lent-histories` | 나의 과거 대여 기록 조회 (페이지네이션) |
-
-### 📦 Cabinet (사물함 조회)
-
-| Method | URI | 설명 |
-| :--- | :--- | :--- |
-| `GET` | `/v4/cabinets` | 전체 사물함 정보 조회 (건물/층별) |
-| `GET` | `/v4/cabinets/{visibleNum}` | 특정 사물함의 상세 정보 조회 |
-| `GET` | `/v4/cabinets/simple` | (모바일용) 사물함 현황 단순 조회 |
-
-### 🔑 Lent & Return (대여 및 반납)
-
-#### 1. 사물함 대여 (Start Lent)
-* **URL:** `POST /v4/lent/cabinets/{visibleNum}`
-* **Description:** 해당 번호의 사물함을 대여합니다. (대여 가능 상태일 경우)
-
-#### 2. 사물함 반납 (Return with AI)
-* **URL:** `POST /v4/lent/return`
-* **Content-Type:** `multipart/form-data`
-* **Parameters:**
-  * `file`: 사물함 내부 사진 (필수, Exif 검증)
-  * `shareCode`: 다음 사용자를 위한 비밀번호 (4자리)
-
-#### 3. 사물함 이사 (Swap with AI)
-* **URL:** `POST /v4/lent/swap/{newVisibleNum}`
-* **Content-Type:** `multipart/form-data`
-* **Parameters:**
-  * `file`: 현재 사물함 내부 사진
-  * `shareCode`: 현재 사물함 비밀번호
-
-#### 4. 수동 반납 요청 (Manual Return)
-* **URL:** `POST /v4/lent/return/manual`
-* **Content-Type:** `application/json`
-* **Body:**
-    ```json
-    {
-      "shareCode": "1234",
-      "reason": "AI 서버 에러로 인한 요청"
-    }
-    ```
-
-#### 5. 연장권 사용 (Extension)
-* **URL:** `POST /v4/lent/extension`
-* **Description:** 인벤토리의 연장권을 사용하여 대여 기간을 늘립니다.
-
-### 🛒 Item Store (상점)
-
-| Method | URI | 설명 |
-| :--- | :--- | :--- |
-| `GET` | `/v4/store/items` | 상점 아이템 목록 및 가격 조회 |
-| `POST` | `/v4/store/items/{itemId}/purchase` | 아이템 구매 (코인 차감) |
-
-### 🛠 Admin Actions (관리자 전용)
-
-| Method | URI | 설명 |
-| :--- | :--- | :--- |
-| `GET` | `/v4/admin/users/{name}` | 특정 유저 정보 및 대여 현황 조회 |
-| `PATCH` | `/v4/admin/users/{name}/logtime` | 유저 로그타임 수동 수정 |
-| `POST` | `/v4/admin/users/{name}/coin` | 유저에게 코인 지급 |
-| `POST` | `/v4/admin/cabinets/{visibleNum}/force-return` | 강제 반납 (상태 `PENDING` 변경) |
-| `PATCH` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상태/메모 수정 |
-| `GET` | `/v4/admin/cabinets/pending` | **[NEW]** 수동 승인 대기 목록 조회 |
-| `POST` | `/v4/admin/cabinets/{visibleNum}/approve` | **[NEW]** 수동 반납 승인 (잠금 해제) |
-| `PATCH` | `/v4/admin/items/{itemName}/price` | **[NEW]** 아이템 가격 변경 |
-
-<br>
-
-## 📂 Project Structure
-
-```text
-.
-├── .github
-│   └── workflows
-│       └── gradle.yml              # Github Actions CI/CD 설정
-├── .env                            # [Secret] DB 및 TimeZone 환경 변수
-├── build.gradle                    # 의존성 설정 (WebFlux, Metadata-extractor 추가됨)
-├── docker-compose.yaml             # MariaDB, Redis 컨테이너 설정
-├── src
-│   ├── main
-│   │   ├── java/com/gyeongsan/cabinet
-│   │   │   ├── CabinetApplication.java  # 메인 실행 파일 (@EnableAsync)
-│   │   │   │
-│   │   │   ├── admin               # [Admin] 관리자 기능
-│   │   │   │   ├── controller/AdminController.java   # 가격 변경, 수동 승인 API
-│   │   │   │   ├── dto/
-│   │   │   │   │   ├── AdminUserDetailResponse.java
-│   │   │   │   │   ├── CabinetPendingResponseDto.java # [NEW] PENDING 목록용
-│   │   │   │   │   ├── CabinetStatusRequest.java
-│   │   │   │   │   └── ...
-│   │   │   │   └── service/AdminService.java         # 가격 수정, 승인 로직 구현
-│   │   │   │
-│   │   │   ├── alarm               # [Alarm] 비동기 알림 시스템
-│   │   │   │   ├── dto/AlarmEvent.java
-│   │   │   │   ├── AlarmEventHandler.java            # @Async 이벤트 리스너
-│   │   │   │   └── SlackBotService.java
-│   │   │   │
-│   │   │   ├── auth                # [Auth] 인증 및 보안
-│   │   │   │   ├── config/SecurityConfig.java
-│   │   │   │   ├── controller/AuthController.java
-│   │   │   │   ├── domain/UserPrincipal.java
-│   │   │   │   ├── jwt/
-│   │   │   │   │   ├── JwtAuthenticationFilter.java
-│   │   │   │   │   └── JwtTokenProvider.java
-│   │   │   │   ├── oauth/
-│   │   │   │   │   ├── CustomOAuth2UserService.java
-│   │   │   │   │   └── OAuth2SuccessHandler.java
-│   │   │   │   └── service/AuthService.java
-│   │   │   │
-│   │   │   ├── cabinet             # [Cabinet] 사물함 도메인
-│   │   │   │   ├── controller/CabinetController.java
-│   │   │   │   ├── domain/Cabinet.java
-│   │   │   │   ├── domain/CabinetStatus.java         # PENDING 상태 포함
-│   │   │   │   ├── dto/CabinetDetailResponseDto.java
-│   │   │   │   ├── repository/CabinetRepository.java # findAllByStatus 추가
-│   │   │   │   └── service/CabinetService.java
-│   │   │   │
-│   │   │   ├── global              # [Global] 공통 설정
-│   │   │   │   ├── aspect/LoggingAspect.java
-│   │   │   │   ├── config/
-│   │   │   │   │   ├── RedisConfig.java
-│   │   │   │   │   └── WebConfig.java            # WebClient 설정
-│   │   │   │   └── exception/
-│   │   │   │       ├── ErrorCode.java
-│   │   │   │       ├── GlobalExceptionHandler.java
-│   │   │   │       └── ServiceException.java
-│   │   │   │
-│   │   │   ├── item                # [Item] 상점 및 아이템
-│   │   │   │   ├── controller/StoreController.java
-│   │   │   │   ├── domain/
-│   │   │   │   │   ├── Item.java                     # updatePrice 메서드
-│   │   │   │   │   └── ItemHistory.java
-│   │   │   │   ├── repository/ItemRepository.java    # findByName 추가
-│   │   │   │   └── service/
-│   │   │   │       ├── ItemPriceInitializer.java
-│   │   │   │       └── StoreService.java
-│   │   │   │
-│   │   │   ├── lent                # [Lent] 대여/반납 (핵심 로직)
-│   │   │   │   ├── controller/LentController.java    # AI 복구 (Multipart)
-│   │   │   │   ├── domain/LentHistory.java
-│   │   │   │   ├── dto/LentReturnRequest.java        # Record 타입
-│   │   │   │   ├── repository/LentRepository.java    # D-3 알림 쿼리 추가
-│   │   │   │   ├── scheduler/LentScheduler.java      # D-3 알림 스케줄러 추가
-│   │   │   │   └── service/
-│   │   │   │       ├── ItemCheckService.java         # Exif 검증 & AI 통신
-│   │   │   │       └── LentFacadeService.java
-│   │   │   │
-│   │   │   ├── user                # [User] 사용자 및 스케줄러
-│   │   │   │   ├── controller/UserController.java
-│   │   │   │   ├── domain/User.java
-│   │   │   │   ├── repository/UserRepository.java
-│   │   │   │   ├── scheduler/
-│   │   │   │   │   ├── BlackholeScheduler.java       # [Disabled] 주석 처리됨
-│   │   │   │   │   └── LogtimeScheduler.java         # 로그타임 집계
-│   │   │   │   └── service/UserService.java
-│   │   │   │
-│   │   │   └── utils               # [Utils] 유틸리티
-│   │   │       └── FtApiManager.java                 # 42 API 통신 (@RateLimiter)
-│   │   │
-│   │   └── resources
-│   │       ├── application.yml     # 메인 설정
-│   │       ├── logback-spring.xml  # 로깅 설정
-│   │       ├── secret.properties   # [Secret] API 키
-│   │       └── static/index.html   # 웰컴 페이지
-│   │
-│   └── test                        # 테스트 코드
-│       └── java/com/gyeongsan/cabinet
-│           └── CabinetApplicationTests.java
 ```
