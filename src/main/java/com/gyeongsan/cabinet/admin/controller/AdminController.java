@@ -3,6 +3,7 @@ package com.gyeongsan.cabinet.admin.controller;
 import com.gyeongsan.cabinet.admin.dto.*;
 import com.gyeongsan.cabinet.admin.service.AdminService;
 import com.gyeongsan.cabinet.cabinet.dto.CabinetPendingResponseDto;
+import com.gyeongsan.cabinet.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,77 +19,73 @@ public class AdminController {
     private final AdminService adminService;
 
     @GetMapping("/dashboard")
-    public ResponseEntity<AdminDashboardResponse> getDashboard() {
-        return ResponseEntity.ok(adminService.getDashboard());
+    public ApiResponse<AdminDashboardResponse> getDashboard() {
+        return ApiResponse.success(adminService.getDashboard());
     }
 
     @GetMapping("/users/{name}")
-    public ResponseEntity<AdminUserDetailResponse> searchUser(@PathVariable String name) {
-        return ResponseEntity.ok(adminService.getUserDetail(name));
+    public ApiResponse<AdminUserDetailResponse> searchUser(@PathVariable String name) {
+        return ApiResponse.success(adminService.getUserDetail(name));
     }
 
     @PostMapping("/users/{name}/coin")
-    public ResponseEntity<String> provideCoin(
+    public ApiResponse<String> provideCoin(
             @PathVariable String name,
-            @RequestBody CoinProvideRequest request
-    ) {
+            @RequestBody CoinProvideRequest request) {
         adminService.provideCoin(name, request);
-        return ResponseEntity.ok("코인 지급 완료");
+        return ApiResponse.success("코인 지급 완료");
     }
 
     @PatchMapping("/users/{name}/logtime")
-    public ResponseEntity<String> updateUserLogtime(
+    public ApiResponse<String> updateUserLogtime(
             @PathVariable String name,
-            @RequestBody Map<String, Integer> body
-    ) {
+            @RequestBody Map<String, Integer> body) {
         Integer monthlyLogtime = body.get("monthlyLogtime");
 
         if (monthlyLogtime == null || monthlyLogtime < 0) {
-            return ResponseEntity.badRequest().body("유효하지 않은 시간 값입니다.");
+            return ApiResponse.fail(400, "유효하지 않은 시간 값입니다.");
         }
 
         adminService.updateUserLogtime(name, monthlyLogtime);
-        return ResponseEntity.ok("로그타임 수정 완료");
+        return ApiResponse.success("로그타임 수정 완료");
     }
 
     @PatchMapping("/cabinets/{visibleNum}")
-    public ResponseEntity<String> updateCabinet(
+    public ApiResponse<String> updateCabinet(
             @PathVariable Integer visibleNum,
-            @RequestBody CabinetStatusRequest request
-    ) {
+            @RequestBody CabinetStatusRequest request) {
         adminService.updateCabinetStatus(visibleNum, request);
-        return ResponseEntity.ok("사물함 상태 변경 완료");
+        return ApiResponse.success("사물함 상태 변경 완료");
     }
 
     @PostMapping("/cabinets/{visibleNum}/force-return")
-    public ResponseEntity<String> forceReturn(@PathVariable Integer visibleNum) {
+    public ApiResponse<String> forceReturn(@PathVariable Integer visibleNum) {
         adminService.forceReturn(visibleNum);
-        return ResponseEntity.ok("강제 반납 완료 (상태: 수동 확인 대기(PENDING)로 변경됨)");
+        return ApiResponse.success("강제 반납 완료 (상태: 수동 확인 대기(PENDING)로 변경됨)");
     }
 
     @GetMapping("/cabinets/pending")
-    public ResponseEntity<List<CabinetPendingResponseDto>> getPendingCabinets() {
-        return ResponseEntity.ok(adminService.getPendingCabinets());
+    public ApiResponse<List<CabinetPendingResponseDto>> getPendingCabinets() {
+        return ApiResponse.success(adminService.getPendingCabinets());
     }
 
     @PostMapping("/cabinets/{visibleNum}/approve")
-    public ResponseEntity<String> approveManualReturn(@PathVariable Integer visibleNum) {
+    public ApiResponse<String> approveManualReturn(@PathVariable Integer visibleNum) {
         adminService.approveManualReturn(visibleNum);
-        return ResponseEntity.ok("수동 반납 승인 완료! (사물함이 사용 가능 상태로 변경되었습니다)");
+        return ApiResponse.success("수동 반납 승인 완료! (사물함이 사용 가능 상태로 변경되었습니다)");
     }
 
     @PatchMapping("/items/{itemName}/price")
-    public ResponseEntity<String> updateItemPrice(
+    public ApiResponse<String> updateItemPrice(
             @PathVariable String itemName,
-            @RequestBody Map<String, Long> body
-    ) {
+            @RequestBody Map<String, Long> body) {
         Long newPrice = body.get("price");
 
         if (newPrice == null) {
-            return ResponseEntity.badRequest().body("가격(price) 정보가 필요합니다.");
+            return ApiResponse.fail(400, "가격(price) 정보가 필요합니다.");
         }
 
         adminService.updateItemPrice(itemName, newPrice);
-        return ResponseEntity.ok("아이템 가격이 변경되었습니다.");
+        return ApiResponse.success("아이템 가격이 변경되었습니다.");
     }
 }

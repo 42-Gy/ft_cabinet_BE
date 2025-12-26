@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.auth.controller;
 
 import com.gyeongsan.cabinet.auth.jwt.JwtTokenProvider;
+import com.gyeongsan.cabinet.common.ApiResponse;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
@@ -26,10 +27,9 @@ public class AuthController {
     private final UserRepository userRepository;
 
     @PostMapping("/reissue")
-    public Map<String, String> reissue(
+    public ApiResponse<Map<String, String>> reissue(
             @CookieValue(name = "refresh_token", required = false) String refreshToken,
-            HttpServletResponse response
-    ) {
+            HttpServletResponse response) {
         log.info("🔄 토큰 재발급 요청 들어옴!");
 
         if (refreshToken == null) {
@@ -51,13 +51,12 @@ public class AuthController {
         User user = userRepository.findById(Long.valueOf(userId))
                 .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
 
-        String newAccessToken =
-                jwtTokenProvider.createToken(user.getId(), user.getName(), user.getRole().name());
+        String newAccessToken = jwtTokenProvider.createToken(user.getId(), user.getName(), user.getRole().name());
         log.info("🎫 새 Access Token 발급 완료: {}", user.getName());
 
         Map<String, String> result = new HashMap<>();
         result.put("accessToken", newAccessToken);
 
-        return result;
+        return ApiResponse.success(result);
     }
 }

@@ -91,18 +91,17 @@ public class LogtimeScheduler {
         }
     }
 
-    private void processUserLogtime(User user, LocalDateTime start, LocalDateTime end, Item rewardItem, boolean isPayDay) {
+    private void processUserLogtime(User user, LocalDateTime start, LocalDateTime end, Item rewardItem,
+            boolean isPayDay) {
         int totalMinutes = ftApiManager.getLogtimeBetween(
                 user.getName(),
                 start,
-                end
-        );
+                end);
 
         userService.processLogtimeTransaction(
                 user.getId(),
                 rewardItem,
                 totalMinutes,
-                isPayDay
-        );
+                isPayDay);
     }
 }

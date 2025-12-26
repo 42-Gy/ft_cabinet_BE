@@ -22,6 +22,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.cors.CorsUtils;
 
+import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
 
 @Configuration
@@ -29,81 +30,79 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final CustomOAuth2UserService customOAuth2UserService;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
-    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
-    private final CustomAccessDeniedHandler customAccessDeniedHandler;
+        private final CustomOAuth2UserService customOAuth2UserService;
+        private final JwtTokenProvider jwtTokenProvider;
+        private final OAuth2SuccessHandler oAuth2SuccessHandler;
+        private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+        private final CustomAccessDeniedHandler customAccessDeniedHandler;
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                        .requestMatchers("/", "/index.html", "/css/**", "/js/**", "/favicon.ico").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers("/v4/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/v4/cabinets/**").permitAll()
-                        .requestMatchers("/v4/admin/**", "/actuator/**").hasRole("ADMIN")
-                        .requestMatchers("/v4/**").authenticated()
-                        .anyRequest().permitAll()
-                )
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(customAuthenticationEntryPoint)
-                        .accessDeniedHandler(customAccessDeniedHandler)
-                )
-                .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtTokenProvider),
-                        UsernamePasswordAuthenticationFilter.class
-                )
-                .oauth2Login(oauth2 -> oauth2
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService)
-                        )
-                        .successHandler(oAuth2SuccessHandler)
-                        .failureHandler((request, response, exception) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write(
-                                    "{\"error\": \"Login Failed\", \"message\": \"" + exception.getMessage() + "\"}"
-                            );
-                        })
-                );
+        @Value("${app.cors.allowed-origins}")
+        private List<String> allowedOrigins;
 
-        return http.build();
-    }
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+                http
+                                .csrf(AbstractHttpConfigurer::disable)
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .sessionManagement(session -> session
+                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
+                                                .requestMatchers("/", "/index.html", "/css/**", "/js/**",
+                                                                "/favicon.ico")
+                                                .permitAll()
+                                                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**",
+                                                                "/swagger-ui.html")
+                                                .permitAll()
+                                                .requestMatchers("/v4/auth/**").permitAll()
+                                                .requestMatchers(HttpMethod.GET, "/v4/cabinets/**").permitAll()
+                                                .requestMatchers("/v4/admin/**", "/actuator/**").hasRole("ADMIN")
+                                                .requestMatchers("/v4/**").authenticated()
+                                                .anyRequest().permitAll())
+                                .exceptionHandling(exception -> exception
+                                                .authenticationEntryPoint(customAuthenticationEntryPoint)
+                                                .accessDeniedHandler(customAccessDeniedHandler))
+                                .addFilterBefore(
+                                                new JwtAuthenticationFilter(jwtTokenProvider),
+                                                UsernamePasswordAuthenticationFilter.class)
+                                .oauth2Login(oauth2 -> oauth2
+                                                .userInfoEndpoint(userInfo -> userInfo
+                                                                .userService(customOAuth2UserService))
+                                                .successHandler(oAuth2SuccessHandler)
+                                                .failureHandler((request, response, exception) -> {
+                                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                                        response.setContentType("application/json;charset=UTF-8");
+                                                        response.getWriter().write(
+                                                                        "{\"error\": \"Login Failed\", \"message\": \""
+                                                                                        + exception.getMessage()
+                                                                                        + "\"}");
+                                                }));
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
+                return http.build();
+        }
 
-        configuration.setAllowedOrigins(List.of(
-                "http://localhost:5173",
-                "http://localhost:3000"
-        ));
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+                configuration.setAllowedOrigins(allowedOrigins);
 
-        configuration.setAllowedHeaders(List.of(
-                "Authorization",
-                "Content-Type",
-                "X-Requested-With",
-                "Accept",
-                "Origin",
-                "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"
-        ));
+                configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 
-        configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(List.of("Authorization"));
+                configuration.setAllowedHeaders(List.of(
+                                "Authorization",
+                                "Content-Type",
+                                "X-Requested-With",
+                                "Accept",
+                                "Origin",
+                                "Access-Control-Request-Method",
+                                "Access-Control-Request-Headers"));
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+                configuration.setAllowCredentials(true);
+                configuration.setExposedHeaders(List.of("Authorization"));
+
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", configuration);
+                return source;
+        }
 }

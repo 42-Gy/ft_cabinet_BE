@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.item.controller;
 
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
+import com.gyeongsan.cabinet.common.ApiResponse;
 import com.gyeongsan.cabinet.item.service.StoreService;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
@@ -20,10 +21,9 @@ public class StoreController {
     private final UserRepository userRepository;
 
     @PostMapping("/buy/{itemId}")
-    public String buyItem(
+    public ApiResponse<String> buyItem(
             @PathVariable Long itemId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
         Long userId = userPrincipal.getUserId();
 
         User user = userRepository.findById(userId)
@@ -31,6 +31,6 @@ public class StoreController {
 
         storeService.buyItem(userId, itemId);
 
-        return "✅ " + user.getName() + "님, 아이템 구매 성공!";
+        return ApiResponse.success("✅ " + user.getName() + "님, 아이템 구매 성공!");
     }
 }
