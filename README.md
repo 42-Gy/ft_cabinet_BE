@@ -47,6 +47,63 @@ graph TD
 
 <br>
 
+## 🗺️ User Flow (서비스 이용 흐름도)
+
+> 사용자가 로그인부터 반납, 상점 이용까지 경험하는 주요 프로세스입니다.
+
+```mermaid
+flowchart TD
+    %% 노드 스타일 정의
+    classDef start fill:#f9f,stroke:#333,stroke-width:2px,color:black;
+    classDef process fill:#e1f5fe,stroke:#0277bd,stroke-width:2px,color:black;
+    classDef decision fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:black;
+    classDef endNode fill:#eeeeee,stroke:#333,stroke-width:2px,color:black;
+
+    Start((Start)):::start --> Login[🔐 42 Intra 로그인]:::process
+    Login --> Main[🏠 메인 페이지 / 대시보드]:::process
+
+    %% 메인 페이지에서의 분기
+    Main --> Action_Lent{사물함 대여?}:::decision
+    Main --> Action_My{내 정보 관리?}:::decision
+    Main --> Action_Store{상점 이용?}:::decision
+    Main --> Action_Attend{출석 체크?}:::decision
+
+    %% 1. 대여 프로세스
+    Action_Lent -- Yes --> Select[📦 사물함 선택]:::process
+    Select --> Check_Lent{대여 가능?}:::decision
+    Check_Lent -- No (Full/Ban) --> Main
+    Check_Lent -- Yes --> Rent_Success[🔑 대여 완료]:::process
+    Rent_Success --> Main
+
+    %% 2. 내 정보 & 반납 프로세스
+    Action_My -- Yes --> MyPage[👤 마이 페이지]:::process
+    MyPage --> Return_Btn{반납 하기?}:::decision
+    Return_Btn -- Yes --> Upload[📸 인증 사진 업로드]:::process
+    Upload --> AI_Check{AI 청결도 검사}:::decision
+    AI_Check -- Fail --> Manual[수동 반납 요청]:::process
+    AI_Check -- Pass --> Return_Success[✅ 반납 완료]:::process
+    Manual --> Main
+    Return_Success --> Main
+
+    %% 3. 상점 프로세스
+    Action_Store -- Yes --> Store[🏪 아이템 상점]:::process
+    Store --> Buy{아이템 구매?}:::decision
+    Buy -- 연장권 --> Use_Ext[⏳ 기간 연장]:::process
+    Buy -- 이사권 --> Use_Swap[🚚 사물함 이동]:::process
+    Use_Ext --> Main
+    Use_Swap --> Main
+
+    %% 4. 출석 프로세스
+    Action_Attend -- Click --> Reward[💰 코인 획득]:::process
+    Reward --> Main
+
+    %% 종료
+    Main --> Logout{로그아웃?}:::decision
+    Logout -- Yes --> End((End)):::endNode
+```
+
+<br>
+
 ## 📂 Project Structure (상세 프로젝트 구조)
 
 > **Core Architecture:** Layered Architecture (Controller - Service - Repository)<br>
@@ -133,11 +190,94 @@ graph TD
 │   │   └── resources
 │   │       ├── application.yml     # [Update] CORS, Timeout 외부 설정
 │   │       ├── logback-spring.xml  # [Update] Rolling Policy (10MB/3GB)
-│   │       ├── secret.properties   # [Secret] API Keys
+│   │       ├── secret.properties   # [Secret] API Keys (Git 제외됨)
 │   │       └── static/index.html
 │   │
 │   └── test                        # JUnit5 Tests
 │       └── java/com/gyeongsan/cabinet/CabinetApplicationTests.java
+```
+
+<br>
+
+## 📊 Database Schema (ERD)
+
+> **Entity Relationship Diagram**<br>
+> 프로젝트의 데이터베이스 구조와 엔티티 간의 상관관계를 나타냅니다.
+
+```mermaid
+erDiagram
+    %% -------------------------------------------------------------------------------------
+    %% 관계 (Relationships) - 한글화
+    %% -------------------------------------------------------------------------------------
+    
+    USER ||--o{ ATTENDANCE : "출석체크 함"
+    USER ||--o{ LENT_HISTORY : "대여 기록 보유"
+    USER ||--o{ ITEM_HISTORY : "아이템 구매/사용 이력"
+    
+    CABINET ||--o{ LENT_HISTORY : "대여 이력 포함"
+    
+    ITEM ||--o{ ITEM_HISTORY : "아이템 정보 참조"
+
+    %% -------------------------------------------------------------------------------------
+    %% 엔티티 정의 (Entity Definitions)
+    %% -------------------------------------------------------------------------------------
+
+    USER {
+        Long id PK
+        String name "유니크 (인트라 ID)"
+        String email "유니크 (이메일)"
+        String role "권한 (USER, ADMIN, MASTER)"
+        Long coin "보유 코인"
+        Integer penaltyDays "패널티 일수"
+        Integer monthlyLogtime "월간 접속 시간"
+        LocalDateTime blackholedAt "블랙홀 날짜"
+        LocalDateTime deletedAt "탈퇴 날짜"
+        boolean slackAlarm "슬랙 알림 여부"
+        boolean emailAlarm "이메일 알림 여부"
+    }
+
+    ATTENDANCE {
+        Long id PK
+        Long user_id FK "유저 ID"
+        LocalDate attendanceDate "출석 날짜"
+    }
+
+    LENT_HISTORY {
+        Long id PK
+        Long user_id FK
+        Long cabinet_id FK
+        LocalDateTime startedAt "대여 시작일"
+        LocalDateTime expiredAt "대여 만료일"
+        LocalDateTime endedAt "반납일 (null이면 대여중)"
+        String returnMemo "반납 시 메모"
+    }
+
+    CABINET {
+        Long id PK
+        Integer visibleNum "사물함 번호 (보이는 번호)"
+        String status "상태 (AVAILABLE, FULL...)"
+        String lentType "타입 (PRIVATE, SHARE...)"
+        Integer maxUser "최대 수용 인원"
+        String statusNote "상태 비고 (고장 사유 등)"
+        Integer floor "층"
+        String section "구역"
+    }
+
+    ITEM {
+        Long id PK
+        String name "아이템 이름"
+        String type "타입 (EXTENSION, SWAP...)"
+        Long price "가격"
+        String description "설명"
+    }
+
+    ITEM_HISTORY {
+        Long id PK
+        Long user_id FK
+        Long item_id FK
+        LocalDateTime purchaseAt "구매 일시"
+        LocalDateTime usedAt "사용 일시 (null이면 미사용)"
+    }
 ```
 
 <br>
@@ -161,8 +301,8 @@ graph TD
 | :--- | :--- |
 | **Backend** | Java 17, **Spring Boot 3.5.8**, Spring Security, Spring Data JPA |
 | **Database** | MariaDB 10.6, **Redis** (Token Storage & Caching) |
-| **Stability** | **Resilience4j** (CircuitBreaker), **HikariCP**, **Logback (Rolling)** |
-| **Infra** | Docker, Docker Compose, AWS EC2 |
+| **Stability** | **Graceful Shutdown**, **DB Indexing**, **Resilience4j**, **Logback (Rolling)** |
+| **Infra** | Docker, Docker Compose (**Timezone Fixed**), AWS EC2 |
 | **Tools** | Gradle, Slack Webhook, **Spring Actuator (Admin Only)** |
 | **AI Module** | **WebFlux (WebClient)**, Metadata-extractor (Exif Analysis) |
 
@@ -181,10 +321,12 @@ graph TD
     * **Daily:** 매일 1회 **100 코인** 지급.
     * **Golden Watermelon:** 매월 **20회차** 출석 달성 시 **2,000 코인** 보너스 지급.
 
-### 3. 🛡️ 시스템 안정성 및 보안 (Robustness)
-* **WebClient Timeout:** AI 서버 통신 시 Connection/Read Timeout(3초)을 강제 적용하여, 외부 서버 장애 시 백엔드 스레드가 고갈되는 것을 방지.
-* **Logback Rolling Policy:** 로그 파일 하나당 10MB, 전체 보관 용량 3GB로 제한하여 서버 디스크 용량 부족(Disk Full) 사태 예방.
-* **Actuator Security:** 서버 상태를 보여주는 Actuator 엔드포인트 접근을 ADMIN 권한으로 제한하여 보안 강화.
+### 3. 🛡️ 시스템 안정성 및 성능 (Robustness & Performance)
+* **Graceful Shutdown:** 배포나 서버 재시작 시, 진행 중인 대여/반납 요청을 강제로 끊지 않고 **안전하게 완료한 뒤 종료**되도록 설정하여 데이터 유실을 방지합니다.
+* **DB 인덱싱(Indexing):** 대여 기록(`LentHistory`)의 핵심 컬럼(`user_id`, `cabinet_id`, `ended_at`)에 인덱스를 적용하여, 데이터가 수십만 건 쌓여도 **조회 속도가 저하되지 않도록 최적화**했습니다.
+* **Timezone 동기화:** Docker 컨테이너 레벨에서 `Asia/Seoul` 타임존을 강제하여, 서버 환경에 상관없이 **출석 체크와 연체료 계산**이 정확한 시간에 수행됩니다.
+* **WebClient Timeout:** AI 서버 통신 시 3초 타임아웃을 강제 적용하여 외부 장애 전파를 차단합니다.
+* **Logback Rolling Policy:** 로그 파일 용량(10MB/3GB) 제한으로 디스크 장애 예방.
 
 ### 4. 🎮 게임화 및 상점 (Gamification)
 * **제곱 패널티($D^2$):** 연체 시 `연체일수 * 연체일수` 만큼 대여 불가 기간을 부여하여 정시 반납 유도.
@@ -197,6 +339,123 @@ graph TD
 * **블랙홀 유저 보호:** 퇴소자 발생 시 자동 반납되지 않고 별도 목록으로 관리, 관리자가 짐 수거 확인 후 **강제 반납**.
 * **경제 밸런스 조절:** 상점의 아이템 가격을 API로 실시간 변경 가능.
 * **유저/사물함 관리:** 코인 수동 지급, 사물함 고장/복구 처리, 강제 반납, 로그타임 수정 등.
+
+<br>
+
+## 🔄 System Logic & Sequence Diagrams
+
+> 주요 비즈니스 로직의 상세 흐름입니다.
+
+### 1. 사물함 대여 (동시성 제어 적용)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 👤 사용자
+    participant Controller as 🎮 LentController
+    participant Service as ⚙️ LentService
+    participant DB as 🗄️ Database
+
+    User->>Controller: "대여하기" 클릭 (POST /lent)
+    activate Controller
+    Controller->>Service: startLentCabinet()
+    activate Service
+    
+    Note right of DB: 🔒 비관적 락 (Pessimistic Lock)<br/>동시 요청 방지
+    Service->>DB: SELECT ... FOR UPDATE
+    
+    alt 🚫 이미 대여중 (FULL)
+        Service-->>Controller: 예외 발생 (LENT_FULL)
+        Controller-->>User: 400 Error "이미 대여된 사물함입니다."
+    else ✅ 대여 가능
+        Service->>DB: LentHistory 생성
+        Service->>DB: 사물함 상태 변경 (FULL)
+        Service-->>Controller: 대여 성공
+        Controller-->>User: 200 OK "대여 완료!"
+    end
+    deactivate Service
+    deactivate Controller
+```
+
+### 2. AI 스마트 반납 (Smart Return)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 👤 사용자
+    participant Controller as 🎮 LentController
+    participant Service as ⚙️ LentService
+    participant AI as 🤖 AI Server (Python)
+
+    User->>Controller: 반납 사진 전송 (POST /return)
+    activate Controller
+    Controller->>Service: 반납 요청 위임
+    activate Service
+    
+    Service->>AI: 📡 이미지 청결도 분석 요청
+    activate AI
+    AI-->>Service: ✅ 분석 결과 (CLEAN / DIRTY)
+    deactivate AI
+
+    alt ❌ 더러움
+        Service-->>Controller: 반납 거절
+        Controller-->>User: 400 Bad Request
+    else ✅ 깨끗함
+        Service->>DB: 사물함 상태 변경 (AVAILABLE)
+        Service-->>Controller: 반납 성공
+        Controller-->>User: 200 OK "반납 완료!"
+    end
+    deactivate Service
+    deactivate Controller
+```
+
+### 3. 아이템 구매 및 제한 (Item Purchase)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 👤 사용자
+    participant Service as ⚙️ StoreService
+    participant DB as 🗄️ Database
+
+    User->>Service: 연장권 구매 요청 (buyItem)
+    activate Service
+    
+    Service->>DB: 🔍 1. 현재 보유 개수 확인 (Inventory Check)
+    Service->>DB: 🔍 2. 이번 달 구매 횟수 확인 (Monthly Check)
+    
+    alt 🚫 제한 초과 (보유 2개 or 월 2회)
+        Service-->>User: 예외 발생 (LIMIT_EXCEEDED)
+    else ✅ 구매 가능
+        Service->>DB: 💰 코인 차감 & 아이템 지급
+        Service-->>User: 구매 성공
+    end
+    deactivate Service
+```
+
+### 4. 이사권 사용 (Transaction Swap)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 👤 사용자
+    participant Service as ⚙️ LentFacadeService
+    participant DB as 🗄️ Database
+
+    User->>Service: 이사 요청 (swapPrivateCabinet)
+    activate Service
+    
+    rect rgb(240, 248, 255)
+        Note over Service, DB: 🔄 Atomic Transaction
+        Service->>DB: 1. 아이템 차감
+        Service->>DB: 2. 기존 사물함 반납 (EndedAt)
+        Service->>DB: 3. 새 사물함 대여 (StartedAt)
+    end
+
+    alt 🚫 실패 시
+        Service->>DB: Rollback
+    else ✅ 성공 시
+        Service->>DB: Commit
+        Service-->>User: 이사 완료
+    end
+    deactivate Service
+```
 
 <br>
 
@@ -240,6 +499,10 @@ graph TD
 | `GET` | `/v4/store/items` | 구매 가능한 아이템 목록 및 가격 조회 |
 | `POST` | `/v4/store/buy/{itemId}` | 아이템 구매 (코인 차감) |
 
+> **구매 API Error Codes:**
+> * `EXTENSION_ITEM_LIMIT_EXCEEDED`: 연장권은 최대 **2개**까지만 보유 가능.
+> * `EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED`: 연장권은 매월 최대 **2회**만 구매 가능.
+
 ### 6. 🛡️ 관리자 (Admin)
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
@@ -257,31 +520,20 @@ graph TD
 
 ## ⚙️ Setup & Run
 
-### 1. 환경 변수 설정 (Configuration)
-`src/main/resources` 위치에 아래 파일들을 생성해야 합니다.
+### 1. 환경 설정 (Configuration)
+보안을 위해 실제 설정 파일은 저장소에 포함되지 않습니다. 아래 파일을 생성하여 환경 변수를 설정하세요.
 
-**A. `application.yml` (설정 외부화)**
-```yaml
-app:
-  cors:
-    allowed-origins:
-      - "http://localhost:3000"
-      - "[https://cabi.42gyeongsan.kr](https://cabi.42gyeongsan.kr)"
-  client:
-    connect-timeout: 3000
-    read-timeout: 3000
-```
-
-**B. `secret.properties` (보안 키)**
+**A. `src/main/resources/secret.properties`**
 ```properties
-spring.datasource.password=YOUR_DB_PASSWORD
-jwt.secret=YOUR_JWT_SECRET_KEY
-SLACK_BOT_TOKEN=YOUR_SLACK_TOKEN
+# 데이터베이스 비밀번호 및 JWT 시크릿 키 등을 설정
+spring.datasource.password=${DB_PASSWORD}
+jwt.secret=${JWT_SECRET}
+SLACK_BOT_TOKEN=${SLACK_TOKEN}
 ```
 
 ### 2. 실행 (Docker Compose)
 ```bash
-# 1. DB & Redis 실행
+# 1. DB & Redis 실행 (TZ=Asia/Seoul 자동 적용)
 docker-compose up -d
 
 # 2. 백엔드 서버 실행
