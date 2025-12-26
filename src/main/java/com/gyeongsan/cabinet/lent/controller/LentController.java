@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.lent.controller;
 
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
+import com.gyeongsan.cabinet.common.ApiResponse;
 import com.gyeongsan.cabinet.common.dto.MessageResponse;
 import com.gyeongsan.cabinet.lent.dto.LentReturnRequest;
 import com.gyeongsan.cabinet.lent.service.LentFacadeService;
@@ -20,90 +21,83 @@ import org.springframework.web.multipart.MultipartFile;
 @Log4j2
 public class LentController {
 
-    private final LentFacadeService lentFacadeService;
-    private final UserRepository userRepository;
+        private final LentFacadeService lentFacadeService;
+        private final UserRepository userRepository;
 
-    @PostMapping("/cabinets/{visibleNum}")
-    public MessageResponse startLentCabinet(
-            @PathVariable Integer visibleNum,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        Long userId = userPrincipal.getUserId();
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
+        @PostMapping("/cabinets/{visibleNum}")
+        public ApiResponse<MessageResponse> startLentCabinet(
+                        @PathVariable Integer visibleNum,
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                Long userId = userPrincipal.getUserId();
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-        lentFacadeService.startLentCabinet(userId, visibleNum);
+                lentFacadeService.startLentCabinet(userId, visibleNum);
 
-        return new MessageResponse(
-                "✅ " + user.getName() + "님, " + visibleNum + "번 사물함 대여 성공!"
-        );
-    }
-
-    @PostMapping(value = "/return", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public MessageResponse endLentCabinet(
-            @RequestPart("file") MultipartFile file,
-            @RequestParam("shareCode") String shareCode,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        Long userId = userPrincipal.getUserId();
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
-
-        if (shareCode == null || shareCode.isBlank()) {
-            shareCode = "0000";
+                return ApiResponse.success(new MessageResponse(
+                                "✅ " + user.getName() + "님, " + visibleNum + "번 사물함 대여 성공!"));
         }
 
-        lentFacadeService.endLentCabinet(userId, shareCode, file);
+        @PostMapping(value = "/return", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ApiResponse<MessageResponse> endLentCabinet(
+                        @RequestPart("file") MultipartFile file,
+                        @RequestParam("shareCode") String shareCode,
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                Long userId = userPrincipal.getUserId();
+                User user = userRepository.findById(userId)
+                                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-        return new MessageResponse(
-                "✅ " + user.getName() + "님, 반납 성공! (AI 청결도 검사 통과 🧹)"
-        );
-    }
+                if (shareCode == null || shareCode.isBlank()) {
+                        shareCode = "0000";
+                }
 
-    @PostMapping("/return/manual")
-    public MessageResponse endLentCabinetManual(
-            @Valid @RequestBody LentReturnRequest request,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        Long userId = userPrincipal.getUserId();
+                lentFacadeService.endLentCabinet(userId, shareCode, file);
 
-        String reason = (request.reason() != null) ? request.reason() : "AI 인식 실패 및 수동 요청";
+                return ApiResponse.success(new MessageResponse(
+                                "✅ " + user.getName() + "님, 반납 성공! (AI 청결도 검사 통과 🧹)"));
+        }
 
-        lentFacadeService.endLentCabinetManual(userId, request.shareCode(), reason);
+        @PostMapping("/return/manual")
+        public ApiResponse<MessageResponse> endLentCabinetManual(
+                        @Valid @RequestBody LentReturnRequest request,
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                Long userId = userPrincipal.getUserId();
 
-        return new MessageResponse("✅ 수동 반납 요청이 접수되었습니다. 관리자 확인 후 처리됩니다.");
-    }
+                String reason = (request.reason() != null) ? request.reason() : "AI 인식 실패 및 수동 요청";
 
-    @PostMapping("/extension")
-    public MessageResponse useExtension(
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        Long userId = userPrincipal.getUserId();
-        lentFacadeService.useExtension(userId);
-        return new MessageResponse("✅ 대여 기간이 15일 연장되었습니다! 🎉");
-    }
+                lentFacadeService.endLentCabinetManual(userId, request.shareCode(), reason);
 
-    @PostMapping(value = "/swap/{newVisibleNum}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public MessageResponse useSwap(
-            @PathVariable Integer newVisibleNum,
-            @RequestPart("file") MultipartFile file,
-            @RequestParam("shareCode") String shareCode,
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        Long userId = userPrincipal.getUserId();
-        if (shareCode == null || shareCode.isBlank()) shareCode = "0000";
+                return ApiResponse.success(new MessageResponse("✅ 수동 반납 요청이 접수되었습니다. 관리자 확인 후 처리됩니다."));
+        }
 
-        lentFacadeService.useSwap(userId, newVisibleNum, shareCode, file);
+        @PostMapping("/extension")
+        public ApiResponse<MessageResponse> useExtension(
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                Long userId = userPrincipal.getUserId();
+                lentFacadeService.useExtension(userId);
+                return ApiResponse.success(new MessageResponse("✅ 대여 기간이 15일 연장되었습니다! 🎉"));
+        }
 
-        return new MessageResponse("✅ 사물함 이사 완료! (" + newVisibleNum + "번) 🚚");
-    }
+        @PostMapping(value = "/swap/{newVisibleNum}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ApiResponse<MessageResponse> useSwap(
+                        @PathVariable Integer newVisibleNum,
+                        @RequestPart("file") MultipartFile file,
+                        @RequestParam("shareCode") String shareCode,
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                Long userId = userPrincipal.getUserId();
+                if (shareCode == null || shareCode.isBlank())
+                        shareCode = "0000";
 
-    @PostMapping("/penalty-exemption")
-    public MessageResponse usePenaltyExemption(
-            @AuthenticationPrincipal UserPrincipal userPrincipal
-    ) {
-        Long userId = userPrincipal.getUserId();
-        lentFacadeService.usePenaltyExemption(userId);
-        return new MessageResponse("✅ 패널티가 1일 감면되었습니다! (해방까지 파이팅 💪)");
-    }
+                lentFacadeService.useSwap(userId, newVisibleNum, shareCode, file);
+
+                return ApiResponse.success(new MessageResponse("✅ 사물함 이사 완료! (" + newVisibleNum + "번) 🚚"));
+        }
+
+        @PostMapping("/penalty-exemption")
+        public ApiResponse<MessageResponse> usePenaltyExemption(
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                Long userId = userPrincipal.getUserId();
+                lentFacadeService.usePenaltyExemption(userId);
+                return ApiResponse.success(new MessageResponse("✅ 패널티가 1일 감면되었습니다! (해방까지 파이팅 💪)"));
+        }
 }

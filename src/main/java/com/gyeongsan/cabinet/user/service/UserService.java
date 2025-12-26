@@ -88,7 +88,8 @@ public class UserService {
         }
 
         Integer penaltyDays = user.getPenaltyDays();
-        if (penaltyDays == null) penaltyDays = 0;
+        if (penaltyDays == null)
+            penaltyDays = 0;
 
         return MyProfileResponseDto.builder()
                 .userId(user.getId())
@@ -113,15 +114,31 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
 
         LocalDate today = LocalDate.now();
-
-        if (attendanceRepository.existsByUserAndAttendanceDate(user, today)) {
+        // start, end logic for today (basically same day for LocalDate)
+        // Or if we strictly follow LocalDateTime input request, we would convert here.
+        // But the repo takes LocalDate now.
+        // findTodayAttendance checks if attendance exists "today".
+        if (attendanceRepository.findTodayAttendance(user, today, today).isPresent()) {
             throw new IllegalStateException("이미 오늘 출석체크를 완료했습니다.");
         }
 
         Attendance attendance = new Attendance(user, today);
         attendanceRepository.save(attendance);
 
+        // 기본 출석 보상: 100 코인
         user.addCoin(100L);
+
+        // 이번 달 출석 일수 계산 (황금 수박 이벤트)
+        LocalDate startOfMonth = today.withDayOfMonth(1);
+        long attendanceCount = attendanceRepository.countLoginDaysByUserId(userId, startOfMonth, today);
+
+        if (attendanceCount == 20) {
+            user.addCoin(2000L);
+            log.info("🍉 [Golden Watermelon] {}님 이번 달 20번째 출석 달성! 2000 코인 추가 지급! (총 출석: {}일)", user.getName(),
+                    attendanceCount);
+        } else {
+            log.info("{}님 오늘 출석 완료. (이번 달 {}일째)", user.getName(), attendanceCount);
+        }
     }
 
     public List<LocalDate> getMyAttendanceDates(Long userId) {
@@ -142,8 +159,7 @@ public class UserService {
 
         if (isPayDay) {
             if (lentTicketItem != null && user.getMonthlyLogtime() >= MONTHLY_TARGET_MINUTES) {
-                ItemHistory reward =
-                        new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
+                ItemHistory reward = new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
                 itemHistoryRepository.save(reward);
                 log.info("🎉 [Reward] {}님 지난달 50시간 달성! 대여권 지급 완료.", user.getName());
             }

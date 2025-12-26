@@ -105,7 +105,10 @@ ai:
 
 app:
   cors:
-    allowed-origins: "http://localhost:5173,http://localhost:3000,https://d1cgxw6sqqa9fo.cloudfront.net"
+    allowed-origins: "http://localhost:3000,http://localhost:5173"
+  client:
+    connect-timeout: 3000
+    read-timeout: 3000
 
 resilience4j:
   circuitbreaker:
