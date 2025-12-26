@@ -9,7 +9,7 @@ services:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MARIADB_USER: ${DB_USER}
       MARIADB_PASSWORD: ${DB_PASSWORD}
-      TZ: ${TZ}
+      TZ: Asia/Seoul
     ports:
       - "13306:3306"
     volumes:
@@ -22,7 +22,7 @@ services:
     ports:
       - "16379:6379"
     environment:
-      TZ: ${TZ}
+      TZ: Asia/Seoul
     command: redis-server --appendonly yes
     volumes:
       - ./redis_data:/data

@@ -38,6 +38,10 @@ public class StoreService {
             throw new IllegalArgumentException("대여권은 상점에서 구매할 수 없습니다. (월 50시간 학습 보상으로만 획득 가능)");
         }
 
+        if (item.getType() == ItemType.EXTENSION) {
+            validateExtensionPurchase(userId);
+        }
+
         log.info("💰 구매 요청 - 유저: {}, 아이템: {}, 가격: {}", user.getName(), item.getName(), item.getPrice());
 
         if (user.getCoin() < item.getPrice()) {
@@ -50,5 +54,21 @@ public class StoreService {
         itemHistoryRepository.save(history);
 
         log.info("✅ 구매 성공! 남은 코인: {}", user.getCoin());
+    }
+
+    private void validateExtensionPurchase(Long userId) {
+        int currentCount = itemHistoryRepository.countByUserIdAndItem_TypeAndUsedAtIsNull(userId, ItemType.EXTENSION);
+        if (currentCount >= 2) {
+            throw new ServiceException(ErrorCode.EXTENSION_ITEM_LIMIT_EXCEEDED);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime firstDayOfMonth = now.withDayOfMonth(1).toLocalDate().atStartOfDay();
+        int monthlyPurchaseCount = itemHistoryRepository.countByUserIdAndItem_TypeAndPurchaseAtBetween(
+                userId, ItemType.EXTENSION, firstDayOfMonth, now);
+
+        if (monthlyPurchaseCount >= 2) {
+            throw new ServiceException(ErrorCode.EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED);
+        }
     }
 }
