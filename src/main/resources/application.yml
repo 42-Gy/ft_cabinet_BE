@@ -22,12 +22,12 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 16379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://localhost:13306/cabi?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:13306}/cabi?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     hikari:
@@ -104,14 +104,16 @@ slack:
 
 ai:
   server:
-    url: https://cameron-hereditary-suppositively.ngrok-free.dev/predict
+    url: ${AI_SERVER_URL:http://localhost:8000}
 
 app:
   cors:
-    allowed-origins: "http://localhost:3000,http://localhost:5173"
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   client:
     connect-timeout: 3000
     read-timeout: 3000
+  frontend:
+    url: ${FRONTEND_URL:http://localhost:5173}
 
 resilience4j:
   circuitbreaker:
