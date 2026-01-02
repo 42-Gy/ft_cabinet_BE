@@ -56,7 +56,9 @@ public class SecurityConfig {
                                                 .permitAll()
                                                 .requestMatchers("/v4/auth/**").permitAll()
                                                 .requestMatchers(HttpMethod.GET, "/v4/cabinets/**").permitAll()
-                                                .requestMatchers("/v4/admin/**", "/actuator/**").permitAll()
+                                                .requestMatchers("/v4/admin/**").permitAll()
+                                                .requestMatchers("/actuator/prometheus").permitAll()
+                                                .requestMatchers("/actuator/**").authenticated()
                                                 .requestMatchers("/v4/**").authenticated()
                                                 .anyRequest().permitAll())
                                 .exceptionHandling(exception -> exception
