@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -28,13 +29,17 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         private final JwtTokenProvider jwtTokenProvider;
         private final UserRepository userRepository;
         private final StringRedisTemplate redisTemplate;
+
         @Value("${app.frontend.url}")
         private String frontendUrl;
 
+        @Value("${app.auth.cookie-secure:false}")
+        private boolean isCookieSecure;
+
         @Override
         public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                        Authentication authentication)
-                        throws IOException, ServletException {
+                                            Authentication authentication)
+                throws IOException, ServletException {
 
                 OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
                 String intraId = (String) oAuth2User.getAttributes().get("login");
@@ -42,35 +47,36 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 log.info("🎉 로그인 성공! 토큰 발급 시작: {}", intraId);
 
                 User user = userRepository.findByName(intraId)
-                                .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
+                        .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
 
                 String accessToken = jwtTokenProvider.createToken(user.getId(), user.getName(), user.getRole().name());
-
                 String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
 
                 redisTemplate.opsForValue().set(
-                                "RT:" + user.getId(),
-                                refreshToken,
-                                14,
-                                TimeUnit.DAYS);
+                        "RT:" + user.getId(),
+                        refreshToken,
+                        14,
+                        TimeUnit.DAYS
+                );
+
                 log.info("💾 Refresh Token Redis 저장 완료: {}", user.getId());
 
                 ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshToken)
-                                .maxAge(14 * 24 * 60 * 60)
-                                .path("/")
-                                .secure(true)
-                                .sameSite("None")
-                                .httpOnly(true)
-                                .build();
+                        .maxAge(14 * 24 * 60 * 60)
+                        .path("/")
+                        .secure(isCookieSecure)
+                        .sameSite("None")
+                        .httpOnly(true)
+                        .build();
 
                 response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
                 log.info("🎫 Access Token 발급 완료: {}", accessToken);
 
                 String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
-                                .queryParam("token", accessToken)
-                                .build()
-                                .toUriString();
+                        .queryParam("token", accessToken)
+                        .build()
+                        .toUriString();
 
                 getRedirectStrategy().sendRedirect(request, response, targetUrl);
         }

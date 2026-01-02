@@ -23,7 +23,7 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:16379}
 
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver

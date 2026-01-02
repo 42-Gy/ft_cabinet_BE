@@ -21,6 +21,8 @@ import java.time.LocalDateTime;
 @Log4j2
 public class StoreService {
 
+    private static final int MAX_EXTENSION_COUNT = 2;
+
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final ItemHistoryRepository itemHistoryRepository;
@@ -58,7 +60,7 @@ public class StoreService {
 
     private void validateExtensionPurchase(Long userId) {
         int currentCount = itemHistoryRepository.countByUserIdAndItem_TypeAndUsedAtIsNull(userId, ItemType.EXTENSION);
-        if (currentCount >= 2) {
+        if (currentCount >= MAX_EXTENSION_COUNT) {
             throw new ServiceException(ErrorCode.EXTENSION_ITEM_LIMIT_EXCEEDED);
         }
 
@@ -67,7 +69,7 @@ public class StoreService {
         int monthlyPurchaseCount = itemHistoryRepository.countByUserIdAndItem_TypeAndPurchaseAtBetween(
                 userId, ItemType.EXTENSION, firstDayOfMonth, now);
 
-        if (monthlyPurchaseCount >= 2) {
+        if (monthlyPurchaseCount >= MAX_EXTENSION_COUNT) {
             throw new ServiceException(ErrorCode.EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED);
         }
     }

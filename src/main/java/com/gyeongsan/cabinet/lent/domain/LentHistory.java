@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_lent_ended_at", columnList = "ENDED_AT")
 })
 @Getter
-@ToString
+@ToString(exclude = {"user", "cabinet"})
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class LentHistory {
 
