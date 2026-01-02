@@ -1,4 +1,3 @@
-version: "3"
 services:
   mariadb:
     image: mariadb:10.6
@@ -20,9 +19,34 @@ services:
     image: redis:alpine
     container_name: cabi_redis
     ports:
-      - "16379:6379"
+      - "${REDIS_PORT}:6379"
     environment:
       TZ: Asia/Seoul
     command: redis-server --appendonly yes
     volumes:
       - ./redis_data:/data
+
+  backend:
+    container_name: cabi_backend
+    build: .
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FT_CLIENT_ID=${FT_CLIENT_ID}
+      - FT_CLIENT_SECRET=${FT_CLIENT_SECRET}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - jwt.secret=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - AI_SERVER_URL=${AI_SERVER_URL}
+      - COOKIE_SECURE=${COOKIE_SECURE}
+      - TZ=Asia/Seoul
+    depends_on:
+      - mariadb
+      - redis
