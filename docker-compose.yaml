@@ -32,8 +32,8 @@ services:
     container_name: cabi_prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
+    expose:
+      - "9090"
     depends_on:
       - backend
     restart: always
@@ -53,8 +53,8 @@ services:
     container_name: cabi_backend
     build: .
     restart: on-failure
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     environment:
       - DB_HOST=mariadb
       - DB_PORT=3306
