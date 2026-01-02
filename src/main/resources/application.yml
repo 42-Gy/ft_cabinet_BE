@@ -91,7 +91,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, graphics, metrics
+        include: health, info, graphics, metrics, prometheus
   endpoint:
     health:
       show-details: always
