@@ -25,6 +25,29 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - ./redis_data:/data
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cabi_prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cabi_grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: always
+    volumes:
+      - grafana_data:/var/lib/grafana
 
   backend:
     container_name: cabi_backend
@@ -50,3 +73,17 @@ services:
     depends_on:
       - mariadb
       - redis
+
+  nginx:
+    image: nginx:latest
+    container_name: cabi_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - backend
+
+volumes:
+  grafana_data:
