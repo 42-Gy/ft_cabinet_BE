@@ -7,29 +7,39 @@
 
 ## 🏗️ System Architecture (시스템 아키텍처)
 
-> **Micro-Service Oriented Architecture (MSA) with AI Module**
+> **Dockerized Infra & Monitoring System**<br>
+> Nginx 리버스 프록시와 Prometheus/Grafana 모니터링 시스템이 구축되었습니다.
 
 ```mermaid
 graph TD
-    %% 클라이언트 계층
-    Client([User Client<br>Web/Mobile]) -->|REST API / HTTPS| SpringBoot
+    %% 클라이언트 및 진입점
+    Client([User Client<br>Web/Mobile]) -->|HTTP / Port 80| Nginx[🦁 Nginx Web Server<br>Reverse Proxy]
     
-    %% 백엔드 계층
-    subgraph "Backend Server (Spring Boot)"
-        SpringBoot[Core API Server<br>Java 17]
+    %% 백엔드 영역
+    subgraph "Backend Container"
+        Nginx -->|Proxy Pass<br>Port 8080| SpringBoot[☕ Core API Server<br>Spring Boot 3.5]
         Security[Spring Security<br>JWT Filter]
         Scheduler[Schedulers<br>Lent/Logtime]
     end
 
-    %% 데이터 계층
-    subgraph "Data Persistence"
-        MariaDB[(MariaDB 10.6<br>Main DB)]
-        Redis[(Redis<br>Token/Cache)]
+    %% 모니터링 영역 (New)
+    subgraph "Monitoring System"
+        Prometheus[🔥 Prometheus<br>Metric Collector]
+        Grafana[📊 Grafana<br>Visualization]
+        
+        SpringBoot -.->|/actuator/prometheus| Prometheus
+        Prometheus -->|Data Source| Grafana
     end
 
-    %% 외부 서비스 계층
+    %% 데이터 영역
+    subgraph "Data Persistence"
+        MariaDB[(🐬 MariaDB 10.6<br>Main DB)]
+        Redis[(🔴 Redis<br>Token/Cache)]
+    end
+
+    %% 외부 서비스
     subgraph "External Services"
-        AI_Server[AI Server<br>Python FastAPI]
+        AI_Server[🤖 AI Server<br>Python FastAPI]
         Intra_API[42 Intra API<br>OAuth2]
         Slack[Slack Webhook<br>Notification]
     end
@@ -37,10 +47,8 @@ graph TD
     %% 연결 관계
     SpringBoot -->|Read/Write| MariaDB
     SpringBoot -->|Cache/Session| Redis
-    
     SpringBoot -->|WebClient<br>Async Request| AI_Server
     AI_Server -->|Analysis Result| SpringBoot
-    
     SpringBoot -->|OAuth2 Auth| Intra_API
     SpringBoot -->|Alert| Slack
 ```
@@ -107,7 +115,7 @@ flowchart TD
 ## 📂 Project Structure (상세 프로젝트 구조)
 
 > **Core Architecture:** Layered Architecture (Controller - Service - Repository)<br>
-> **Updates:** `admin`, `item`, `scheduler`, `global/config` 패키지가 확장되었습니다.
+> **Infra Updates:** `nginx`, `prometheus` 설정 파일이 추가되어 배포 환경이 강화되었습니다.
 
 ```text
 .
@@ -116,7 +124,12 @@ flowchart TD
 │       └── gradle.yml              # Github Actions CI/CD 파이프라인
 ├── .env                            # [Secret] DB, TimeZone, Root Password
 ├── build.gradle                    # 의존성: WebFlux, Actuator, Resilience4j, QueryDSL
-├── docker-compose.yaml             # Infra: MariaDB, Redis Container
+├── docker-compose.yaml             # [Infra] Full Stack Orchestration (App, DB, Nginx, Monitoring)
+├── nginx
+│   └── conf.d
+│       └── default.conf            # [Infra] Nginx Reverse Proxy Config
+├── prometheus
+│   └── prometheus.yml              # [Infra] Monitoring Config
 ├── src
 │   ├── main
 │   │   ├── java/com/gyeongsan/cabinet
@@ -151,7 +164,7 @@ flowchart TD
 │   │   │   │
 │   │   │   ├── global              # [Global] 전역 설정
 │   │   │   │   ├── config/
-│   │   │   │   │   ├── WebConfig.java                # [New] WebClient Timeout (3s)
+│   │   │   │   │   ├── WebConfig.java                # WebClient Timeout (3s)
 │   │   │   │   │   ├── RedisConfig.java
 │   │   │   │   │   └── SwaggerConfig.java
 │   │   │   │   ├── exception/
@@ -174,22 +187,22 @@ flowchart TD
 │   │   │   │       └── LentFacadeService.java        # 대여 프로세스 통합 관리
 │   │   │   │
 │   │   │   ├── user                # [User] 사용자 및 스케줄러
-│   │   │   │   ├── controller/UserController.java    # [Update] 수동 출석 API
+│   │   │   │   ├── controller/UserController.java    # 수동 출석 API
 │   │   │   │   ├── domain/User.java
 │   │   │   │   ├── repository/
 │   │   │   │   │   ├── UserRepository.java
-│   │   │   │   │   └── AttendanceRepository.java     # [New] 출석 기록 관리
+│   │   │   │   │   └── AttendanceRepository.java     # 출석 기록 관리
 │   │   │   │   ├── scheduler/
 │   │   │   │   │   ├── LogtimeScheduler.java         # 42 API 로그타임 집계
 │   │   │   │   │   └── LentScheduler.java            # 연체자 처리 및 D-3 알림
-│   │   │   │   └── service/UserService.java          # [Update] 황금수박 이벤트 로직
+│   │   │   │   └── service/UserService.java          # 황금수박 이벤트 로직
 │   │   │   │
 │   │   │   └── utils               # [Utils] 유틸리티
 │   │   │       └── FtApiManager.java                 # 42 API 통신 모듈
 │   │   │
 │   │   └── resources
-│   │       ├── application.yml     # [Update] CORS, Timeout 외부 설정
-│   │       ├── logback-spring.xml  # [Update] Rolling Policy (10MB/3GB)
+│   │       ├── application.yml     # CORS, Timeout, Actuator 외부 설정
+│   │       ├── logback-spring.xml  # Rolling Policy (10MB/3GB)
 │   │       ├── secret.properties   # [Secret] API Keys (Git 제외됨)
 │   │       └── static/index.html
 │   │
@@ -291,7 +304,7 @@ erDiagram
 | **Ver 3.0** | **Auth** | **Spring Security + JWT** 도입 (Stateless 전환), 42 OAuth2 연동 |
 | **Ver 4.0** | **Gamification** | **제곱 패널티($D^2$)**, **아이템 상점(이사/연장/감면)** 구현 |
 | **Ver 4.8** | **AI & Admin** | **AI 청결도 검사**, **Exif 보안**, 관리자 수동 승인 프로세스, 블랙홀 유저 보호 |
-| **Ver 5.0** | **Stability** | **수동 출석(황금 수박)**, **WebClient 타임아웃**, **Actuator 보안**, **로그 정책(Rolling)** 적용 |
+| **Ver 5.0** | **Infra & DevOps** | **Docker Compose**, **Nginx**(Reverse Proxy), **Prometheus & Grafana**(Monitoring) 도입 |
 
 <br>
 
@@ -301,41 +314,47 @@ erDiagram
 | :--- | :--- |
 | **Backend** | Java 17, **Spring Boot 3.5.8**, Spring Security, Spring Data JPA |
 | **Database** | MariaDB 10.6, **Redis** (Token Storage & Caching) |
+| **Infra** | **Docker Compose**, AWS EC2, **Nginx** (Reverse Proxy) |
+| **Monitoring** | **Prometheus** (Metrics), **Grafana** (Visualization), **Actuator** |
 | **Stability** | **Graceful Shutdown**, **DB Indexing**, **Resilience4j**, **Logback (Rolling)** |
-| **Infra** | Docker, Docker Compose (**Timezone Fixed**), AWS EC2 |
-| **Tools** | Gradle, Slack Webhook, **Spring Actuator (Admin Only)** |
+| **Tools** | Gradle, Slack Webhook, **Spring Actuator** |
 | **AI Module** | **WebFlux (WebClient)**, Metadata-extractor (Exif Analysis) |
 
 <br>
 
 ## 🚀 Key Features (상세 기능 설명)
 
-### 1. 🤖 지능형 AI 반납 시스템 (AI-Powered Return)
+### 1. 🏗️ 탄탄한 인프라 및 모니터링 (Infrastructure & Monitoring)
+* **Nginx Reverse Proxy:** 80 포트로 유입되는 트래픽을 관리하며, 실제 유저 IP(`X-Forwarded-For`)를 백엔드로 안전하게 전달합니다.
+* **Full Dockerization:** 백엔드, DB, Redis, Nginx, 모니터링 툴까지 `docker-compose`로 한 번에 오케스트레이션합니다.
+* **Prometheus & Grafana:** JVM 메모리, CPU 사용량, DB 커넥션 풀 상태를 실시간 시각화하여 장애를 사전에 감지합니다.
+
+### 2. 🤖 지능형 AI 반납 시스템 (AI-Powered Return)
 * **AI 청결도 검사:** 반납 시 업로드한 사물함 내부 사진을 Python(FastAPI) AI 서버로 실시간 전송. 쓰레기나 짐 방치 여부를 분석하여 자동 승인/거절 처리.
 * **Exif 보안 (Anti-Replay):** 사진의 메타데이터를 분석하여 **"촬영 후 10분 이내"**의 원본 사진인지 검증. 캡처본이나 과거 사진을 이용한 어뷰징 차단.
 * **수동 승인 프로세스:** AI 장애 발생 시 유저가 사유를 적어 '수동 반납'을 요청하면 사물함은 `PENDING` 상태가 되며, 관리자가 직접 확인 후 승인.
 
-### 2. 🍉 수동 출석 & 황금 수박 이벤트 (New in v5.0)
+### 3. 🍉 수동 출석 & 황금 수박 이벤트 (New in v5.0)
 * **수동 출석:** 기존 자동 집계 방식을 폐지하고, 유저가 홈페이지의 **[출석하기]** 버튼을 직접 눌러야 코인을 획득하도록 변경 (유저 리텐션 강화).
 * **보상 체계:**
     * **Daily:** 매일 1회 **100 코인** 지급.
     * **Golden Watermelon:** 매월 **20회차** 출석 달성 시 **2,000 코인** 보너스 지급.
 
-### 3. 🛡️ 시스템 안정성 및 성능 (Robustness & Performance)
+### 4. 🛡️ 시스템 안정성 및 성능 (Robustness & Performance)
 * **Graceful Shutdown:** 배포나 서버 재시작 시, 진행 중인 대여/반납 요청을 강제로 끊지 않고 **안전하게 완료한 뒤 종료**되도록 설정하여 데이터 유실을 방지합니다.
 * **DB 인덱싱(Indexing):** 대여 기록(`LentHistory`)의 핵심 컬럼(`user_id`, `cabinet_id`, `ended_at`)에 인덱스를 적용하여, 데이터가 수십만 건 쌓여도 **조회 속도가 저하되지 않도록 최적화**했습니다.
 * **Timezone 동기화:** Docker 컨테이너 레벨에서 `Asia/Seoul` 타임존을 강제하여, 서버 환경에 상관없이 **출석 체크와 연체료 계산**이 정확한 시간에 수행됩니다.
 * **WebClient Timeout:** AI 서버 통신 시 3초 타임아웃을 강제 적용하여 외부 장애 전파를 차단합니다.
 * **Logback Rolling Policy:** 로그 파일 용량(10MB/3GB) 제한으로 디스크 장애 예방.
 
-### 4. 🎮 게임화 및 상점 (Gamification)
+### 5. 🎮 게임화 및 상점 (Gamification)
 * **제곱 패널티($D^2$):** 연체 시 `연체일수 * 연체일수` 만큼 대여 불가 기간을 부여하여 정시 반납 유도.
 * **아이템 상점:** 출석과 로그타임으로 모은 코인을 사용하여 아이템 구매.
     * **🚚 이사권 (Swap):** 반납 절차 없이 즉시 다른 빈 사물함으로 이동.
     * **⏳ 연장권 (Extension):** 현재 대여 중인 사물함 기간을 15일 연장.
     * **🛡️ 감면권 (Exemption):** 연체 패널티 기간 1일 감면.
 
-### 5. 👑 관리자 기능 (Admin Dashboard)
+### 6. 👑 관리자 기능 (Admin Dashboard)
 * **블랙홀 유저 보호:** 퇴소자 발생 시 자동 반납되지 않고 별도 목록으로 관리, 관리자가 짐 수거 확인 후 **강제 반납**.
 * **경제 밸런스 조절:** 상점의 아이템 가격을 API로 실시간 변경 가능.
 * **유저/사물함 관리:** 코인 수동 지급, 사물함 고장/복구 처리, 강제 반납, 로그타임 수정 등.
@@ -532,10 +551,17 @@ SLACK_BOT_TOKEN=${SLACK_TOKEN}
 ```
 
 ### 2. 실행 (Docker Compose)
-```bash
-# 1. DB & Redis 실행 (TZ=Asia/Seoul 자동 적용)
-docker-compose up -d
+모든 서비스(Nginx, Backend, DB, Monitoring)를 한 번에 실행합니다.
 
-# 2. 백엔드 서버 실행
-./gradlew bootRun
+```bash
+# 1. 애플리케이션 빌드
+./gradlew clean build -x test
+
+# 2. 전체 인프라 실행 (Background)
+docker-compose up -d --build
 ```
+
+### 3. 접속 정보
+* **메인 서비스:** `http://localhost` (Port 80)
+* **Grafana:** `http://localhost:3000` (계정: admin / admin)
+* **Prometheus:** `http://localhost:9090`
