@@ -565,3 +565,5 @@ docker-compose up -d --build
 * **메인 서비스:** `http://localhost` (Port 80)
 * **Grafana:** `http://localhost:3000` (계정: admin / admin)
 * **Prometheus:** `http://localhost:9090`
+
+# CI 파이프라인 테스트 - Sat Jan  3 21:47:34 KST 2026
