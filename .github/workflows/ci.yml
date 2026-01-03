@@ -1,0 +1,88 @@
+name: 🔨 CI - Build & Test
+
+# PR 생성/업데이트 시 자동 실행
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ develop ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      ##########################################################################
+      # Step 1: 코드 체크아웃
+      ##########################################################################
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      ##########################################################################
+      # Step 2: Java 17 설정
+      ##########################################################################
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'corretto'
+          cache: 'gradle'
+
+      ##########################################################################
+      # Step 3: Gradle 빌드 (테스트 포함)
+      ##########################################################################
+      - name: 🔨 Build with Gradle
+        run: |
+          chmod +x gradlew
+          ./gradlew clean build
+
+      ##########################################################################
+      # Step 4: 테스트 결과 리포트
+      ##########################################################################
+      - name: 📊 Test Report
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Test Results
+          path: build/test-results/**/*.xml
+          reporter: java-junit
+
+      ##########################################################################
+      # Step 5: Docker 이미지 빌드
+      ##########################################################################
+      - name: 🐳 Build Docker Image
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
+          docker tag ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:latest
+
+      ##########################################################################
+      # Step 6: GitHub Container Registry 로그인
+      ##########################################################################
+      - name: 🔑 Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      ##########################################################################
+      # Step 7: Docker 이미지 푸시
+      ##########################################################################
+      - name: 📤 Push Docker Image
+        run: |
+          docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository }}:latest
+
+      ##########################################################################
+      # Step 8: 성공 메시지
+      ##########################################################################
+      - name: ✅ CI Success
+        if: success()
+        run: |
+          echo "✅ CI 성공!"
+          echo "Image: ghcr.io/${{ github.repository }}:${{ github.sha }}"
+          echo "배포는 CD 워크플로우에서 수동으로 진행하세요."
+
