@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
+import java.util.List;
 
 @RestController
 @RequestMapping("/v4/admin")
@@ -39,8 +39,8 @@ public class AdminController {
     @PatchMapping("/users/{name}/logtime")
     public ApiResponse<String> updateUserLogtime(
             @PathVariable String name,
-            @RequestBody Map<String, Integer> body) {
-        Integer monthlyLogtime = body.get("monthlyLogtime");
+            @RequestBody UserLogtimeRequest request) {
+        Integer monthlyLogtime = request.monthlyLogtime();
 
         if (monthlyLogtime == null || monthlyLogtime < 0) {
             return ApiResponse.fail(400, "유효하지 않은 시간 값입니다.");
@@ -78,8 +78,8 @@ public class AdminController {
     @PatchMapping("/items/{itemName}/price")
     public ApiResponse<String> updateItemPrice(
             @PathVariable String itemName,
-            @RequestBody Map<String, Long> body) {
-        Long newPrice = body.get("price");
+            @RequestBody ItemPriceRequest request) {
+        Long newPrice = request.price();
 
         if (newPrice == null) {
             return ApiResponse.fail(400, "가격(price) 정보가 필요합니다.");
@@ -87,5 +87,11 @@ public class AdminController {
 
         adminService.updateItemPrice(itemName, newPrice);
         return ApiResponse.success("아이템 가격이 변경되었습니다.");
+    }
+
+    public record UserLogtimeRequest(Integer monthlyLogtime) {
+    }
+
+    public record ItemPriceRequest(Long price) {
     }
 }
