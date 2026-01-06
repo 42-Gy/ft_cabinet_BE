@@ -1,0 +1,39 @@
+services:
+  app:
+    image: ghcr.io/42-gy/ft_cabinet_be/app:latest
+    restart: always
+    ports:
+      - "80:8080"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - FT_CLIENT_ID=${FT_CLIENT_ID}
+      - FT_CLIENT_SECRET=${FT_CLIENT_SECRET}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - AI_SERVER_URL=${AI_SERVER_URL}
+      - COOKIE_SECURE=${COOKIE_SECURE}
+      - TZ=Asia/Seoul
+    depends_on:
+      - db
+
+  db:
+    image: mariadb:10.6
+    restart: always
+    environment:
+      MARIADB_DATABASE: cabi
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      TZ: Asia/Seoul
+    volumes:
+      - db_data:/var/lib/mysql
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+volumes:
+  db_data:
