@@ -31,11 +31,22 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 10
+      # 최대 동시 연결 수 (기본 10 → 30으로 증가, 1000명 동시 접속 대비)
+      maximum-pool-size: 30
+      # 최소 유휴 연결 수 (항상 15개 연결 유지)
+      minimum-idle: 15
+      # 연결 타임아웃 (30초)
       connection-timeout: 30000
+      # 유휴 연결 타임아웃 (10분)
+      idle-timeout: 600000
+      # 연결 최대 수명 (30분)
       max-lifetime: 1800000
+      # 연결 테스트 쿼리
+      connection-test-query: SELECT 1
+      # 풀 이름
       pool-name: CabiHikariPool
+      # 연결 누수 감지 (15초 이상 반환 안되면 경고)
+      leak-detection-threshold: 15000
 
   jpa:
     hibernate:

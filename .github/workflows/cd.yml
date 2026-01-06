@@ -1,0 +1,97 @@
+name: 🚀 CD - Deploy to Production
+
+# 수동 실행만 가능 (승인 필요)
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: '배포할 이미지 태그 (예: abc123 또는 latest)'
+        required: true
+        default: 'latest'
+      environment:
+        description: '배포 환경'
+        required: true
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ github.event.inputs.environment }}
+      url: https://cabinet.42gy.kr
+    
+    steps:
+      ##########################################################################
+      # Step 1: 배포 승인 확인
+      ##########################################################################
+      - name: 🔍 Deployment Info
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🚀 배포 정보"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "환경: ${{ github.event.inputs.environment }}"
+          echo "이미지: ${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}"
+          echo "실행자: ${{ github.actor }}"
+          echo "시간: $(date)"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      ##########################################################################
+      # Step 2: SSH로 서버 접속 및 배포
+      ##########################################################################
+      - name: 🚀 Deploy to Server (Blue-Green)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            # 배포 디렉토리로 이동
+            cd ${{ secrets.DEPLOY_PATH || '/home/user/42_Cabinet/ft_cabinet_BE' }}
+            
+            # 최신 코드 pull
+            git pull origin main
+            
+            # 환경 변수 로드
+            export $(cat .env | xargs)
+            
+            # 최신 이미지 pull
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}
+            
+            # Blue-Green 배포 실행
+            ./scripts/deploy.sh ${{ github.event.inputs.image_tag }}
+
+      ##########################################################################
+      # Step 3: 배포 완료
+      ##########################################################################
+      - name: ✅ Deployment Complete
+        if: success()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ 배포 성공!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "환경: ${{ github.event.inputs.environment }}"
+          echo "이미지: ${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      ##########################################################################
+      # Step 4: 배포 실패 시 알림
+      ##########################################################################
+      - name: ❌ Deployment Failed
+        if: failure()
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ 배포 실패!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "환경: ${{ github.event.inputs.environment }}"
+          echo "이미지: ${{ env.IMAGE_NAME }}:${{ github.event.inputs.image_tag }}"
+          echo "로그를 확인하세요."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+

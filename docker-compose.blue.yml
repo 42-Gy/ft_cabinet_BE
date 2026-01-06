@@ -1,0 +1,34 @@
+services:
+  backend-blue:
+    container_name: cabi_backend_blue
+    build: .
+    restart: on-failure
+    expose:
+      - "8080"
+    environment:
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FT_CLIENT_ID=${FT_CLIENT_ID}
+      - FT_CLIENT_SECRET=${FT_CLIENT_SECRET}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - jwt.secret=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - AI_SERVER_URL=${AI_SERVER_URL}
+      - COOKIE_SECURE=${COOKIE_SECURE}
+      - TZ=Asia/Seoul
+    networks:
+      - ft_cabinet_be_default
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  ft_cabinet_be_default:
+    external: true
+
