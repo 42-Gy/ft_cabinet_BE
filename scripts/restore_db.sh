@@ -7,7 +7,7 @@ set -e
 
 CONTAINER_NAME="cabi_db"
 DB_USER="user"
-DB_PASSWORD="rud1tks2?!"
+DB_PASSWORD="$DB_PASSWORD"
 DB_NAME="cabi"
 
 if [ -z "$1" ]; then
