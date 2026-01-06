@@ -11,7 +11,7 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="cabinet_backup_${TIMESTAMP}.sql"
 CONTAINER_NAME="cabi_db"
 DB_USER="user"
-DB_PASSWORD="rud1tks2?!"
+DB_PASSWORD="$DB_PASSWORD"
 DB_NAME="cabi"
 
 # 백업 디렉토리 생성
