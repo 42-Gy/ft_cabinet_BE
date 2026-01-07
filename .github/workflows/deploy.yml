@@ -6,9 +6,6 @@ on:
       - master
 
 env:
-  # 🚨 주의: Azure 포털에 보이는 실제 이름을 따옴표 안에 넣으세요.
-  # 만약 'ft-cabinet-server-dpa9dkauhkdkajcr'라면 그걸 넣으세요.
-  # 현재 게시 프로필에 msdeploySite="ft-cabinet-server"라고 되어있으니 일단 아래걸로 갑니다.
   AZURE_WEBAPP_NAME: 'ft-cabinet-server'
   JAVA_VERSION: '17'
 
@@ -22,21 +19,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # 1. 자바(JDK 17) 세팅
+      # 1. 자바 세팅 및 빌드 (생략 없이 기존과 동일)
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
-      # 2. 실행 권한 부여 & Gradle 빌드
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build with Gradle
         run: ./gradlew clean build -x test
 
-      # 3. Docker 이미지 빌드해서 GitHub 레지스트리(GHCR)에 올리기
+      # 2. Docker 로그인 및 빌드/푸시 (기존과 동일)
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -61,12 +57,15 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      # 4. Azure 웹앱으로 배포 (강제 인지 옵션 추가)
+      # 3. Azure 로그인 (방금 만든 마스터 키 사용) 🚨 핵심 변경
+      - name: 'Login via Azure CLI'
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # 4. Azure 웹앱으로 배포 (Docker Compose 방식)
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           configuration-file: docker-compose-azure.yml
-          # 🚨 핵심: 이미지를 명시하면 "Not a container app" 에러를 우회합니다.
-          images: 'ghcr.io/${{ github.repository }}/app:latest'
