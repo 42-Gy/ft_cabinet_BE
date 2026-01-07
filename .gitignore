@@ -57,3 +57,5 @@ redis_data/
 
 # 4. 백업 파일들
 backups/
+
+src/main/resources/data.sql
