@@ -6,11 +6,11 @@ services:
       - "80:8080"
     environment:
       - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
+      - DB_PORT=3306
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PORT=6379
       - FT_CLIENT_ID=${FT_CLIENT_ID}
       - FT_CLIENT_SECRET=${FT_CLIENT_SECRET}
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
@@ -24,16 +24,12 @@ services:
       - db
       - redis
       - ai
-    deploy:
-      resources:
-        limits:
-          memory: 1.5G
 
   db:
     image: mariadb:10.6
     restart: always
     ports:
-      - "${DB_PORT}:${DB_PORT}"
+      - "3306:3306"  # 변수 대신 숫자로 직접 입력
     environment:
       MARIADB_DATABASE: ${DB_NAME}
       MARIADB_USER: ${DB_USER}
@@ -43,32 +39,20 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    deploy:
-      resources:
-        limits:
-          memory: 700M
 
   redis:
     image: redis:alpine
     restart: always
     ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
-    deploy:
-      resources:
-        limits:
-          memory: 300M
+      - "6379:6379"  # 변수 대신 숫자로 직접 입력
 
   ai:
     image: ghcr.io/42-gy/ft_cabinet_ai:latest
     restart: always
     ports:
-      - "8000:8000"
+      - "8000:8000"  # 변수 대신 숫자로 직접 입력
     environment:
       - MODEL_PATH=${AI_MODEL_PATH}
-    deploy:
-      resources:
-        limits:
-          memory: 1.2G
 
 volumes:
   db_data:
