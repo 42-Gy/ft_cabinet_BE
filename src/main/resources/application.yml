@@ -22,13 +22,16 @@ spring:
 
   data:
     redis:
-      # Azure 내부 통신을 위해 기본값을 127.0.0.1로, 포트를 6379로 수정
       host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6379}
 
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    # DB_PORT 기본값을 3306으로 수정하고 DB_NAME 변수 추가
     url: jdbc:mariadb://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:cabi}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: ${DB_USER}
     password: ${DB_PASSWORD}
@@ -37,7 +40,6 @@ spring:
       maximum-pool-size: 30
       minimum-idle: 15
       connection-timeout: 30000
-      # [핵심 추가] DB가 켜질 때까지 60초 동안 앱이 죽지 않고 기다리게 설정
       initialization-fail-timeout: 60000
       idle-timeout: 600000
       max-lifetime: 1800000
@@ -47,6 +49,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    defer-datasource-initialization: true
     properties:
       hibernate:
         format_sql: true
@@ -104,7 +107,6 @@ management:
       show-details: always
 
 jwt:
-  # Azure App Setting 관례에 맞게 변수명 대문자화 권장
   secret: ${JWT_SECRET}
 
 slack:
@@ -112,7 +114,6 @@ slack:
 
 ai:
   server:
-    # 로컬 테스트와 Azure 환경 모두 고려하여 127.0.0.1 기본값 적용
     url: ${AI_SERVER_URL:http://127.0.0.1:8000}
 
 app:
