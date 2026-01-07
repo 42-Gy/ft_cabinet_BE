@@ -22,30 +22,26 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:16379}
+      # Azure 내부 통신을 위해 기본값을 127.0.0.1로, 포트를 6379로 수정
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
 
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:13306}/cabi?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    # DB_PORT 기본값을 3306으로 수정하고 DB_NAME 변수 추가
+    url: jdbc:mariadb://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:cabi}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     hikari:
-      # 최대 동시 연결 수 (기본 10 → 30으로 증가, 1000명 동시 접속 대비)
-      maximum-pool-size: 30
-      # 최소 유휴 연결 수 (항상 15개 연결 유지)
-      minimum-idle: 15
-      # 연결 타임아웃 (30초)
-      connection-timeout: 30000
-      # 유휴 연결 타임아웃 (10분)
-      idle-timeout: 600000
-      # 연결 최대 수명 (30분)
-      max-lifetime: 1800000
-      # 연결 테스트 쿼리
-      connection-test-query: SELECT 1
-      # 풀 이름
       pool-name: CabiHikariPool
-      # 연결 누수 감지 (15초 이상 반환 안되면 경고)
+      maximum-pool-size: 30
+      minimum-idle: 15
+      connection-timeout: 30000
+      # [핵심 추가] DB가 켜질 때까지 60초 동안 앱이 죽지 않고 기다리게 설정
+      initialization-fail-timeout: 60000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
       leak-detection-threshold: 15000
 
   jpa:
@@ -108,23 +104,25 @@ management:
       show-details: always
 
 jwt:
-  secret: ${jwt.secret}
+  # Azure App Setting 관례에 맞게 변수명 대문자화 권장
+  secret: ${JWT_SECRET}
 
 slack:
   token: ${SLACK_BOT_TOKEN}
 
 ai:
   server:
-    url: ${AI_SERVER_URL:http://localhost:8000}
+    # 로컬 테스트와 Azure 환경 모두 고려하여 127.0.0.1 기본값 적용
+    url: ${AI_SERVER_URL:http://127.0.0.1:8000}
 
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
   client:
     connect-timeout: 3000
     read-timeout: 3000
   frontend:
-    url: ${FRONTEND_URL:http://localhost:5173}
+    url: ${FRONTEND_URL}
 
 resilience4j:
   circuitbreaker:
