@@ -6,7 +6,10 @@ on:
       - master
 
 env:
-  AZURE_WEBAPP_NAME: ft-cabinet-server
+  # 🚨 주의: Azure 포털에 보이는 실제 이름을 따옴표 안에 넣으세요.
+  # 만약 'ft-cabinet-server-dpa9dkauhkdkajcr'라면 그걸 넣으세요.
+  # 현재 게시 프로필에 msdeploySite="ft-cabinet-server"라고 되어있으니 일단 아래걸로 갑니다.
+  AZURE_WEBAPP_NAME: 'ft-cabinet-server'
   JAVA_VERSION: '17'
 
 permissions:
@@ -58,10 +61,12 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      # 4. Azure 웹앱으로 배포
+      # 4. Azure 웹앱으로 배포 (강제 인지 옵션 추가)
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           configuration-file: docker-compose-azure.yml
+          # 🚨 핵심: 이미지를 명시하면 "Not a container app" 에러를 우회합니다.
+          images: 'ghcr.io/${{ github.repository }}/app:latest'
