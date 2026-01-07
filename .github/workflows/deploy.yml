@@ -6,7 +6,7 @@ on:
       - master
 
 env:
-  AZURE_WEBAPP_NAME: ft-cabinet-server-dpa9dkauhkdkajcr
+  AZURE_WEBAPP_NAME: ft-cabinet-server
   JAVA_VERSION: '17'
 
 permissions:
