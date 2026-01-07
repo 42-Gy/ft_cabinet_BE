@@ -1,4 +1,4 @@
-# 🗄️ 42Cabi Gyeongsan Ver 5.0 (Ultimate Edition)
+# 🗄️ 42Cabi Gyeongsan Ver 5.0
 
 > **42 경산 캠퍼스 지능형 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성, 공정한 이용, 게임화(Gamification), 그리고 **시스템의 안정성**을 모두 갖춘 REST API 서버입니다.
