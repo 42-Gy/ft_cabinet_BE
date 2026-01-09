@@ -40,7 +40,7 @@ spring:
       maximum-pool-size: 30
       minimum-idle: 15
       connection-timeout: 30000
-      initialization-fail-timeout: 60000
+      initialization-fail-timeout: 0
       idle-timeout: 600000
       max-lifetime: 1800000
       connection-test-query: SELECT 1
