@@ -114,10 +114,10 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
 
         LocalDate today = LocalDate.now();
-        // start, end logic for today (basically same day for LocalDate)
-        // Or if we strictly follow LocalDateTime input request, we would convert here.
-        // But the repo takes LocalDate now.
-        // findTodayAttendance checks if attendance exists "today".
+        
+        
+        
+        
         if (attendanceRepository.findTodayAttendance(user, today, today).isPresent()) {
             throw new IllegalStateException("이미 오늘 출석체크를 완료했습니다.");
         }
@@ -125,10 +125,10 @@ public class UserService {
         Attendance attendance = new Attendance(user, today);
         attendanceRepository.save(attendance);
 
-        // 기본 출석 보상: 100 코인
+        
         user.addCoin(100L);
 
-        // 이번 달 출석 일수 계산 (황금 수박 이벤트)
+        
         LocalDate startOfMonth = today.withDayOfMonth(1);
         long attendanceCount = attendanceRepository.countLoginDaysByUserId(userId, startOfMonth, today);
 

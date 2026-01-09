@@ -29,7 +29,7 @@ services:
     image: mariadb:10.6
     restart: always
     ports:
-      - "3306:3306"  # 변수 대신 숫자로 직접 입력
+      - "3306:3306"
     environment:
       MARIADB_DATABASE: ${DB_NAME}
       MARIADB_USER: ${DB_USER}
@@ -37,22 +37,19 @@ services:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       TZ: Asia/Seoul
     volumes:
-      - db_data:/var/lib/mysql
+      - ${WEBAPP_STORAGE_HOME}/site/wwwroot/db_data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
   redis:
     image: redis:alpine
     restart: always
     ports:
-      - "6379:6379"  # 변수 대신 숫자로 직접 입력
+      - "6379:6379"
 
   ai:
     image: ghcr.io/42-gy/ft_cabinet_ai:latest
     restart: always
     ports:
-      - "8000:8000"  # 변수 대신 숫자로 직접 입력
+      - "8000:8000"
     environment:
       - MODEL_PATH=${AI_MODEL_PATH}
-
-volumes:
-  db_data:

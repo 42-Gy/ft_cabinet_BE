@@ -224,7 +224,7 @@ public class LentFacadeService {
         if (oldCabinet.getStatus() == CabinetStatus.FULL) {
             oldCabinet.updateStatus(CabinetStatus.AVAILABLE);
             if (forceReturn) {
-                oldCabinet.updateStatus(CabinetStatus.PENDING); // Force return sets old cabinet to pending check
+                oldCabinet.updateStatus(CabinetStatus.PENDING); 
             }
         }
 
