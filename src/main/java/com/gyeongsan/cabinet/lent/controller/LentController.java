@@ -49,7 +49,7 @@ public class LentController {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-                // 1. Password Validation (Strict 4 digits)
+                
                 if (previousPassword == null || !previousPassword.matches("\\d{4}")) {
                         throw new IllegalArgumentException("비밀번호는 4자리 숫자여야 합니다.");
                 }
@@ -69,7 +69,7 @@ public class LentController {
         public ApiResponse<MessageResponse> endLentCabinetManual(
                         @Valid @RequestBody LentReturnRequest request,
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
-                // ... Deprecated: Redirection logic or simple return for backward compatibility
+                
                 return ApiResponse.success(new MessageResponse(
                                 "🚫 이 API는 더 이상 사용되지 않습니다. /v4/lent/return (forceReturn=true)를 사용해주세요."));
         }
@@ -92,7 +92,7 @@ public class LentController {
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
                 Long userId = userPrincipal.getUserId();
 
-                // 1. Password Validation (Strict 4 digits)
+                
                 if (previousPassword == null || !previousPassword.matches("\\d{4}")) {
                         throw new IllegalArgumentException("비밀번호는 4자리 숫자여야 합니다.");
                 }

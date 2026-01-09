@@ -27,7 +27,7 @@ public class LentScheduler {
     private final LentRepository lentRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    // 매월 1일 00:00:00 실행
+    
     @Scheduled(cron = "0 0 0 1 * *")
     @Transactional
     public void monthlyProcess() {
@@ -35,23 +35,23 @@ public class LentScheduler {
 
         grantRentalTicket();
         autoExtension();
-        handleExpiration(); // 기존 checkOverdue 로직과 유사하지만 만료 처리를 담당
+        handleExpiration(); 
 
         log.info("✅ [Monthly] 월간 정기 작업 완료");
     }
 
     private void grantRentalTicket() {
-        // TODO: 대여권 지급 로직 (별도 Service 호출 또는 구현)
+        
         log.info("1. [Grant] 대여권 지급 시작...");
     }
 
     private void autoExtension() {
-        // TODO: 자동 연장 로직 (별도 Service 호출 또는 구현)
+        
         log.info("2. [Extension] 자동 연장 프로세스 시작...");
     }
 
     private void handleExpiration() {
-        // TODO: 만료 처리 로직 (기존 checkOverdue 등 활용)
+        
         log.info("3. [Expiration] 만료 및 연체 처리 시작...");
         checkOverdue();
     }
