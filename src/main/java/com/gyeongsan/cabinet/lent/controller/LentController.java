@@ -41,33 +41,37 @@ public class LentController {
         @PostMapping(value = "/return", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public ApiResponse<MessageResponse> endLentCabinet(
                         @RequestPart("file") MultipartFile file,
-                        @RequestParam("shareCode") String shareCode,
+                        @RequestParam("previousPassword") String previousPassword,
+                        @RequestParam("forceReturn") Boolean forceReturn,
+                        @RequestParam(value = "reason", required = false) String reason,
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
                 Long userId = userPrincipal.getUserId();
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-                if (shareCode == null || shareCode.isBlank()) {
-                        shareCode = "0000";
+                // 1. Password Validation (Strict 4 digits)
+                if (previousPassword == null || !previousPassword.matches("\\d{4}")) {
+                        throw new IllegalArgumentException("비밀번호는 4자리 숫자여야 합니다.");
                 }
 
-                lentFacadeService.endLentCabinet(userId, shareCode, file);
+                lentFacadeService.endLentCabinet(userId, previousPassword, file, forceReturn, reason);
 
+                if (forceReturn) {
+                        return ApiResponse.success(new MessageResponse(
+                                        "✅ " + user.getName() + "님, 수동 반납 접수 완료. (AI 검사 실패로 승인 요청)"));
+                }
                 return ApiResponse.success(new MessageResponse(
                                 "✅ " + user.getName() + "님, 반납 성공! (AI 청결도 검사 통과 🧹)"));
         }
 
+        @Deprecated
         @PostMapping("/return/manual")
         public ApiResponse<MessageResponse> endLentCabinetManual(
                         @Valid @RequestBody LentReturnRequest request,
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
-                Long userId = userPrincipal.getUserId();
-
-                String reason = (request.reason() != null) ? request.reason() : "AI 인식 실패 및 수동 요청";
-
-                lentFacadeService.endLentCabinetManual(userId, request.shareCode(), reason);
-
-                return ApiResponse.success(new MessageResponse("✅ 수동 반납 요청이 접수되었습니다. 관리자 확인 후 처리됩니다."));
+                // ... Deprecated: Redirection logic or simple return for backward compatibility
+                return ApiResponse.success(new MessageResponse(
+                                "🚫 이 API는 더 이상 사용되지 않습니다. /v4/lent/return (forceReturn=true)를 사용해주세요."));
         }
 
         @PostMapping("/extension")
@@ -82,14 +86,22 @@ public class LentController {
         public ApiResponse<MessageResponse> useSwap(
                         @PathVariable Integer newVisibleNum,
                         @RequestPart("file") MultipartFile file,
-                        @RequestParam("shareCode") String shareCode,
+                        @RequestParam("previousPassword") String previousPassword,
+                        @RequestParam("forceReturn") Boolean forceReturn,
+                        @RequestParam(value = "reason", required = false) String reason,
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
                 Long userId = userPrincipal.getUserId();
-                if (shareCode == null || shareCode.isBlank())
-                        shareCode = "0000";
 
-                lentFacadeService.useSwap(userId, newVisibleNum, shareCode, file);
+                // 1. Password Validation (Strict 4 digits)
+                if (previousPassword == null || !previousPassword.matches("\\d{4}")) {
+                        throw new IllegalArgumentException("비밀번호는 4자리 숫자여야 합니다.");
+                }
 
+                lentFacadeService.useSwap(userId, newVisibleNum, previousPassword, file, forceReturn, reason);
+
+                if (forceReturn) {
+                        return ApiResponse.success(new MessageResponse("✅ 수동 이사 접수 완료. (AI 검사 실패로 승인 요청) 🚚"));
+                }
                 return ApiResponse.success(new MessageResponse("✅ 사물함 이사 완료! (" + newVisibleNum + "번) 🚚"));
         }
 

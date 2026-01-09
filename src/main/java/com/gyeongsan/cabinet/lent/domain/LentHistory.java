@@ -17,7 +17,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_lent_ended_at", columnList = "ENDED_AT")
 })
 @Getter
-@ToString(exclude = {"user", "cabinet"})
+@ToString(exclude = { "user", "cabinet" })
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class LentHistory {
 
@@ -35,7 +35,7 @@ public class LentHistory {
     @Column(name = "ENDED_AT")
     private LocalDateTime endedAt;
 
-    @Column(name = "RETURN_MEMO", length = 64)
+    @Column(name = "RETURN_MEMO", length = 255)
     private String returnMemo;
 
     @ManyToOne(fetch = FetchType.LAZY)
