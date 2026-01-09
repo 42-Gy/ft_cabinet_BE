@@ -37,7 +37,7 @@ services:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       TZ: Asia/Seoul
     volumes:
-      - /home/site/wwwroot/db_data:/var/lib/mysql
+      - ${WEBAPP_STORAGE_HOME}/site/wwwroot/db_data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
   redis:
