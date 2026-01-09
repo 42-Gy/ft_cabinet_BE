@@ -20,6 +20,9 @@ public class User {
     @Column(name = "ID")
     private Long id;
 
+    @Version
+    private Long version;
+
     @Column(name = "NAME", length = 32, unique = true, nullable = false)
     private String name;
 
