@@ -88,17 +88,27 @@ public class LentFacadeService {
         log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
     }
 
-    public void endLentCabinet(Long userId, String shareCode, MultipartFile file) {
-        log.info("AI 반납 시도 - User: {}, Next Password: {}", userId, shareCode);
+    public void endLentCabinet(Long userId, String previousPassword, MultipartFile file, Boolean forceReturn,
+            String reason) {
+        log.info("AI 반납 시도 - User: {}, Next Password: {}, Force: {}, Reason: {}", userId, previousPassword, forceReturn,
+                reason);
 
-        boolean isClean = itemCheckService.checkItem(file);
-        if (!isClean) {
-            log.warn("AI 검사 실패 (짐 감지) - User: {}", userId);
-            throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+        if (!forceReturn) {
+            boolean isClean = itemCheckService.checkItem(file);
+            if (!isClean) {
+                log.warn("AI 검사 실패 (짐 감지) - User: {}", userId);
+                throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+            }
         }
 
         transactionTemplate.execute(status -> {
-            processReturnTransaction(userId, shareCode);
+            if (forceReturn) {
+                String returnReason = (reason != null && !reason.isBlank()) ? "[User Force] " + reason
+                        : "AI 검사 실패 및 강제 반납";
+                endLentCabinetManual(userId, previousPassword, returnReason);
+            } else {
+                processReturnTransaction(userId, previousPassword);
+            }
             return null;
         });
     }
@@ -155,22 +165,27 @@ public class LentFacadeService {
         log.info("연장 성공! 변경된 만료일: {}", lentHistory.getExpiredAt());
     }
 
-    public void useSwap(Long userId, Integer newVisibleNum, String shareCode, MultipartFile file) {
-        log.info("이사 시도(AI) - User: {}, NewCabinet: {}", userId, newVisibleNum);
+    public void useSwap(Long userId, Integer newVisibleNum, String previousPassword, MultipartFile file,
+            Boolean forceReturn, String reason) {
+        log.info("이사 시도(AI) - User: {}, NewCabinet: {}, Force: {}, Reason: {}", userId, newVisibleNum, forceReturn,
+                reason);
 
-        boolean isClean = itemCheckService.checkItem(file);
-        if (!isClean) {
-            log.warn("AI 이사 검사 실패 - User: {}", userId);
-            throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+        if (!forceReturn) {
+            boolean isClean = itemCheckService.checkItem(file);
+            if (!isClean) {
+                log.warn("AI 이사 검사 실패 - User: {}", userId);
+                throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+            }
         }
 
         transactionTemplate.execute(status -> {
-            processSwapTransaction(userId, newVisibleNum, shareCode);
+            processSwapTransaction(userId, newVisibleNum, previousPassword, forceReturn, reason);
             return null;
         });
     }
 
-    protected void processSwapTransaction(Long userId, Integer newVisibleNum, String shareCode) {
+    protected void processSwapTransaction(Long userId, Integer newVisibleNum, String previousPassword,
+            Boolean forceReturn, String reason) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
@@ -199,10 +214,18 @@ public class LentFacadeService {
 
         Cabinet oldCabinet = oldLent.getCabinet();
 
-        oldLent.endLent(LocalDateTime.now(), shareCode);
+        String returnReason = previousPassword;
+        if (forceReturn && reason != null && !reason.isBlank()) {
+            returnReason = "[User Force] " + reason;
+        }
+
+        oldLent.endLent(LocalDateTime.now(), returnReason);
 
         if (oldCabinet.getStatus() == CabinetStatus.FULL) {
             oldCabinet.updateStatus(CabinetStatus.AVAILABLE);
+            if (forceReturn) {
+                oldCabinet.updateStatus(CabinetStatus.PENDING); // Force return sets old cabinet to pending check
+            }
         }
 
         newCabinet.updateStatus(CabinetStatus.FULL);
@@ -210,7 +233,8 @@ public class LentFacadeService {
         LentHistory newLent = LentHistory.of(user, newCabinet, LocalDateTime.now(), oldLent.getExpiredAt());
         lentRepository.save(newLent);
 
-        log.info("이사 성공! 🚚 Old(PW:{}): {} -> New: {}", shareCode, oldCabinet.getVisibleNum(), newCabinet.getVisibleNum());
+        log.info("이사 성공! 🚚 Old(PW:{}): {} -> New: {}", previousPassword, oldCabinet.getVisibleNum(),
+                newCabinet.getVisibleNum());
     }
 
     @Transactional
