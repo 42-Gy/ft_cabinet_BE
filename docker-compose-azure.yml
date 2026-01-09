@@ -21,9 +21,12 @@ services:
       - TZ=Asia/Seoul
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
     depends_on:
-      - db
-      - redis
-      - ai
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      ai:
+        condition: service_started
 
   db:
     image: mariadb:10.6
@@ -39,6 +42,11 @@ services:
     volumes:
       - ${WEBAPP_STORAGE_HOME}/site/wwwroot/db_data:/var/lib/mysql
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   redis:
     image: redis:alpine
