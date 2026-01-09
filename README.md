@@ -1,4 +1,5 @@
-# 🗄️ 42Cabi Gyeongsan Ver 5.0
+
+# 🗄️ 42Cabi Gyeongsan Ver 5.1
 
 > **42 경산 캠퍼스 지능형 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성, 공정한 이용, 게임화(Gamification), 그리고 **시스템의 안정성**을 모두 갖춘 REST API 서버입니다.
@@ -13,43 +14,43 @@
 ```mermaid
 graph TD
     %% 클라이언트 및 진입점
-    Client([User Client<br>Web/Mobile]) -->|HTTP / Port 80| Nginx[🦁 Nginx Web Server<br>Reverse Proxy]
+    Client(["User Client<br>Web/Mobile"]) -->|HTTP / Port 80| Nginx["🦁 Nginx Web Server<br>Reverse Proxy"]
     
     %% 백엔드 영역
     subgraph "Backend Container"
-        Nginx -->|Proxy Pass<br>Port 8080| SpringBoot[☕ Core API Server<br>Spring Boot 3.5]
-        Security[Spring Security<br>JWT Filter]
-        Scheduler[Schedulers<br>Lent/Logtime]
+        Nginx -->|"Proxy Pass<br>Port 8080"| SpringBoot["☕ Core API Server<br>Spring Boot 3.5"]
+        Security["Spring Security<br>JWT Filter"]
+        Scheduler["Schedulers<br>Lent/Logtime"]
     end
 
     %% 모니터링 영역 (New)
     subgraph "Monitoring System"
-        Prometheus[🔥 Prometheus<br>Metric Collector]
-        Grafana[📊 Grafana<br>Visualization]
+        Prometheus["🔥 Prometheus<br>Metric Collector"]
+        Grafana["📊 Grafana<br>Visualization"]
         
-        SpringBoot -.->|/actuator/prometheus| Prometheus
-        Prometheus -->|Data Source| Grafana
+        SpringBoot -.->|"/actuator/prometheus"| Prometheus
+        Prometheus -->|"Data Source"| Grafana
     end
 
     %% 데이터 영역
     subgraph "Data Persistence"
-        MariaDB[(🐬 MariaDB 10.6<br>Main DB)]
-        Redis[(🔴 Redis<br>Token/Cache)]
+        MariaDB[("🐬 MariaDB 10.6<br>Main DB")]
+        Redis[("🔴 Redis<br>Token/Cache")]
     end
 
     %% 외부 서비스
     subgraph "External Services"
-        AI_Server[🤖 AI Server<br>Python FastAPI]
-        Intra_API[42 Intra API<br>OAuth2]
-        Slack[Slack Webhook<br>Notification]
+        AI_Server["🤖 AI Server<br>Python FastAPI"]
+        Intra_API["42 Intra API<br>OAuth2"]
+        Slack["Slack Webhook<br>Notification"]
     end
 
     %% 연결 관계
     SpringBoot -->|Read/Write| MariaDB
     SpringBoot -->|Cache/Session| Redis
-    SpringBoot -->|WebClient<br>Async Request| AI_Server
-    AI_Server -->|Analysis Result| SpringBoot
-    SpringBoot -->|OAuth2 Auth| Intra_API
+    SpringBoot -->|"WebClient<br>Async Request"| AI_Server
+    AI_Server -->|"Analysis Result"| SpringBoot
+    SpringBoot -->|"OAuth2 Auth"| Intra_API
     SpringBoot -->|Alert| Slack
 ```
 
@@ -67,46 +68,46 @@ flowchart TD
     classDef decision fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:black;
     classDef endNode fill:#eeeeee,stroke:#333,stroke-width:2px,color:black;
 
-    Start((Start)):::start --> Login[🔐 42 Intra 로그인]:::process
-    Login --> Main[🏠 메인 페이지 / 대시보드]:::process
+    Start((Start)):::start --> Login["🔐 42 Intra 로그인"]:::process
+    Login --> Main["🏠 메인 페이지 / 대시보드"]:::process
 
     %% 메인 페이지에서의 분기
-    Main --> Action_Lent{사물함 대여?}:::decision
-    Main --> Action_My{내 정보 관리?}:::decision
-    Main --> Action_Store{상점 이용?}:::decision
-    Main --> Action_Attend{출석 체크?}:::decision
+    Main --> Action_Lent{"사물함 대여?"}:::decision
+    Main --> Action_My{"내 정보 관리?"}:::decision
+    Main --> Action_Store{"상점 이용?"}:::decision
+    Main --> Action_Attend{"출석 체크?"}:::decision
 
     %% 1. 대여 프로세스
-    Action_Lent -- Yes --> Select[📦 사물함 선택]:::process
-    Select --> Check_Lent{대여 가능?}:::decision
-    Check_Lent -- No (Full/Ban) --> Main
-    Check_Lent -- Yes --> Rent_Success[🔑 대여 완료]:::process
+    Action_Lent -- Yes --> Select["📦 사물함 선택"]:::process
+    Select --> Check_Lent{"대여 가능?"}:::decision
+    Check_Lent -- "No (Full/Ban)" --> Main
+    Check_Lent -- Yes --> Rent_Success["🔑 대여 완료"]:::process
     Rent_Success --> Main
 
     %% 2. 내 정보 & 반납 프로세스
-    Action_My -- Yes --> MyPage[👤 마이 페이지]:::process
-    MyPage --> Return_Btn{반납 하기?}:::decision
-    Return_Btn -- Yes --> Upload[📸 인증 사진 업로드]:::process
-    Upload --> AI_Check{AI 청결도 검사}:::decision
-    AI_Check -- Fail --> Manual[수동 반납 요청]:::process
-    AI_Check -- Pass --> Return_Success[✅ 반납 완료]:::process
+    Action_My -- Yes --> MyPage["👤 마이 페이지"]:::process
+    MyPage --> Return_Btn{"반납 하기?"}:::decision
+    Return_Btn -- Yes --> Upload["📸 인증 사진 업로드"]:::process
+    Upload --> AI_Check{"AI 청결도 검사"}:::decision
+    AI_Check -- Fail --> Manual["수동 반납 요청 (사유 입력)"]:::process
+    AI_Check -- Pass --> Return_Success["✅ 반납 완료"]:::process
     Manual --> Main
     Return_Success --> Main
 
     %% 3. 상점 프로세스
-    Action_Store -- Yes --> Store[🏪 아이템 상점]:::process
-    Store --> Buy{아이템 구매?}:::decision
-    Buy -- 연장권 --> Use_Ext[⏳ 기간 연장]:::process
-    Buy -- 이사권 --> Use_Swap[🚚 사물함 이동]:::process
+    Action_Store -- Yes --> Store["🏪 아이템 상점"]:::process
+    Store --> Buy{"아이템 구매?"}:::decision
+    Buy -- "연장권" --> Use_Ext["⏳ 기간 연장"]:::process
+    Buy -- "이사권" --> Use_Swap["🚚 사물함 이동"]:::process
     Use_Ext --> Main
     Use_Swap --> Main
 
     %% 4. 출석 프로세스
-    Action_Attend -- Click --> Reward[💰 코인 획득]:::process
+    Action_Attend -- Click --> Reward["💰 코인 획득"]:::process
     Reward --> Main
 
     %% 종료
-    Main --> Logout{로그아웃?}:::decision
+    Main --> Logout{"로그아웃?"}:::decision
     Logout -- Yes --> End((End)):::endNode
 ```
 
@@ -115,7 +116,7 @@ flowchart TD
 ## 📂 Project Structure (상세 프로젝트 구조)
 
 > **Core Architecture:** Layered Architecture (Controller - Service - Repository)<br>
-> **Infra Updates:** `nginx`, `prometheus` 설정 파일이 추가되어 배포 환경이 강화되었습니다.
+> **Infra Updates:** `nginx`, `prometheus` 설정 및 보안 패치 완료.
 
 ```text
 .
@@ -179,7 +180,7 @@ flowchart TD
 │   │   │   │   └── service/StoreService.java
 │   │   │   │
 │   │   │   ├── lent                # [Lent] 대여/반납 (Core)
-│   │   │   │   ├── controller/LentController.java    # 대여, 반납, 이사, 연장
+│   │   │   │   ├── controller/LentController.java    # 대여, 반납(Manual포함), 이사, 연장
 │   │   │   │   ├── domain/LentHistory.java
 │   │   │   │   ├── repository/LentRepository.java
 │   │   │   │   └── service/
@@ -247,6 +248,7 @@ erDiagram
         LocalDateTime deletedAt "탈퇴 날짜"
         boolean slackAlarm "슬랙 알림 여부"
         boolean emailAlarm "이메일 알림 여부"
+        Long version "낙관적 락 버전"
     }
 
     ATTENDANCE {
@@ -305,6 +307,7 @@ erDiagram
 | **Ver 4.0** | **Gamification** | **제곱 패널티($D^2$)**, **아이템 상점(이사/연장/감면)** 구현 |
 | **Ver 4.8** | **AI & Admin** | **AI 청결도 검사**, **Exif 보안**, 관리자 수동 승인 프로세스, 블랙홀 유저 보호 |
 | **Ver 5.0** | **Infra & DevOps** | **Docker Compose**, **Nginx**(Reverse Proxy), **Prometheus & Grafana**(Monitoring) 도입 |
+| **Ver 5.1** | **Stability & UX** | **반납/이사 사유 입력**, **코인 동시성 제어(낙관적 락)** 보안 패치 |
 
 <br>
 
@@ -329,10 +332,10 @@ erDiagram
 * **Full Dockerization:** 백엔드, DB, Redis, Nginx, 모니터링 툴까지 `docker-compose`로 한 번에 오케스트레이션합니다.
 * **Prometheus & Grafana:** JVM 메모리, CPU 사용량, DB 커넥션 풀 상태를 실시간 시각화하여 장애를 사전에 감지합니다.
 
-### 2. 🤖 지능형 AI 반납 시스템 (AI-Powered Return)
+### 2. 🤖 개선된 AI 반납 시스템 (AI-Powered Return)
 * **AI 청결도 검사:** 반납 시 업로드한 사물함 내부 사진을 Python(FastAPI) AI 서버로 실시간 전송. 쓰레기나 짐 방치 여부를 분석하여 자동 승인/거절 처리.
 * **Exif 보안 (Anti-Replay):** 사진의 메타데이터를 분석하여 **"촬영 후 10분 이내"**의 원본 사진인지 검증. 캡처본이나 과거 사진을 이용한 어뷰징 차단.
-* **수동 승인 프로세스:** AI 장애 발생 시 유저가 사유를 적어 '수동 반납'을 요청하면 사물함은 `PENDING` 상태가 되며, 관리자가 직접 확인 후 승인.
+* **수동 반납 (사유 입력):** AI 검사 실패 시, 사용자가 직접 **사유를 입력하고 강제 반납**을 요청할 수 있습니다. 사물함은 `PENDING` 상태가 되며 관리자가 해당 사유를 확인 후 승인합니다.
 
 ### 3. 🍉 수동 출석 & 황금 수박 이벤트 (New in v5.0)
 * **수동 출석:** 기존 자동 집계 방식을 폐지하고, 유저가 홈페이지의 **[출석하기]** 버튼을 직접 눌러야 코인을 획득하도록 변경 (유저 리텐션 강화).
@@ -341,6 +344,7 @@ erDiagram
     * **Golden Watermelon:** 매월 **20회차** 출석 달성 시 **2,000 코인** 보너스 지급.
 
 ### 4. 🛡️ 시스템 안정성 및 성능 (Robustness & Performance)
+* **동시성 제어(Concurrency):** `User` 엔티티에 **낙관적 락(`@Version`)**을 적용하여 코인 중복 사용(Double Spending)을 원천 차단했습니다.
 * **Graceful Shutdown:** 배포나 서버 재시작 시, 진행 중인 대여/반납 요청을 강제로 끊지 않고 **안전하게 완료한 뒤 종료**되도록 설정하여 데이터 유실을 방지합니다.
 * **DB 인덱싱(Indexing):** 대여 기록(`LentHistory`)의 핵심 컬럼(`user_id`, `cabinet_id`, `ended_at`)에 인덱스를 적용하여, 데이터가 수십만 건 쌓여도 **조회 속도가 저하되지 않도록 최적화**했습니다.
 * **Timezone 동기화:** Docker 컨테이너 레벨에서 `Asia/Seoul` 타임존을 강제하여, 서버 환경에 상관없이 **출석 체크와 연체료 계산**이 정확한 시간에 수행됩니다.
@@ -379,17 +383,17 @@ sequenceDiagram
     Controller->>Service: startLentCabinet()
     activate Service
     
-    Note right of DB: 🔒 비관적 락 (Pessimistic Lock)<br/>동시 요청 방지
-    Service->>DB: SELECT ... FOR UPDATE
+    Note right of DB: "🔒 비관적 락 (Pessimistic Lock)<br/>동시 요청 방지"
+    Service->>DB: "SELECT ... FOR UPDATE"
     
     alt 🚫 이미 대여중 (FULL)
         Service-->>Controller: 예외 발생 (LENT_FULL)
-        Controller-->>User: 400 Error "이미 대여된 사물함입니다."
+        Controller-->>User: "400 Error (이미 대여된 사물함입니다.)"
     else ✅ 대여 가능
         Service->>DB: LentHistory 생성
         Service->>DB: 사물함 상태 변경 (FULL)
         Service-->>Controller: 대여 성공
-        Controller-->>User: 200 OK "대여 완료!"
+        Controller-->>User: "200 OK (대여 완료!)"
     end
     deactivate Service
     deactivate Controller
@@ -404,23 +408,24 @@ sequenceDiagram
     participant Service as ⚙️ LentService
     participant AI as 🤖 AI Server (Python)
 
-    User->>Controller: 반납 사진 전송 (POST /return)
+    User->>Controller: "반납 사진 전송 (POST /return)"
     activate Controller
     Controller->>Service: 반납 요청 위임
     activate Service
     
     Service->>AI: 📡 이미지 청결도 분석 요청
     activate AI
-    AI-->>Service: ✅ 분석 결과 (CLEAN / DIRTY)
+    AI-->>Service: "✅ 분석 결과 (CLEAN / DIRTY)"
     deactivate AI
 
-    alt ❌ 더러움
+    alt ❌ 더러움 (AI 실패)
         Service-->>Controller: 반납 거절
         Controller-->>User: 400 Bad Request
+        Note over User, Controller: "💡 계속 실패 시 '수동 반납(사유 입력)' 요청 가능"
     else ✅ 깨끗함
         Service->>DB: 사물함 상태 변경 (AVAILABLE)
         Service-->>Controller: 반납 성공
-        Controller-->>User: 200 OK "반납 완료!"
+        Controller-->>User: "200 OK (반납 완료!)"
     end
     deactivate Service
     deactivate Controller
@@ -434,16 +439,17 @@ sequenceDiagram
     participant Service as ⚙️ StoreService
     participant DB as 🗄️ Database
 
-    User->>Service: 연장권 구매 요청 (buyItem)
+    User->>Service: "연장권 구매 요청 (buyItem)"
     activate Service
     
-    Service->>DB: 🔍 1. 현재 보유 개수 확인 (Inventory Check)
-    Service->>DB: 🔍 2. 이번 달 구매 횟수 확인 (Monthly Check)
+    Service->>DB: "🔍 1. 현재 보유 개수 확인 (Inventory Check)"
+    Service->>DB: "🔍 2. 이번 달 구매 횟수 확인 (Monthly Check)"
     
     alt 🚫 제한 초과 (보유 2개 or 월 2회)
-        Service-->>User: 예외 발생 (LIMIT_EXCEEDED)
+        Service-->>User: "예외 발생 (LIMIT_EXCEEDED)"
     else ✅ 구매 가능
-        Service->>DB: 💰 코인 차감 & 아이템 지급
+        Note right of DB: "🔒 낙관적 락 (@Version)<br/>중복 구매(Double Spending) 방지"
+        Service->>DB: "💰 코인 차감 & 아이템 지급"
         Service-->>User: 구매 성공
     end
     deactivate Service
@@ -457,14 +463,14 @@ sequenceDiagram
     participant Service as ⚙️ LentFacadeService
     participant DB as 🗄️ Database
 
-    User->>Service: 이사 요청 (swapPrivateCabinet)
+    User->>Service: "이사 요청 (swapPrivateCabinet)"
     activate Service
     
     rect rgb(240, 248, 255)
         Note over Service, DB: 🔄 Atomic Transaction
-        Service->>DB: 1. 아이템 차감
-        Service->>DB: 2. 기존 사물함 반납 (EndedAt)
-        Service->>DB: 3. 새 사물함 대여 (StartedAt)
+        Service->>DB: "1. 아이템 차감"
+        Service->>DB: "2. 기존 사물함 반납 (EndedAt)"
+        Service->>DB: "3. 새 사물함 대여 (StartedAt)"
     end
 
     alt 🚫 실패 시
@@ -506,8 +512,7 @@ sequenceDiagram
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
 | `POST` | `/v4/lent/cabinets/{visibleNum}` | 사물함 대여 시작 |
-| `POST` | `/v4/lent/return` | **[AI]** 사물함 반납 (사진 검증 + 공유코드) |
-| `POST` | `/v4/lent/return/manual` | **[Manual]** 수동 반납 요청 (AI 실패 시) |
+| `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력) |
 | `POST` | `/v4/lent/swap/{newVisibleNum}` | **[Item]** 이사권을 사용해 사물함 이동 |
 | `POST` | `/v4/lent/extension` | **[Item]** 연장권을 사용해 기간 연장 |
 | `POST` | `/v4/lent/penalty-exemption` | **[Item]** 패널티 감면권 사용 |
