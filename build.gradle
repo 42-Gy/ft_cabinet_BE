@@ -58,6 +58,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'it.ozimov:embedded-redis:0.7.2'
 	implementation 'io.micrometer:micrometer-registry-prometheus'
 	implementation 'com.drewnoakes:metadata-extractor:2.18.0'
 
