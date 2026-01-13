@@ -124,6 +124,9 @@ app:
     read-timeout: 3000
   frontend:
     url: ${FRONTEND_URL}
+  ft-api:
+    root-url: https://api.intra.42.fr
+    token-url: https://api.intra.42.fr/oauth/token
 
 resilience4j:
   circuitbreaker:
@@ -139,7 +142,3 @@ resilience4j:
         limitRefreshPeriod: 1s
         timeoutDuration: 5s
 
-app:
-  ft-api:
-    root-url: https://api.intra.42.fr
-    token-url: https://api.intra.42.fr/oauth/token
