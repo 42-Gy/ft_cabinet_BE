@@ -21,7 +21,7 @@ public class User {
     private Long id;
 
     @Version
-    private Long version;
+    private Long version = 0L;
 
     @Column(name = "NAME", length = 32, unique = true, nullable = false)
     private String name;
