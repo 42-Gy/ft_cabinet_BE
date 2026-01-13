@@ -138,3 +138,8 @@ resilience4j:
         limitForPeriod: 5
         limitRefreshPeriod: 1s
         timeoutDuration: 5s
+
+app:
+  ft-api:
+    root-url: https://api.intra.42.fr
+    token-url: https://api.intra.42.fr/oauth/token
