@@ -2,8 +2,10 @@ package com.gyeongsan.cabinet.user.domain;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import lombok.ToString;
 
 import java.time.LocalDateTime;
@@ -12,6 +14,8 @@ import java.time.LocalDateTime;
 @Table(name = "USER")
 @Getter
 @ToString
+@Builder
+@AllArgsConstructor
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User {
 
@@ -20,7 +24,9 @@ public class User {
     @Column(name = "ID")
     private Long id;
 
+    @Builder.Default
     @Version
+    @Column(name = "version")
     private Long version = 0L;
 
     @Column(name = "NAME", length = 32, unique = true, nullable = false)
