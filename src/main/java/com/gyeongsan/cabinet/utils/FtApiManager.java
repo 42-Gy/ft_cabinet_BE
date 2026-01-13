@@ -8,12 +8,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -38,7 +39,7 @@ public class FtApiManager {
     @Value("${app.ft-api.token-url}")
     private String ftApiTokenUrl;
 
-    private final RestTemplate restTemplate;
+    private final WebClient webClient;
 
     private volatile String accessToken;
 
@@ -54,10 +55,16 @@ public class FtApiManager {
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
         try {
-            ResponseEntity<JsonNode> response = restTemplate.postForEntity(url, request, JsonNode.class);
+            JsonNode response = webClient.post()
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromValue(body))
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
 
-            if (response.getBody() != null) {
-                this.accessToken = response.getBody().get("access_token").asText();
+            if (response != null) {
+                this.accessToken = response.get("access_token").asText();
                 log.info("✅ 42 API 토큰 발급/갱신 성공");
             }
         } catch (Exception e) {
@@ -119,7 +126,7 @@ public class FtApiManager {
     private int callApiWithRetry(String url, String intraId) {
         try {
             return requestLogtime(url);
-        } catch (HttpClientErrorException.Unauthorized e) {
+        } catch (WebClientResponseException.Unauthorized e) {
             log.warn("🔄 [401 Unauthorized] 토큰 만료. 재발급 후 재시도... ({})", intraId);
             try {
                 generateToken();
@@ -135,14 +142,12 @@ public class FtApiManager {
     }
 
     private int requestLogtime(String url) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + this.accessToken);
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
-        ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
-
-        JsonNode locations = response.getBody();
+        JsonNode locations = webClient.get()
+                .uri(url)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .block();
         long totalSeconds = 0;
 
         if (locations != null) {
