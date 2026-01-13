@@ -23,7 +23,6 @@ public class EmbeddedRedisConfig {
         try {
             redisServer = RedisServer.builder()
                     .port(redisPort)
-                    .setting("maxheap 200m")
                     .build();
             redisServer.start();
             log.info("Embedded Redis started on port {}", redisPort);
