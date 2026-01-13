@@ -32,12 +32,18 @@ public class FtApiManager {
     @Value("${spring.security.oauth2.client.registration.42.client-secret}")
     private String clientSecret;
 
+    @Value("${app.ft-api.root-url}")
+    private String ftApiRootUrl;
+
+    @Value("${app.ft-api.token-url}")
+    private String ftApiTokenUrl;
+
     private final RestTemplate restTemplate;
 
     private volatile String accessToken;
 
     private synchronized void generateToken() {
-        String url = "https://api.intra.42.fr/oauth/token";
+        String url = ftApiTokenUrl;
 
         HttpHeaders headers = new HttpHeaders();
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
@@ -79,9 +85,8 @@ public class FtApiManager {
                 .format(DateTimeFormatter.ISO_INSTANT);
 
         String url = String.format(
-                "https://api.intra.42.fr/v2/users/%s/locations?range[begin_at]=%s,%s&page[size]=100",
-                intraId, rangeStart, rangeEnd
-        );
+                "%s/v2/users/%s/locations?range[begin_at]=%s,%s&page[size]=100",
+                ftApiRootUrl, intraId, rangeStart, rangeEnd);
 
         return callApiWithRetry(url, intraId);
     }
@@ -105,9 +110,8 @@ public class FtApiManager {
                 .format(DateTimeFormatter.ISO_INSTANT);
 
         String url = String.format(
-                "https://api.intra.42.fr/v2/users/%s/locations?range[begin_at]=%s,%s&page[size]=100",
-                intraId, rangeStart, rangeEnd
-        );
+                "%s/v2/users/%s/locations?range[begin_at]=%s,%s&page[size]=100",
+                ftApiRootUrl, intraId, rangeStart, rangeEnd);
 
         return callApiWithRetry(url, intraId);
     }
@@ -148,7 +152,8 @@ public class FtApiManager {
 
                 String endStr = (endNode == null || endNode.isNull()) ? null : endNode.asText();
 
-                if (endStr == null) continue;
+                if (endStr == null)
+                    continue;
 
                 ZonedDateTime begin = ZonedDateTime.parse(beginStr);
                 ZonedDateTime end = ZonedDateTime.parse(endStr);
