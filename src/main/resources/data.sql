@@ -10,7 +10,8 @@ INSERT IGNORE INTO user (
         role,
         slack_alarm,
         penalty_days,
-        monthly_logtime
+        monthly_logtime,
+        version
     )
 VALUES (
         1,
@@ -24,7 +25,8 @@ VALUES (
         'ADMIN',
         true,
         0,
-        5000
+        5000,
+        0
     );
 INSERT IGNORE INTO user (
         id,
@@ -38,7 +40,8 @@ INSERT IGNORE INTO user (
         role,
         slack_alarm,
         penalty_days,
-        monthly_logtime
+        monthly_logtime,
+        version
     )
 VALUES (
         2,
@@ -52,7 +55,8 @@ VALUES (
         'ADMIN',
         true,
         0,
-        12341234
+        12341234,
+        0
     );
 INSERT IGNORE INTO item (id, description, name, price, type)
 VALUES (
