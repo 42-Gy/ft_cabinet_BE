@@ -585,11 +585,22 @@ TZ=Asia/Seoul
 ```
 
 **B. `src/main/resources/secret.properties` (Optional)**
-`.env`로 대체 가능하나, 로컬 실행 시 필요할 수 있습니다.
+`.env`로 대체 가능하나, 로컬 실행 시 필요할 수 있습니다. `application.yml`의 환경 변수를 대체할 수 있도록 동일한 키를 포함해야 합니다.
 ```properties
-spring.datasource.password=${DB_PASSWORD}
-jwt.secret=${JWT_SECRET}
-SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+# Database
+spring.datasource.username=cabi
+spring.datasource.password=cabi_password
+
+# Security & OAuth
+jwt.secret=your_jwt_strong_secret_key
+FT_CLIENT_ID=your_42_client_id
+FT_CLIENT_SECRET=your_42_client_secret
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+
+# Service Config
+FRONTEND_URL=http://localhost
+AI_SERVER_URL=http://localhost:8000
+CORS_ALLOWED_ORIGINS=http://localhost,http://localhost:3000
 ```
 
 ### 2. 실행 (Docker Compose)
