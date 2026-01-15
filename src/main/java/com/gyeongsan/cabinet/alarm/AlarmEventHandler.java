@@ -17,7 +17,7 @@ public class AlarmEventHandler {
     @Async
     @EventListener
     public void handleAlarmEvent(AlarmEvent event) {
-        log.info("📨 [비동기] 알림 이벤트 수신! 대상: {}", event.getEmail());
-        slackBotService.sendDm(event.getEmail(), event.getMessage());
+        log.info("📨 [비동기] 알림 이벤트 수신! 대상: {}", event.getIntraId());
+        slackBotService.sendDm(event.getIntraId(), event.getMessage());
     }
 }

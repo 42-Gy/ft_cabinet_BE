@@ -314,6 +314,7 @@ erDiagram
 | **Ver 5.0** | **Infra & DevOps** | **Docker Compose**, **Nginx**(Reverse Proxy), **Prometheus & Grafana**(Monitoring) 도입 |
 | **Ver 5.1** | **Stability & UX** | **반납/이사 사유 입력**, **코인 동시성 제어(낙관적 락)** 보안 패치 |
 | **Ver 5.2** | **Auto-Extension & Scheduler** | **자동 연장 시스템**, **스케줄러 고도화(D-7/D-1 알림)**, 관리자 모니터링 API 추가 |
+| **Ver 5.3** | **Logic Refinement** | **블랙홀 유예(D+7)**, **스케줄러 최적화(시간분산)**, **Intra ID 알림**, 블랙홀 대여제한 해제 |
 
 <br>
 

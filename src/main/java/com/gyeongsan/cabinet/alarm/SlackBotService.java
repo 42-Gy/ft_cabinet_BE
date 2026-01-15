@@ -23,12 +23,12 @@ public class SlackBotService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public void sendDm(String email, String messageContent) {
+    public void sendDm(String intraId, String messageContent) {
         try {
-            String slackUserId = findSlackIdByEmail(email);
+            String slackUserId = findSlackIdByIntraId(intraId);
 
             if (slackUserId == null) {
-                log.error("❌ 해당 이메일을 가진 슬랙 유저를 찾을 수 없습니다: {}", email);
+                log.error("❌ 해당 Intra ID({})를 가진 슬랙 유저를 찾을 수 없습니다.", intraId);
                 return;
             }
 
@@ -39,22 +39,28 @@ public class SlackBotService {
         }
     }
 
-    private String findSlackIdByEmail(String email) {
-        String url = "https://slack.com/api/users.lookupByEmail?email=" + email;
+    private String findSlackIdByIntraId(String intraId) {
+        String url = "https://slack.com/api/users.list";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setBearerAuth(botToken);
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
-            ResponseEntity<JsonNode> response =
-                    restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
+            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
             JsonNode body = response.getBody();
 
             if (body != null && body.get("ok").asBoolean()) {
-                return body.get("user").get("id").asText();
+                JsonNode members = body.get("members");
+                if (members.isArray()) {
+                    for (JsonNode member : members) {
+                        if (member.has("name") && member.get("name").asText().equals(intraId)) {
+                            return member.get("id").asText();
+                        }
+                    }
+                }
             } else {
-                log.warn("슬랙 유저 조회 실패 (응답): {}", body);
+                log.warn("슬랙 유저 리스트 조회 실패 (응답): {}", body);
             }
         } catch (Exception e) {
             log.error("슬랙 API 호출 실패: {}", e.getMessage());

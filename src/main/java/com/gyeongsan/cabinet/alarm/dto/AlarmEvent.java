@@ -6,6 +6,7 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class AlarmEvent {
+    private final String intraId;
     private final String email;
     private final String message;
 }

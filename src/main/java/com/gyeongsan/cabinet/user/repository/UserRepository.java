@@ -15,8 +15,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
-    @Query("SELECT u FROM User u WHERE u.blackholedAt < :now AND u.deletedAt IS NULL")
-    List<User> findAllBlackholedUsers(@Param("now") LocalDateTime now);
+    @Query("SELECT u FROM User u WHERE u.blackholedAt < :date AND u.deletedAt IS NULL")
+    List<User> findAllBlackholedUsers(@Param("date") LocalDateTime date);
 
     long countByPenaltyDaysGreaterThan(Integer penaltyDays);
 }

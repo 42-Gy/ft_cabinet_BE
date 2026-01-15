@@ -34,8 +34,8 @@ public record CabinetDetailResponse(
                 cabinet.getLentType().name(),
                 cabinet.getMaxUser(),
                 cabinet.getSection(),
-                cabinet.getLocation(),
-                cabinet.getTitle(),
+                cabinet.getFloor() + "F " + cabinet.getSection(),
+                "",
                 userName,
                 userId);
     }
