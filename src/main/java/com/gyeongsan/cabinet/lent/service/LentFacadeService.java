@@ -59,11 +59,6 @@ public class LentFacadeService {
             throw new ServiceException(ErrorCode.LENT_ALREADY_EXIST);
         }
 
-        LocalDateTime blackholedAt = user.getBlackholedAt();
-        if (blackholedAt != null && blackholedAt.isBefore(LocalDateTime.now().plusDays(3))) {
-            throw new ServiceException(ErrorCode.BLACKHOLED_USER);
-        }
-
         if (cabinet.getStatus() != CabinetStatus.AVAILABLE) {
             throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
         }

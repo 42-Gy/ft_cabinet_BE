@@ -52,7 +52,7 @@ public class LentScheduler {
         log.info("1. [Grant] 대여권 지급 시작...");
     }
 
-    @Scheduled(cron = "0 0 8 * * *")
+    @Scheduled(cron = "0 30 6 * * *")
     @Transactional
     public void autoExtension() {
         log.info("🔔 [Daily] 자동 연장 프로세스 시작...");
@@ -89,7 +89,7 @@ public class LentScheduler {
         checkOverdue();
     }
 
-    @Scheduled(cron = "0 0 6 * * *")
+    @Scheduled(cron = "0 0 9 * * *")
     @Transactional
     public void checkOverdue() {
         LocalDateTime now = LocalDateTime.now();
@@ -124,7 +124,7 @@ public class LentScheduler {
         }
     }
 
-    @Scheduled(cron = "0 0 9 * * *")
+    @Scheduled(cron = "0 15 9 * * *")
     @Transactional(readOnly = true)
     public void checkExpirationImminent() {
         log.info("🔔 [D-7, D-1] 반납 임박 알림 체크 시작");
@@ -165,7 +165,7 @@ public class LentScheduler {
         String message = String.format(
                 "🚨 *[연체 경고]*\n%s님, %d번 사물함이 연체되었습니다. 패널티가 누적되고 있으니 즉시 반납해주세요!",
                 user.getName(), cabinetId);
-        eventPublisher.publishEvent(new AlarmEvent(user.getEmail(), message));
+        eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
     }
 
     private void sendImminentAlarm(User user, LocalDateTime expiredAt, Integer visibleNum, int daysLeft) {
@@ -173,6 +173,6 @@ public class LentScheduler {
         String message = String.format(
                 "⏳ *[반납 알림]*\n%s님, 사용 중인 사물함(%d번)의 반납 기한이 %d일 남았습니다.\n(반납 예정일: %s)\n잊지 말고 반납해주세요! 😊",
                 user.getName(), visibleNum, daysLeft, dateStr);
-        eventPublisher.publishEvent(new AlarmEvent(user.getEmail(), message));
+        eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
     }
 }

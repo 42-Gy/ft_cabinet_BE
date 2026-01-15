@@ -39,12 +39,15 @@ public class User {
     @Column(name = "ROLE", nullable = false)
     private UserRole role;
 
+    @Builder.Default
     @Column(name = "COIN", nullable = false)
     private Long coin = 0L;
 
+    @Builder.Default
     @Column(name = "PENALTY_DAYS", nullable = false)
     private Integer penaltyDays = 0;
 
+    @Builder.Default
     @Column(name = "MONTHLY_LOGTIME", nullable = false)
     private Integer monthlyLogtime = 0;
 
@@ -54,12 +57,15 @@ public class User {
     @Column(name = "DELETED_AT")
     private LocalDateTime deletedAt;
 
+    @Builder.Default
     @Column(name = "SLACK_ALARM")
     private boolean slackAlarm = true;
 
+    @Builder.Default
     @Column(name = "EMAIL_ALARM")
     private boolean emailAlarm = true;
 
+    @Builder.Default
     @Column(name = "PUSH_ALARM")
     private boolean pushAlarm = false;
 
