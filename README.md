@@ -42,7 +42,7 @@ graph TD
     subgraph "External Services"
         AI_Server["🤖 AI Server<br>Python FastAPI"]
         Intra_API["42 Intra API<br>OAuth2"]
-        Slack["Slack Webhook<br>Notification"]
+        Slack["Slack Bot<br>Web API"]
     end
 
     %% 연결 관계
@@ -51,7 +51,7 @@ graph TD
     SpringBoot -->|"WebClient<br>Async Request"| AI_Server
     AI_Server -->|"Analysis Result"| SpringBoot
     SpringBoot -->|"OAuth2 Auth"| Intra_API
-    SpringBoot -->|Alert| Slack
+    SpringBoot -->|API Call| Slack
 ```
 
 <br>
@@ -321,7 +321,7 @@ erDiagram
 | **Infra** | **Docker Compose**, AWS EC2, **Nginx** (Reverse Proxy) |
 | **Monitoring** | **Prometheus** (Metrics), **Grafana** (Visualization), **Actuator** |
 | **Stability** | **Graceful Shutdown**, **DB Indexing**, **Resilience4j**, **Logback (Rolling)** |
-| **Tools** | Gradle, Slack Webhook, **Spring Actuator** |
+| **Tools** | Gradle, **Slack Bot (Web API)**, **Spring Actuator** |
 | **AI Module** | **WebFlux (WebClient)**, Metadata-extractor (Exif Analysis) |
 
 <br>
