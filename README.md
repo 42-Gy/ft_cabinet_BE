@@ -141,7 +141,10 @@ flowchart TD
 │   │   │   │   ├── dto/
 │   │   │   │   │   ├── AdminUserDetailResponseDto.java
 │   │   │   │   │   ├── CabinetPendingResponseDto.java # 수동 승인 대기 목록
-│   │   │   │   │   └── CoinProvideRequestDto.java
+│   │   │   │   │   ├── CoinProvideRequestDto.java
+│   │   │   │   │   ├── OverdueUserResponse.java       # [New] 연체자 목록
+│   │   │   │   │   └── CabinetDetailResponse.java     # [New] 사물함 상세 정보
+│   │   │   │   └── service/AdminService.java         # 관리자 비즈니스 로직
 │   │   │   │   └── service/AdminService.java         # 관리자 비즈니스 로직
 │   │   │   │
 │   │   │   ├── alarm               # [Alarm] 비동기 알림
@@ -181,6 +184,8 @@ flowchart TD
 │   │   │   │
 │   │   │   ├── lent                # [Lent] 대여/반납 (Core)
 │   │   │   │   ├── controller/LentController.java    # 대여, 반납(Manual포함), 이사, 연장
+│   │   │   │   ├── dto/
+│   │   │   │   │   └── LentExtensionRequest.java     # [New] 자동 연장 요청
 │   │   │   │   ├── domain/LentHistory.java
 │   │   │   │   ├── repository/LentRepository.java
 │   │   │   │   └── service/
@@ -195,7 +200,7 @@ flowchart TD
 │   │   │   │   │   └── AttendanceRepository.java     # 출석 기록 관리
 │   │   │   │   ├── scheduler/
 │   │   │   │   │   ├── LogtimeScheduler.java         # 42 API 로그타임 집계
-│   │   │   │   │   └── LentScheduler.java            # 연체자 처리 및 D-3 알림
+│   │   │   │   │   └── LentScheduler.java            # 자동 연장, 연체 처리, 반납 임박 알림
 │   │   │   │   └── service/UserService.java          # 황금수박 이벤트 로직
 │   │   │   │
 │   │   │   └── utils               # [Utils] 유틸리티
