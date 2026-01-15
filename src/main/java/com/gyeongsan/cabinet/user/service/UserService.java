@@ -114,10 +114,7 @@ public class UserService {
                 .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
 
         LocalDate today = LocalDate.now();
-        
-        
-        
-        
+
         if (attendanceRepository.findTodayAttendance(user, today, today).isPresent()) {
             throw new IllegalStateException("이미 오늘 출석체크를 완료했습니다.");
         }
@@ -125,10 +122,8 @@ public class UserService {
         Attendance attendance = new Attendance(user, today);
         attendanceRepository.save(attendance);
 
-        
         user.addCoin(100L);
 
-        
         LocalDate startOfMonth = today.withDayOfMonth(1);
         long attendanceCount = attendanceRepository.countLoginDaysByUserId(userId, startOfMonth, today);
 
@@ -161,7 +156,7 @@ public class UserService {
             if (lentTicketItem != null && user.getMonthlyLogtime() >= MONTHLY_TARGET_MINUTES) {
                 ItemHistory reward = new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
                 itemHistoryRepository.save(reward);
-                log.info("🎉 [Reward] {}님 지난달 50시간 달성! 대여권 지급 완료.", user.getName());
+                log.info("🎉 [Reward] {}님 지난달 80시간 달성! 대여권 지급 완료.", user.getName());
             }
             user.resetMonthlyLogtime();
         }
