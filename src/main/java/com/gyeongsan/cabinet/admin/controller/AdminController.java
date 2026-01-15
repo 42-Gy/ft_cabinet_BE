@@ -89,6 +89,16 @@ public class AdminController {
         return ApiResponse.success("아이템 가격이 변경되었습니다.");
     }
 
+    @GetMapping("/cabinets/overdue")
+    public ApiResponse<List<OverdueUserResponse>> getOverdueUsers() {
+        return ApiResponse.success(adminService.getOverdueUsers());
+    }
+
+    @GetMapping("/cabinets/{visibleNum}")
+    public ApiResponse<CabinetDetailResponse> getCabinetDetail(@PathVariable Integer visibleNum) {
+        return ApiResponse.success(adminService.getCabinetDetail(visibleNum));
+    }
+
     public record UserLogtimeRequest(Integer monthlyLogtime) {
     }
 

@@ -308,6 +308,7 @@ erDiagram
 | **Ver 4.8** | **AI & Admin** | **AI 청결도 검사**, **Exif 보안**, 관리자 수동 승인 프로세스, 블랙홀 유저 보호 |
 | **Ver 5.0** | **Infra & DevOps** | **Docker Compose**, **Nginx**(Reverse Proxy), **Prometheus & Grafana**(Monitoring) 도입 |
 | **Ver 5.1** | **Stability & UX** | **반납/이사 사유 입력**, **코인 동시성 제어(낙관적 락)** 보안 패치 |
+| **Ver 5.2** | **Auto-Extension & Scheduler** | **자동 연장 시스템**, **스케줄러 고도화(D-7/D-1 알림)**, 관리자 모니터링 API 추가 |
 
 <br>
 
@@ -352,11 +353,12 @@ erDiagram
 * **Logback Rolling Policy:** 로그 파일 용량(10MB/3GB) 제한으로 디스크 장애 예방.
 
 ### 5. 🎮 게임화 및 상점 (Gamification)
-* **제곱 패널티($D^2$):** 연체 시 `연체일수 * 연체일수` 만큼 대여 불가 기간을 부여하여 정시 반납 유도.
+* **패널티($D*3$):** 연체 시 `연체일수 * 3` 만큼 대여 불가 기간을 부여하여 정시 반납 유도.
 * **아이템 상점:** 출석과 로그타임으로 모은 코인을 사용하여 아이템 구매.
     * **🚚 이사권 (Swap):** 반납 절차 없이 즉시 다른 빈 사물함으로 이동.
     * **⏳ 연장권 (Extension):** 현재 대여 중인 사물함 기간을 15일 연장.
     * **🛡️ 감면권 (Exemption):** 연체 패널티 기간 1일 감면.
+    * **⏳ 자동 연장 (Auto-Extension):** (New) 유저가 **자동 연장 설정(`ON`)**을 하고 연장권을 보유 중이라면, 대여 만료 1일 전(`D-1`) 시스템이 자동으로 아이템을 사용하여 연장합니다.
 
 ### 6. 👑 관리자 기능 (Admin Dashboard)
 * **블랙홀 유저 보호:** 퇴소자 발생 시 자동 반납되지 않고 별도 목록으로 관리, 관리자가 짐 수거 확인 후 **강제 반납**.
@@ -515,6 +517,7 @@ sequenceDiagram
 | `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력) |
 | `POST` | `/v4/lent/swap/{newVisibleNum}` | **[Item]** 이사권을 사용해 사물함 이동 |
 | `POST` | `/v4/lent/extension` | **[Item]** 연장권을 사용해 기간 연장 |
+| `PATCH` | `/v4/lent/extension/auto` | **[NEW]** 자동 연장 설정 ON/OFF 토글 |
 | `POST` | `/v4/lent/penalty-exemption` | **[Item]** 패널티 감면권 사용 |
 
 ### 5. 🏪 상점 (Store)
@@ -539,6 +542,8 @@ sequenceDiagram
 | `GET` | `/v4/admin/cabinets/pending` | 수동 반납 승인 대기 목록 조회 |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/approve` | 수동 반납 최종 승인 (잠금 해제) |
 | `PATCH` | `/v4/admin/items/{itemName}/price` | 상점 아이템 가격 변경 |
+| `GET` | `/v4/admin/cabinets/overdue` | **[NEW]** 현재 연체 중인 유저 목록 조회 |
+| `GET` | `/v4/admin/cabinets/{visibleNum}` | **[NEW]** 사물함 상세 정보 조회 |
 
 <br>
 
@@ -547,12 +552,39 @@ sequenceDiagram
 ### 1. 환경 설정 (Configuration)
 보안을 위해 실제 설정 파일은 저장소에 포함되지 않습니다. 아래 파일을 생성하여 환경 변수를 설정하세요.
 
-**A. `src/main/resources/secret.properties`**
+**A. `.env` 파일 생성 (Root Directory)**  
+프로젝트 루트 디렉토리에 `.env` 파일을 생성하고 아래 내용을 작성하세요.
 ```properties
-# 데이터베이스 비밀번호 및 JWT 시크릿 키 등을 설정
+# Database
+DB_ROOT_PASSWORD=root_password
+DB_USER=cabi
+DB_PASSWORD=cabi_password
+
+# Redis
+REDIS_PORT=6379
+
+# OAuth & Security
+FT_CLIENT_ID=your_42_client_id
+FT_CLIENT_SECRET=your_42_client_secret
+JWT_SECRET=your_jwt_strong_secret_key
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+
+# Service URLs
+FRONTEND_URL=http://localhost
+AI_SERVER_URL=http://ai_server:8000
+COOKIE_SECURE=false
+CORS_ALLOWED_ORIGINS=http://localhost,http://localhost:3000
+
+# Timezone
+TZ=Asia/Seoul
+```
+
+**B. `src/main/resources/secret.properties` (Optional)**
+`.env`로 대체 가능하나, 로컬 실행 시 필요할 수 있습니다.
+```properties
 spring.datasource.password=${DB_PASSWORD}
 jwt.secret=${JWT_SECRET}
-SLACK_BOT_TOKEN=${SLACK_TOKEN}
+SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
 ```
 
 ### 2. 실행 (Docker Compose)
@@ -570,3 +602,13 @@ docker-compose up -d --build
 * **메인 서비스:** `http://localhost` (Port 80)
 * **Grafana:** `http://localhost:3000` (계정: admin / admin)
 * **Prometheus:** `http://localhost:9090`
+
+### 4. 테스트 계정 정보 (Test Accounts)
+`data.sql`을 통해 초기 데이터가 로드됩니다. 관리자 권한이 필요한 경우 DB에서 직접 `role`을 `ADMIN`으로 변경하거나 초기 데이터를 확인하세요.
+
+> **Tip:** 로그인 후 `/v4/admin/users/{your_intra_id}/coin` API를 통해 코인을 추가로 지급받아 상점 기능을 테스트해볼 수 있습니다.
+
+### 5. 주요 테스트 시나리오
+1. **대여/반납:** 메인 화면에서 사물함 선택 -> 대여 -> 내 정보 -> 반납 (사진 업로드)
+2. **자동 연장:** 상점에서 `연장권` 구매 -> `/v4/lent/extension/auto` API로 자동 연장 ON 설청 -> (DB에서 만료일 조작하여 테스트 close)
+3. **관리자 모드:** URL에 `/admin/login` 접근 -> (Admin 계정 필요) -> 대시보드 확인

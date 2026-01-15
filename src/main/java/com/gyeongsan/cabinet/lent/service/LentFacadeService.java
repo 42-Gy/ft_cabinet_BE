@@ -224,7 +224,7 @@ public class LentFacadeService {
         if (oldCabinet.getStatus() == CabinetStatus.FULL) {
             oldCabinet.updateStatus(CabinetStatus.AVAILABLE);
             if (forceReturn) {
-                oldCabinet.updateStatus(CabinetStatus.PENDING); 
+                oldCabinet.updateStatus(CabinetStatus.PENDING);
             }
         }
 
@@ -283,5 +283,14 @@ public class LentFacadeService {
         }
 
         log.info("처리 완료: 사물함 {}번 상태 -> PENDING", cabinet.getVisibleNum());
+    }
+
+    @Transactional
+    public void updateAutoExtensionStatus(Long userId, Boolean enabled) {
+        LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
+
+        lentHistory.setAutoExtension(enabled);
+        log.info("자동 연장 설정 변경 - User: {}, Enabled: {}", userId, enabled);
     }
 }

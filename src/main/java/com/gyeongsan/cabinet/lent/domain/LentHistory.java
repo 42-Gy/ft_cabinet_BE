@@ -38,6 +38,9 @@ public class LentHistory {
     @Column(name = "RETURN_MEMO", length = 255)
     private String returnMemo;
 
+    @Column(name = "IS_AUTO_EXTENSION", nullable = false)
+    private boolean isAutoExtension = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "USER_ID", nullable = false)
     private User user;
@@ -78,5 +81,9 @@ public class LentHistory {
         if (this.expiredAt != null) {
             this.expiredAt = this.expiredAt.plusDays(days);
         }
+    }
+
+    public void setAutoExtension(boolean isAutoExtension) {
+        this.isAutoExtension = isAutoExtension;
     }
 }
