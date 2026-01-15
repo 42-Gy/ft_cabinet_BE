@@ -3,6 +3,7 @@ package com.gyeongsan.cabinet.lent.controller;
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
 import com.gyeongsan.cabinet.common.ApiResponse;
 import com.gyeongsan.cabinet.common.dto.MessageResponse;
+import com.gyeongsan.cabinet.lent.dto.LentExtensionRequest;
 import com.gyeongsan.cabinet.lent.dto.LentReturnRequest;
 import com.gyeongsan.cabinet.lent.service.LentFacadeService;
 import com.gyeongsan.cabinet.user.domain.User;
@@ -49,7 +50,6 @@ public class LentController {
                 User user = userRepository.findById(userId)
                                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 유저입니다."));
 
-                
                 if (previousPassword == null || !previousPassword.matches("\\d{4}")) {
                         throw new IllegalArgumentException("비밀번호는 4자리 숫자여야 합니다.");
                 }
@@ -69,7 +69,7 @@ public class LentController {
         public ApiResponse<MessageResponse> endLentCabinetManual(
                         @Valid @RequestBody LentReturnRequest request,
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
-                
+
                 return ApiResponse.success(new MessageResponse(
                                 "🚫 이 API는 더 이상 사용되지 않습니다. /v4/lent/return (forceReturn=true)를 사용해주세요."));
         }
@@ -82,6 +82,15 @@ public class LentController {
                 return ApiResponse.success(new MessageResponse("✅ 대여 기간이 15일 연장되었습니다! 🎉"));
         }
 
+        @PatchMapping("/extension/auto")
+        public ApiResponse<MessageResponse> updateAutoExtension(
+                        @RequestBody LentExtensionRequest request,
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                lentFacadeService.updateAutoExtensionStatus(userPrincipal.getUserId(), request.enabled());
+                String status = request.enabled() ? "ON" : "OFF";
+                return ApiResponse.success(new MessageResponse("✅ 자동 연장 설정이 " + status + "로 변경되었습니다."));
+        }
+
         @PostMapping(value = "/swap/{newVisibleNum}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public ApiResponse<MessageResponse> useSwap(
                         @PathVariable Integer newVisibleNum,
@@ -92,7 +101,6 @@ public class LentController {
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
                 Long userId = userPrincipal.getUserId();
 
-                
                 if (previousPassword == null || !previousPassword.matches("\\d{4}")) {
                         throw new IllegalArgumentException("비밀번호는 4자리 숫자여야 합니다.");
                 }
