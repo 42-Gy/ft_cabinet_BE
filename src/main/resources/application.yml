@@ -118,7 +118,7 @@ ai:
 
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS},http://localhost:5173
   client:
     connect-timeout: 3000
     read-timeout: 3000
