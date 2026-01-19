@@ -86,9 +86,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 log.info("🎫 Access Token 발급 및 쿠키 설정 완료");
 
                 String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
+                                .path("/auth/callback")
+                                .queryParam("access_token", accessToken)
                                 .build()
                                 .toUriString();
-
                 getRedirectStrategy().sendRedirect(request, response, targetUrl);
         }
 }
