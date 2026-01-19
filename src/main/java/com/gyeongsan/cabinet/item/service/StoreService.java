@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import com.gyeongsan.cabinet.item.dto.ItemResponseDto;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +28,12 @@ public class StoreService {
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final ItemHistoryRepository itemHistoryRepository;
+
+    public List<ItemResponseDto> getItems() {
+        return itemRepository.findAll().stream()
+                .map(ItemResponseDto::new)
+                .toList();
+    }
 
     @Transactional
     public void buyItem(Long userId, Long itemId) {

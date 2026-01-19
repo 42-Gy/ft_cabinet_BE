@@ -2,8 +2,11 @@ package com.gyeongsan.cabinet.item.controller;
 
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
 import com.gyeongsan.cabinet.common.ApiResponse;
+import com.gyeongsan.cabinet.item.dto.ItemResponseDto;
 import com.gyeongsan.cabinet.item.service.StoreService;
 import com.gyeongsan.cabinet.user.domain.User;
+import java.util.List;
+import org.springframework.web.bind.annotation.GetMapping;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +22,11 @@ public class StoreController {
 
     private final StoreService storeService;
     private final UserRepository userRepository;
+
+    @GetMapping("/items")
+    public ApiResponse<List<ItemResponseDto>> getItems() {
+        return ApiResponse.success(storeService.getItems());
+    }
 
     @PostMapping("/buy/{itemId}")
     public ApiResponse<String> buyItem(
