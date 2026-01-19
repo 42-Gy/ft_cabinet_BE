@@ -41,7 +41,7 @@ public class LentScheduler {
         log.info("📅 [Monthly] 월간 정기 작업 시작");
 
         grantRentalTicket();
-        // autoExtension(); -> Moved to Daily Schedule
+
         handleExpiration();
 
         log.info("✅ [Monthly] 월간 정기 작업 완료");
@@ -110,7 +110,7 @@ public class LentScheduler {
             if (overdueDays <= 0)
                 overdueDays = 1;
 
-            int newPenalty = (int) (overdueDays * 3); // Squared -> Multiply by 3
+            int newPenalty = (int) (overdueDays * 3);
             user.updatePenaltyDays(newPenalty);
 
             if (cabinet.getStatus() != CabinetStatus.OVERDUE) {
@@ -130,10 +130,7 @@ public class LentScheduler {
         log.info("🔔 [D-7, D-1] 반납 임박 알림 체크 시작");
         LocalDate today = LocalDate.now();
 
-        // Check D-7
         checkAndSendAlarm(today.plusDays(7), 7);
-
-        // Check D-1
         checkAndSendAlarm(today.plusDays(1), 1);
 
         log.info("✅ 반납 임박 알림 전송 로직 완료");
