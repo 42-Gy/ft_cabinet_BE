@@ -61,7 +61,7 @@ public class AuthController {
 
         ResponseCookie accessTokenCookie = ResponseCookie.from("access_token", newAccessToken)
                 .path("/")
-                .secure(isCookieSecure)
+                .secure(true) // SameSite=None requires Secure=true
                 .sameSite("None")
                 .httpOnly(true)
                 .build();
