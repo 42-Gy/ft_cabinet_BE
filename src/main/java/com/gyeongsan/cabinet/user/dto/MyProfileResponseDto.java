@@ -25,6 +25,7 @@ public class MyProfileResponseDto {
     private Long lentCabinetId;
     private Integer visibleNum;
     private String section;
+    private Boolean autoExtensionEnabled;
 
     private String previousPassword;
 

@@ -91,6 +91,11 @@ public class UserService {
         if (penaltyDays == null)
             penaltyDays = 0;
 
+        Boolean autoExtensionEnabled = false;
+        if (activeLent != null) {
+            autoExtensionEnabled = activeLent.isAutoExtension();
+        }
+
         return MyProfileResponseDto.builder()
                 .userId(user.getId())
                 .name(user.getName())
@@ -101,6 +106,7 @@ public class UserService {
                 .lentCabinetId(cabinetId)
                 .visibleNum(visibleNum)
                 .section(section)
+                .autoExtensionEnabled(autoExtensionEnabled)
                 .lentStartedAt(lentStartedAt)
                 .expiredAt(expiredAt)
                 .previousPassword(previousPassword)
