@@ -78,7 +78,12 @@ public class SecurityConfig {
                                                                         "{\"error\": \"Login Failed\", \"message\": \""
                                                                                         + exception.getMessage()
                                                                                         + "\"}");
-                                                }));
+                                                }))
+                                .logout(logout -> logout
+                                                .logoutUrl("/v4/auth/logout")
+                                                .logoutSuccessUrl("/")
+                                                .deleteCookies("access_token", "refresh_token", "JSESSIONID")
+                                                .permitAll());
 
                 return http.build();
         }
