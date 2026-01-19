@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +28,9 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final StringRedisTemplate redisTemplate;
     private final UserRepository userRepository;
+
+    @Value("${app.auth.cookie-secure:false}")
+    private boolean isCookieSecure;
 
     @PostMapping("/reissue")
     public ApiResponse<Map<String, String>> reissue(
@@ -52,11 +58,17 @@ public class AuthController {
                 .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
 
         String newAccessToken = jwtTokenProvider.createToken(user.getId(), user.getName(), user.getRole().name());
+
+        ResponseCookie accessTokenCookie = ResponseCookie.from("access_token", newAccessToken)
+                .path("/")
+                .secure(isCookieSecure)
+                .sameSite("None")
+                .httpOnly(true)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
+
         log.info("🎫 새 Access Token 발급 완료: {}", user.getName());
 
-        Map<String, String> result = new HashMap<>();
-        result.put("accessToken", newAccessToken);
-
-        return ApiResponse.success(result);
+        return ApiResponse.success(new HashMap<>());
     }
 }

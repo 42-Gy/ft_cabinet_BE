@@ -60,7 +60,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
                 log.info("💾 Refresh Token Redis 저장 완료: {}", user.getId());
 
-                ResponseCookie cookie = ResponseCookie.from("refresh_token", refreshToken)
+                // Refresh Token Cookie
+                ResponseCookie refreshTokenCookie = ResponseCookie.from("refresh_token", refreshToken)
                                 .maxAge(14 * 24 * 60 * 60)
                                 .path("/")
                                 .secure(isCookieSecure)
@@ -68,12 +69,21 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                 .httpOnly(true)
                                 .build();
 
-                response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+                response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
-                log.info("🎫 Access Token 발급 완료: {}", accessToken);
+                // Access Token Cookie
+                ResponseCookie accessTokenCookie = ResponseCookie.from("access_token", accessToken)
+                                .path("/")
+                                .secure(isCookieSecure)
+                                .sameSite("None")
+                                .httpOnly(true)
+                                .build();
+
+                response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
+
+                log.info("🎫 Access Token 발급 및 쿠키 설정 완료");
 
                 String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
-                                .fragment("token=" + accessToken)
                                 .build()
                                 .toUriString();
 
