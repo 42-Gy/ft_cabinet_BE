@@ -12,7 +12,7 @@ public record OverdueUserResponse(
     public static OverdueUserResponse from(LentHistory lentHistory) {
         long overdueDays = ChronoUnit.DAYS.between(lentHistory.getExpiredAt(), LocalDateTime.now());
         if (overdueDays < 0)
-            overdueDays = 0; // Should not happen for overdue list, but safety first
+            overdueDays = 0;
 
         return new OverdueUserResponse(
                 lentHistory.getUser().getId(),
