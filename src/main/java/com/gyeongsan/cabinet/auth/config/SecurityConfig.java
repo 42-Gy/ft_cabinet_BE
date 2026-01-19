@@ -97,7 +97,8 @@ public class SecurityConfig {
                                 "Accept",
                                 "Origin",
                                 "Access-Control-Request-Method",
-                                "Access-Control-Request-Headers"));
+                                "Access-Control-Request-Headers",
+                                "ngrok-skip-browser-warning"));
 
                 configuration.setAllowCredentials(true);
                 configuration.setExposedHeaders(List.of("Authorization"));
