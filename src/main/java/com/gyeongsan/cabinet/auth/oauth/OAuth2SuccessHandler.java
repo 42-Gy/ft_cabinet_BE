@@ -64,7 +64,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 ResponseCookie refreshTokenCookie = ResponseCookie.from("refresh_token", refreshToken)
                                 .maxAge(14 * 24 * 60 * 60)
                                 .path("/")
-                                .secure(isCookieSecure)
+                                // SameSite=None requires Secure=true
+                                .secure(true)
                                 .sameSite("None")
                                 .httpOnly(true)
                                 .build();
@@ -74,7 +75,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 // Access Token Cookie
                 ResponseCookie accessTokenCookie = ResponseCookie.from("access_token", accessToken)
                                 .path("/")
-                                .secure(isCookieSecure)
+                                // SameSite=None requires Secure=true
+                                .secure(true)
                                 .sameSite("None")
                                 .httpOnly(true)
                                 .build();
