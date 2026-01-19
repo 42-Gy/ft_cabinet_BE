@@ -2,6 +2,11 @@ server:
   port: 8080
   forward-headers-strategy: framework
   shutdown: graceful
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+      enabled: true
   tomcat:
     remote-ip-header: x-forwarded-for
     protocol-header: x-forwarded-proto
@@ -32,7 +37,7 @@ spring:
 
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:cabi}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=true&trustServerCertificate=true
+    url: jdbc:mariadb://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:cabi}?serverTimezone=Asia/Seoul&useUnicode=true&characterEncoding=UTF-8&useSSL=true&trustServerCertificate=true
     username: ${DB_USER}
     password: ${DB_PASSWORD}
     hikari:
@@ -141,4 +146,3 @@ resilience4j:
         limitForPeriod: 5
         limitRefreshPeriod: 1s
         timeoutDuration: 5s
-
