@@ -24,6 +24,7 @@ import org.springframework.web.cors.CorsUtils;
 
 import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
+import java.util.ArrayList;
 
 @Configuration
 @EnableWebSecurity
@@ -86,7 +87,14 @@ public class SecurityConfig {
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration configuration = new CorsConfiguration();
 
-                configuration.setAllowedOriginPatterns(allowedOrigins);
+                List<String> origins = new ArrayList<>();
+                if (allowedOrigins != null) {
+                        origins.addAll(allowedOrigins);
+                }
+                origins.add("https://42gy.netlify.app");
+                origins.add("http://localhost:5173");
+
+                configuration.setAllowedOriginPatterns(origins);
 
                 configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 
