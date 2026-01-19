@@ -119,7 +119,7 @@ slack:
 
 ai:
   server:
-    url: ${AI_SERVER_URL:http://127.0.0.1:8000}
+    url: ${AI_SERVER_URL:http://ai:8000}
 
 app:
   cors:
