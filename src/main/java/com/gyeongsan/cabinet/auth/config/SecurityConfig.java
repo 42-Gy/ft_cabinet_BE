@@ -24,6 +24,8 @@ import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.ArrayList;
+import org.springframework.http.ResponseCookie;
+import org.springframework.http.HttpHeaders;
 import java.util.List;
 
 @Configuration
@@ -81,8 +83,31 @@ public class SecurityConfig {
                                                 }))
                                 .logout(logout -> logout
                                                 .logoutUrl("/v4/auth/logout")
-                                                .logoutSuccessUrl("/")
-                                                .deleteCookies("access_token", "refresh_token", "JSESSIONID")
+                                                .addLogoutHandler((request, response, authentication) -> {
+                                                        ResponseCookie accessTokenCookie = ResponseCookie
+                                                                        .from("access_token", "")
+                                                                        .path("/")
+                                                                        .maxAge(0) // 쿠키 삭제
+                                                                        .sameSite("None")
+                                                                        .secure(true)
+                                                                        .httpOnly(true)
+                                                                        .build();
+                                                        ResponseCookie refreshTokenCookie = ResponseCookie
+                                                                        .from("refresh_token", "")
+                                                                        .path("/")
+                                                                        .maxAge(0) // 쿠키 삭제
+                                                                        .sameSite("None")
+                                                                        .secure(true)
+                                                                        .httpOnly(true)
+                                                                        .build();
+                                                        response.addHeader(HttpHeaders.SET_COOKIE,
+                                                                        accessTokenCookie.toString());
+                                                        response.addHeader(HttpHeaders.SET_COOKIE,
+                                                                        refreshTokenCookie.toString());
+                                                })
+                                                .logoutSuccessHandler((request, response, authentication) -> {
+                                                        response.setStatus(HttpServletResponse.SC_OK);
+                                                })
                                                 .permitAll());
 
                 return http.build();
