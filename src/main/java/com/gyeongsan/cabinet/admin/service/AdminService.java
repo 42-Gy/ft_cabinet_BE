@@ -16,6 +16,7 @@ import com.gyeongsan.cabinet.lent.domain.LentHistory;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
+import com.gyeongsan.cabinet.user.repository.AttendanceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.domain.Page;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +43,7 @@ public class AdminService {
         private final ItemRepository itemRepository;
         private final ItemHistoryRepository itemHistoryRepository;
         private final SlackBotService slackBotService;
+        private final AttendanceRepository attendanceRepository;
 
         @Transactional(readOnly = true)
         public AdminDashboardResponse getDashboard() {
@@ -270,5 +273,19 @@ public class AdminService {
                 }
 
                 return new AdminStoreStatsResponse(totalUserCoins, totalUsedCoins, itemSales);
+        }
+
+        public List<AttendanceStatResponse> getAttendanceStats(LocalDate start, LocalDate end) {
+                // 기본값: 최근 30일
+                if (start == null)
+                        start = LocalDate.now().minusDays(30);
+                if (end == null)
+                        end = LocalDate.now();
+
+                List<Object[]> counts = attendanceRepository.getDailyAttendanceCounts(start, end);
+
+                return counts.stream()
+                                .map(row -> new AttendanceStatResponse((LocalDate) row[0], (Long) row[1]))
+                                .collect(Collectors.toList());
         }
 }
