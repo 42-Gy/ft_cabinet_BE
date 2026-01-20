@@ -24,4 +24,10 @@ public interface ItemHistoryRepository extends JpaRepository<ItemHistory, Long> 
 
         int countByUserIdAndItem_TypeAndPurchaseAtBetween(Long userId, ItemType itemType, LocalDateTime start,
                         LocalDateTime end);
+
+        @Query("SELECT SUM(i.price) FROM ItemHistory ih JOIN ih.item i")
+        Long sumUsedItemPrice();
+
+        @Query("SELECT i.name, COUNT(ih) FROM ItemHistory ih JOIN ih.item i GROUP BY i.name")
+        List<Object[]> findItemSales();
 }

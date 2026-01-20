@@ -19,4 +19,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findAllBlackholedUsers(@Param("date") LocalDateTime date);
 
     long countByPenaltyDaysGreaterThan(Integer penaltyDays);
+
+    @Query("SELECT SUM(u.coin) FROM User u")
+    Optional<Long> sumCoins();
 }
