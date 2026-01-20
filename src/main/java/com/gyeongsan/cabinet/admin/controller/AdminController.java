@@ -142,6 +142,11 @@ public class AdminController {
         return ApiResponse.success(adminService.getCabinetHistory(visibleNum, pageable));
     }
 
+    @GetMapping("/stats/store")
+    public ApiResponse<AdminStoreStatsResponse> getStoreStats() {
+        return ApiResponse.success(adminService.getStoreStats());
+    }
+
     public record UserLogtimeRequest(Integer monthlyLogtime) {
     }
 

@@ -24,7 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -249,5 +251,24 @@ public class AdminService {
                                 .orElse(null);
 
                 return CabinetDetailResponse.of(cabinet, activeLent);
+        }
+
+        @Transactional(readOnly = true)
+        public AdminStoreStatsResponse getStoreStats() {
+                long totalUserCoins = userRepository.sumCoins().orElse(0L);
+                long totalUsedCoins = itemHistoryRepository.sumUsedItemPrice() != null
+                                ? itemHistoryRepository.sumUsedItemPrice()
+                                : 0L;
+
+                List<Object[]> salesData = itemHistoryRepository.findItemSales();
+                Map<String, Long> itemSales = new HashMap<>();
+
+                for (Object[] row : salesData) {
+                        String itemName = (String) row[0];
+                        Long count = (Long) row[1];
+                        itemSales.put(itemName, count);
+                }
+
+                return new AdminStoreStatsResponse(totalUserCoins, totalUsedCoins, itemSales);
         }
 }
