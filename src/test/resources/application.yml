@@ -1,0 +1,85 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=USER
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    defer-datasource-initialization: true
+  
+  # Disable other external dependencies for tests
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  security:
+    oauth2:
+      client:
+        registration:
+          42:
+            client-id: test-id
+            client-secret: test-secret
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            redirect-uri: "http://localhost:8080/login/oauth2/code/42"
+            scope: public
+            client-name: 42 gyeongsan
+        provider:
+          42:
+            authorization-uri: https://api.intra.42.fr/oauth/authorize
+            token-uri: https://api.intra.42.fr/oauth/token
+            user-info-uri: https://api.intra.42.fr/v2/me
+            user-name-attribute: login
+
+jwt:
+  secret: test-secret-key-must-be-long-enough-for-hs512-algorithm-minimum-512-bits
+
+slack:
+  token: test-slack-token
+
+app:
+  frontend:
+    url: http://localhost:3000
+  ft-api:
+    root-url: https://api.intra.42.fr
+    token-url: https://api.intra.42.fr/oauth/token
+  cors:
+    allowed-origins: http://localhost:3000
+  client:
+    connect-timeout: 1000
+    read-timeout: 1000
+
+cloud:
+  azure:
+    storage:
+      blob:
+        container-name: test-container
+        connection-string: DefaultEndpointsProtocol=https;AccountName=test;AccountKey=test;EndpointSuffix=core.windows.net
+
+cabinet:
+  policy:
+    lent-term: 30
+    extension-term: 15
+  items:
+    extension-price: 1000
+    swap-price: 1000
+    penalty-exemption-price: 100
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      aiServer:
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        slidingWindowSize: 5
+  ratelimiter:
+    instances:
+      ftApi:
+        limitForPeriod: 5
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s

@@ -41,6 +41,9 @@ public class LentHistory {
     @Column(name = "IS_AUTO_EXTENSION", nullable = false)
     private boolean isAutoExtension = true;
 
+    @Column(name = "PHOTO_URL")
+    private String photoUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "USER_ID", nullable = false)
     private User user;
@@ -85,5 +88,9 @@ public class LentHistory {
 
     public void setAutoExtension(boolean isAutoExtension) {
         this.isAutoExtension = isAutoExtension;
+    }
+
+    public void setPhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
     }
 }

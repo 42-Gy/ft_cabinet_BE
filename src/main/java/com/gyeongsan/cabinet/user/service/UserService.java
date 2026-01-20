@@ -101,6 +101,7 @@ public class UserService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .coin(user.getCoin())
+                .role(user.getRole())
                 .penaltyDays(penaltyDays)
                 .monthlyLogtime(user.getMonthlyLogtime())
                 .lentCabinetId(cabinetId)

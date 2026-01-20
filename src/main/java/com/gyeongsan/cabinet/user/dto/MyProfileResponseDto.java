@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import com.gyeongsan.cabinet.user.domain.UserRole;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -18,6 +19,8 @@ public class MyProfileResponseDto {
     private String name;
     private String email;
     private Long coin;
+
+    private UserRole role;
 
     private Integer penaltyDays;
     private Integer monthlyLogtime;
