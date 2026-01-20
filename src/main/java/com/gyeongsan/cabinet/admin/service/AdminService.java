@@ -1,10 +1,13 @@
 package com.gyeongsan.cabinet.admin.service;
 
 import com.gyeongsan.cabinet.admin.dto.*;
+import com.gyeongsan.cabinet.alarm.SlackBotService;
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
 import com.gyeongsan.cabinet.cabinet.dto.CabinetPendingResponseDto;
 import com.gyeongsan.cabinet.cabinet.repository.CabinetRepository;
+import com.gyeongsan.cabinet.item.domain.ItemHistory;
+import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
 import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
 import com.gyeongsan.cabinet.item.domain.Item;
@@ -34,6 +37,8 @@ public class AdminService {
         private final CabinetRepository cabinetRepository;
         private final LentRepository lentRepository;
         private final ItemRepository itemRepository;
+        private final ItemHistoryRepository itemHistoryRepository;
+        private final SlackBotService slackBotService;
 
         @Transactional(readOnly = true)
         public AdminDashboardResponse getDashboard() {
@@ -176,6 +181,63 @@ public class AdminService {
                                 .stream()
                                 .map(OverdueUserResponse::from)
                                 .collect(Collectors.toList());
+        }
+
+        public void givePenalty(String username, PenaltyRequest request) {
+                User user = userRepository.findByName(username)
+                                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+
+                user.updatePenaltyDays(request.penaltyDays());
+                log.info("[Admin] 유저({})에게 패널티 {}일 부여. 사유: {}", username, request.penaltyDays(), request.reason());
+        }
+
+        public void unbanUser(String username) {
+                User user = userRepository.findByName(username)
+                                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+
+                user.unban();
+                log.info("[Admin] 유저({}) 밴 해제 완료", username);
+        }
+
+        public void grantItem(String username, ItemGrantRequest request) {
+                User user = userRepository.findByName(username)
+                                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+
+                Item item = itemRepository.findByName(request.itemName())
+                                .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND));
+
+                ItemHistory itemHistory = new ItemHistory(LocalDateTime.now(), null, user, item);
+                itemHistoryRepository.save(itemHistory);
+
+                log.info("[Admin] 유저({})에게 아이템({}) 지급. 사유: {}", username, request.itemName(), request.reason());
+        }
+
+        public void sendEmergencyNotice(String message) {
+                List<LentHistory> activeLents = lentRepository.findAllActiveLents();
+
+                // 간단한 루프로 전송 (긴 메시지나 많은 유저일 경우 비동기 처리 권장)
+                int successCount = 0;
+                for (LentHistory lent : activeLents) {
+                        try {
+                                String intraId = lent.getUser().getName();
+                                slackBotService.sendDm(intraId, "[Cabi 긴급공지] " + message);
+                                successCount++;
+                        } catch (Exception e) {
+                                log.error("Emergency DM send failed for user: {}", lent.getUser().getName());
+                        }
+                }
+                log.info("[Admin] 긴급 공지 전송 완료. 대상: {}명, 성공: {}명", activeLents.size(), successCount);
+        }
+
+        @Transactional(readOnly = true)
+        public AdminWeeklyStatsResponse getWeeklyStats() {
+                LocalDateTime end = LocalDateTime.now();
+                LocalDateTime start = end.minusDays(7);
+
+                long startedCount = lentRepository.countLentsStartedAtBetween(start, end);
+                long endedCount = lentRepository.countLentsEndedAtBetween(start, end);
+
+                return new AdminWeeklyStatsResponse(startedCount, endedCount);
         }
 
         @Transactional(readOnly = true)

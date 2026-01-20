@@ -9,7 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @RestController
 @RequestMapping("/v4/admin")
@@ -97,6 +98,48 @@ public class AdminController {
     @GetMapping("/cabinets/{visibleNum}")
     public ApiResponse<CabinetDetailResponse> getCabinetDetail(@PathVariable Integer visibleNum) {
         return ApiResponse.success(adminService.getCabinetDetail(visibleNum));
+    }
+
+    // --- Added Features ---
+
+    @GetMapping("/stats/weekly")
+    public ApiResponse<AdminWeeklyStatsResponse> getWeeklyStats() {
+        return ApiResponse.success(adminService.getWeeklyStats());
+    }
+
+    @PostMapping("/users/{name}/penalty")
+    public ApiResponse<String> givePenalty(
+            @PathVariable String name,
+            @RequestBody PenaltyRequest request) {
+        adminService.givePenalty(name, request);
+        return ApiResponse.success("패널티 부여 완료");
+    }
+
+    @PostMapping("/users/{name}/unban")
+    public ApiResponse<String> unbanUser(@PathVariable String name) {
+        adminService.unbanUser(name);
+        return ApiResponse.success("유저 밴 해제 완료");
+    }
+
+    @PostMapping("/users/{name}/items")
+    public ApiResponse<String> grantItem(
+            @PathVariable String name,
+            @RequestBody ItemGrantRequest request) {
+        adminService.grantItem(name, request);
+        return ApiResponse.success("아이템 지급 완료");
+    }
+
+    @PostMapping("/alarm/emergency")
+    public ApiResponse<String> sendEmergencyNotice(@RequestBody EmergencyNoticeRequest request) {
+        adminService.sendEmergencyNotice(request.message());
+        return ApiResponse.success("긴급 공지 발송 완료 (현재 대여중인 유저 대상)");
+    }
+
+    @GetMapping("/cabinets/{visibleNum}/history")
+    public ApiResponse<Page<CabinetHistoryResponse>> getCabinetHistory(
+            @PathVariable Integer visibleNum,
+            Pageable pageable) {
+        return ApiResponse.success(adminService.getCabinetHistory(visibleNum, pageable));
     }
 
     public record UserLogtimeRequest(Integer monthlyLogtime) {
