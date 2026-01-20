@@ -14,4 +14,5 @@ public class CabinetPendingResponseDto {
     private Integer visibleNum;
     private String statusNote;
     private LentType lentType;
+    private String photoUrl;
 }
