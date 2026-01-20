@@ -13,34 +13,43 @@ import java.util.Optional;
 
 public interface LentRepository extends JpaRepository<LentHistory, Long> {
 
-    Optional<LentHistory> findByUserIdAndEndedAtIsNull(Long userId);
+        Optional<LentHistory> findByUserIdAndEndedAtIsNull(Long userId);
 
-    Optional<LentHistory> findByCabinetIdAndEndedAtIsNull(Long cabinetId);
+        Optional<LentHistory> findByCabinetIdAndEndedAtIsNull(Long cabinetId);
 
-    long countByEndedAtIsNull();
+        long countByEndedAtIsNull();
 
-    @Query("SELECT lh FROM LentHistory lh JOIN FETCH lh.cabinet JOIN FETCH lh.user " +
-            "WHERE lh.endedAt IS NULL AND lh.expiredAt < :now")
-    List<LentHistory> findAllOverdueLentHistories(@Param("now") LocalDateTime now);
+        @Query("SELECT lh FROM LentHistory lh JOIN FETCH lh.cabinet JOIN FETCH lh.user " +
+                        "WHERE lh.endedAt IS NULL AND lh.expiredAt < :now")
+        List<LentHistory> findAllOverdueLentHistories(@Param("now") LocalDateTime now);
 
-    @Query("SELECT lh FROM LentHistory lh JOIN FETCH lh.user JOIN FETCH lh.cabinet c WHERE c.id IN :cabinetIds AND lh.endedAt IS NULL")
-    List<LentHistory> findAllActiveLentByCabinetIds(@Param("cabinetIds") List<Long> cabinetIds);
+        @Query("SELECT lh FROM LentHistory lh JOIN FETCH lh.user JOIN FETCH lh.cabinet c WHERE c.id IN :cabinetIds AND lh.endedAt IS NULL")
+        List<LentHistory> findAllActiveLentByCabinetIds(@Param("cabinetIds") List<Long> cabinetIds);
 
-    Optional<LentHistory> findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(Long cabinetId);
+        Optional<LentHistory> findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(Long cabinetId);
 
-    @Query("SELECT lh FROM LentHistory lh " +
-            "JOIN FETCH lh.user u " +
-            "JOIN lh.cabinet c " +
-            "WHERE c.visibleNum = :visibleNum " +
-            "ORDER BY lh.startedAt DESC")
-    Page<LentHistory> findHistoryByCabinet(@Param("visibleNum") Integer visibleNum, Pageable pageable);
+        @Query("SELECT lh FROM LentHistory lh " +
+                        "JOIN FETCH lh.user u " +
+                        "JOIN lh.cabinet c " +
+                        "WHERE c.visibleNum = :visibleNum " +
+                        "ORDER BY lh.startedAt DESC")
+        Page<LentHistory> findHistoryByCabinet(@Param("visibleNum") Integer visibleNum, Pageable pageable);
 
-    @Query("SELECT lh FROM LentHistory lh " +
-            "JOIN FETCH lh.user " +
-            "JOIN FETCH lh.cabinet " +
-            "WHERE lh.expiredAt BETWEEN :start AND :end " +
-            "AND lh.endedAt IS NULL")
-    List<LentHistory> findAllActiveLentsByExpiredAtBetween(
-            @Param("start") LocalDateTime start,
-            @Param("end") LocalDateTime end);
+        @Query("SELECT lh FROM LentHistory lh " +
+                        "JOIN FETCH lh.user " +
+                        "JOIN FETCH lh.cabinet " +
+                        "WHERE lh.expiredAt BETWEEN :start AND :end " +
+                        "AND lh.endedAt IS NULL")
+        List<LentHistory> findAllActiveLentsByExpiredAtBetween(
+                        @Param("start") LocalDateTime start,
+                        @Param("end") LocalDateTime end);
+
+        @Query("SELECT lh FROM LentHistory lh JOIN FETCH lh.user WHERE lh.endedAt IS NULL")
+        List<LentHistory> findAllActiveLents();
+
+        @Query("SELECT count(lh) FROM LentHistory lh WHERE lh.startedAt BETWEEN :start AND :end")
+        long countLentsStartedAtBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+        @Query("SELECT count(lh) FROM LentHistory lh WHERE lh.endedAt BETWEEN :start AND :end")
+        long countLentsEndedAtBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 }
