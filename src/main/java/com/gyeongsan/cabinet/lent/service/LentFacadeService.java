@@ -33,7 +33,9 @@ public class LentFacadeService {
     private final LentRepository lentRepository;
     private final ItemHistoryRepository itemHistoryRepository;
     private final TransactionTemplate transactionTemplate;
+
     private final ItemCheckService itemCheckService;
+    private final ImageUploadService imageUploadService;
 
     @Value("${cabinet.policy.lent-term}")
     private int lentTerm;
@@ -88,6 +90,7 @@ public class LentFacadeService {
         log.info("AI 반납 시도 - User: {}, Next Password: {}, Force: {}, Reason: {}", userId, previousPassword, forceReturn,
                 reason);
 
+        // 1. 이미지 검사 (검사 실패 시 예외 발생)
         if (!forceReturn) {
             boolean isClean = itemCheckService.checkItem(file);
             if (!isClean) {
@@ -96,26 +99,31 @@ public class LentFacadeService {
             }
         }
 
+        // 2. 이미지 업로드 (검사 통과 후 실행)
+        String photoUrl = imageUploadService.uploadImage(file);
+
+        // 3. 트랜잭션 실행
         transactionTemplate.execute(status -> {
             if (forceReturn) {
                 String returnReason = (reason != null && !reason.isBlank()) ? "[User Force] " + reason
                         : "AI 검사 실패 및 강제 반납";
-                endLentCabinetManual(userId, previousPassword, returnReason);
+                endLentCabinetManual(userId, previousPassword, returnReason, photoUrl);
             } else {
-                processReturnTransaction(userId, previousPassword);
+                processReturnTransaction(userId, previousPassword, photoUrl);
             }
             return null;
         });
     }
 
     @Transactional
-    public void endLentCabinetManual(Long userId, String shareCode, String reason) {
+    public void endLentCabinetManual(Long userId, String shareCode, String reason, String photoUrl) {
         log.info("수동 반납 요청 - User: {}, Password: {}, Reason: {}", userId, shareCode, reason);
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
         lentHistory.endLent(LocalDateTime.now(), shareCode);
+        lentHistory.setPhotoUrl(photoUrl);
 
         Cabinet cabinet = lentHistory.getCabinet();
         cabinet.updateStatus(CabinetStatus.PENDING);
@@ -123,13 +131,14 @@ public class LentFacadeService {
         log.info("수동 반납 완료. 사물함 {}번 상태 -> PENDING", cabinet.getVisibleNum());
     }
 
-    protected void processReturnTransaction(Long userId, String shareCode) {
+    protected void processReturnTransaction(Long userId, String shareCode, String photoUrl) {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
         Cabinet cabinet = lentHistory.getCabinet();
 
         lentHistory.endLent(LocalDateTime.now(), shareCode);
+        lentHistory.setPhotoUrl(photoUrl);
 
         if (cabinet.getStatus() == CabinetStatus.FULL) {
             cabinet.updateStatus(CabinetStatus.AVAILABLE);
@@ -165,6 +174,7 @@ public class LentFacadeService {
         log.info("이사 시도(AI) - User: {}, NewCabinet: {}, Force: {}, Reason: {}", userId, newVisibleNum, forceReturn,
                 reason);
 
+        // 1. 이미지 검사
         if (!forceReturn) {
             boolean isClean = itemCheckService.checkItem(file);
             if (!isClean) {
@@ -173,14 +183,18 @@ public class LentFacadeService {
             }
         }
 
+        // 2. 이미지 업로드
+        String photoUrl = imageUploadService.uploadImage(file);
+
+        // 3. 트랜잭션 실행
         transactionTemplate.execute(status -> {
-            processSwapTransaction(userId, newVisibleNum, previousPassword, forceReturn, reason);
+            processSwapTransaction(userId, newVisibleNum, previousPassword, forceReturn, reason, photoUrl);
             return null;
         });
     }
 
     protected void processSwapTransaction(Long userId, Integer newVisibleNum, String previousPassword,
-            Boolean forceReturn, String reason) {
+            Boolean forceReturn, String reason, String photoUrl) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
@@ -215,6 +229,7 @@ public class LentFacadeService {
         }
 
         oldLent.endLent(LocalDateTime.now(), returnReason);
+        oldLent.setPhotoUrl(photoUrl);
 
         if (oldCabinet.getStatus() == CabinetStatus.FULL) {
             oldCabinet.updateStatus(CabinetStatus.AVAILABLE);
