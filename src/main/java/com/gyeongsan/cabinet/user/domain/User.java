@@ -109,7 +109,7 @@ public class User {
         }
     }
 
-    public void unban() {
+    public void clearPenalty() {
         this.penaltyDays = 0;
     }
 

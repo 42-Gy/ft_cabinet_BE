@@ -196,12 +196,12 @@ public class AdminService {
                 log.info("[Admin] 유저({})에게 패널티 {}일 부여. 사유: {}", username, request.penaltyDays(), request.reason());
         }
 
-        public void unbanUser(String username) {
+        public void deletePenalty(String username) {
                 User user = userRepository.findByName(username)
                                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
-                user.unban();
-                log.info("[Admin] 유저({}) 밴 해제 완료", username);
+                user.clearPenalty();
+                log.info("[Admin] 유저({}) 패널티 해제 완료", username);
         }
 
         public void grantItem(String username, ItemGrantRequest request) {
