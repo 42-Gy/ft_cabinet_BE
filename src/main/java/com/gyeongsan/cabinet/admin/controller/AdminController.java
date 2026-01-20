@@ -147,6 +147,13 @@ public class AdminController {
         return ApiResponse.success(adminService.getStoreStats());
     }
 
+    @GetMapping("/stats/attendance")
+    public ApiResponse<List<AttendanceStatResponse>> getAttendanceStats(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ApiResponse.success(adminService.getAttendanceStats(startDate, endDate));
+    }
+
     public record UserLogtimeRequest(Integer monthlyLogtime) {
     }
 
