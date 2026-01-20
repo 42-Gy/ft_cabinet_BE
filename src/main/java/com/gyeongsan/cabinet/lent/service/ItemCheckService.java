@@ -17,6 +17,11 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -80,15 +85,18 @@ public class ItemCheckService {
                 return false;
             }
 
-            Date dateTaken = directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
-            if (dateTaken == null) {
+            String dateString = directory.getString(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+            if (dateString == null) {
                 log.warn("⚠️ 사진에 촬영 날짜 정보가 없습니다.");
                 return false;
             }
 
-            long currentTime = System.currentTimeMillis();
-            long photoTime = dateTaken.getTime();
-            long diffMinutes = (currentTime - photoTime) / (1000 * 60);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss");
+            LocalDateTime localPhotoTime = LocalDateTime.parse(dateString, formatter);
+            ZonedDateTime photoZonedTime = localPhotoTime.atZone(ZoneId.of("Asia/Seoul"));
+            ZonedDateTime currentZonedTime = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
+
+            long diffMinutes = ChronoUnit.MINUTES.between(photoZonedTime, currentZonedTime);
 
             log.info("📸 사진 촬영 경과 시간: {}분", diffMinutes);
 
