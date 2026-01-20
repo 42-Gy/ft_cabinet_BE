@@ -117,10 +117,10 @@ public class AdminController {
         return ApiResponse.success("패널티 부여 완료");
     }
 
-    @PostMapping("/users/{name}/unban")
-    public ApiResponse<String> unbanUser(@PathVariable String name) {
-        adminService.unbanUser(name);
-        return ApiResponse.success("유저 밴 해제 완료");
+    @DeleteMapping("/users/{name}/penalty")
+    public ApiResponse<String> deletePenalty(@PathVariable String name) {
+        adminService.deletePenalty(name);
+        return ApiResponse.success("유저 패널티 해제 완료");
     }
 
     @PostMapping("/users/{name}/items")

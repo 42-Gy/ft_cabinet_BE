@@ -543,11 +543,15 @@ sequenceDiagram
 | `GET` | `/v4/admin/users/{name}` | 특정 유저 정보 및 대여 이력 검색 |
 | `POST` | `/v4/admin/users/{name}/coin` | 유저에게 코인 수동 지급 |
 | `PATCH` | `/v4/admin/users/{name}/logtime` | 유저 로그타임 수동 수정 |
+| `POST` | `/v4/admin/users/{name}/penalty` | **[NEW]** 유저에게 패널티 수동 부여 |
+| `DELETE` | `/v4/admin/users/{name}/penalty` | **[NEW]** 유저 패널티 해제 (감면) |
+| `POST` | `/v4/admin/users/{name}/items` | **[NEW]** 유저에게 아이템 수동 지급 |
 | `PATCH` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상태(고장 등) 변경 |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/force-return` | 관리자 권한 강제 반납 |
 | `GET` | `/v4/admin/cabinets/pending` | 수동 반납 승인 대기 목록 조회 |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/approve` | 수동 반납 최종 승인 (잠금 해제) |
 | `PATCH` | `/v4/admin/items/{itemName}/price` | 상점 아이템 가격 변경 |
+| `POST` | `/v4/admin/alarm/emergency` | **[NEW]** 전체 유저 긴급 공지(DM) 발송 |
 | `GET` | `/v4/admin/cabinets/overdue` | **[NEW]** 현재 연체 중인 유저 목록 조회 |
 | `GET` | `/v4/admin/cabinets/{visibleNum}` | **[NEW]** 사물함 상세 정보 조회 |
 
