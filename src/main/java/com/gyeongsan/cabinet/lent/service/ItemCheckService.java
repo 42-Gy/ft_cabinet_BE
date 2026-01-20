@@ -22,7 +22,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -62,9 +61,9 @@ public class ItemCheckService {
 
             log.info("🤖 AI Server Response: {}", response);
 
-            if (response != null && response.containsKey("result")) {
-                String resultValue = String.valueOf(response.get("result"));
-                return "EMPTY".equalsIgnoreCase(resultValue);
+            if (response != null && response.containsKey("status")) {
+                String statusValue = String.valueOf(response.get("status"));
+                return "EMPTY".equalsIgnoreCase(statusValue);
             }
 
             return false;
@@ -92,7 +91,9 @@ public class ItemCheckService {
             }
 
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss");
+
             LocalDateTime localPhotoTime = LocalDateTime.parse(dateString, formatter);
+
             ZonedDateTime photoZonedTime = localPhotoTime.atZone(ZoneId.of("Asia/Seoul"));
             ZonedDateTime currentZonedTime = ZonedDateTime.now(ZoneId.of("Asia/Seoul"));
 
@@ -100,7 +101,7 @@ public class ItemCheckService {
 
             log.info("📸 사진 촬영 경과 시간: {}분", diffMinutes);
 
-            return diffMinutes >= 0 && diffMinutes <= 10;
+            return Math.abs(diffMinutes) <= 10;
 
         } catch (Exception e) {
             log.error("🚨 메타데이터 분석 중 오류 발생", e);
