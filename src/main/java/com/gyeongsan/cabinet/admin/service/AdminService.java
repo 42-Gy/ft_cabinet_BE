@@ -139,10 +139,18 @@ public class AdminService {
                 List<Cabinet> pendingCabinets = cabinetRepository.findAllByStatus(CabinetStatus.PENDING);
 
                 return pendingCabinets.stream()
-                                .map(cabinet -> new CabinetPendingResponseDto(
-                                                cabinet.getVisibleNum(),
-                                                cabinet.getStatusNote(),
-                                                cabinet.getLentType()))
+                                .map(cabinet -> {
+                                        String photoUrl = lentRepository
+                                                        .findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(
+                                                                        cabinet.getId())
+                                                        .map(LentHistory::getPhotoUrl)
+                                                        .orElse(null);
+                                        return new CabinetPendingResponseDto(
+                                                        cabinet.getVisibleNum(),
+                                                        cabinet.getStatusNote(),
+                                                        cabinet.getLentType(),
+                                                        photoUrl);
+                                })
                                 .collect(Collectors.toList());
         }
 
