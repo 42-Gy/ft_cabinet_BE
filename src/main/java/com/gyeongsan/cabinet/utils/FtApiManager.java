@@ -133,11 +133,11 @@ public class FtApiManager {
                 return requestLogtime(url);
             } catch (Exception ex) {
                 log.error("❌ 재시도 실패 ({}): {}", intraId, ex.getMessage());
-                return 0;
+                throw new RuntimeException("42 API call failed after retry", ex);
             }
         } catch (Exception e) {
             log.error("❌ API 호출 실패 ({}): {}", intraId, e.getMessage());
-            return 0;
+            throw new RuntimeException("42 API call failed", e);
         }
     }
 
