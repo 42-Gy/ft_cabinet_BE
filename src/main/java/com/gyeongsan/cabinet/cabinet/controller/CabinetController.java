@@ -21,8 +21,10 @@ public class CabinetController {
     private final CabinetService cabinetService;
 
     @GetMapping
-    public ApiResponse<List<CabinetListResponseDto>> getCabinetList(@RequestParam Integer floor) {
-        List<CabinetListResponseDto> cabinetList = cabinetService.getCabinetList(floor);
+    public ApiResponse<List<CabinetListResponseDto>> getCabinetList(
+            @RequestParam Integer floor,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        List<CabinetListResponseDto> cabinetList = cabinetService.getCabinetList(floor, userPrincipal);
         return ApiResponse.success(cabinetList);
     }
 

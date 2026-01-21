@@ -27,7 +27,8 @@ public class CabinetService {
         private final CabinetRepository cabinetRepository;
         private final LentRepository lentRepository;
 
-        public List<CabinetListResponseDto> getCabinetList(Integer floor) {
+        public List<CabinetListResponseDto> getCabinetList(Integer floor,
+                        com.gyeongsan.cabinet.auth.domain.UserPrincipal userPrincipal) {
                 List<Cabinet> cabinets = cabinetRepository.findAllByFloor(floor);
                 List<Long> cabinetIds = cabinets.stream().map(Cabinet::getId).collect(Collectors.toList());
 
@@ -53,6 +54,10 @@ public class CabinetService {
                                                                 ? ChronoUnit.DAYS.between(LocalDateTime.now(),
                                                                                 expiredAt)
                                                                 : 0;
+                                        }
+
+                                        if (userPrincipal == null && userName != null) {
+                                                userName = "*****";
                                         }
 
                                         return CabinetListResponseDto.builder()
