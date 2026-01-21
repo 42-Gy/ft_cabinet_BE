@@ -22,7 +22,7 @@ public class ImageUploadService {
     @Value("${cloud.azure.storage.blob.container-name}")
     private String containerName;
 
-    public String uploadImage(MultipartFile file) {
+    public String uploadImage(Long userId, MultipartFile file) {
         if (file.isEmpty())
             return null;
 
@@ -38,11 +38,11 @@ public class ImageUploadService {
             blobClient.upload(file.getInputStream(), file.getSize(), true);
 
             // 4. 업로드된 이미지 URL 반환
-            log.info("✅ 이미지 업로드 성공: {}", fileName);
+            log.info("✅ 이미지 업로드 성공 - User: {}, File: {}", userId, fileName);
             return blobClient.getBlobUrl();
 
         } catch (IOException e) {
-            log.error("❌ 이미지 업로드 실패", e);
+            log.error("❌ 이미지 업로드 실패 - User: {}, File: {}", userId, fileName, e);
             throw new RuntimeException("이미지 업로드 중 오류가 발생했습니다.");
         }
     }

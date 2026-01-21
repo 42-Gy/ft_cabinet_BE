@@ -1,0 +1,31 @@
+
+> Task :compileJava
+D:\cabinet\src\main\java\com\gyeongsan\cabinet\cabinet\controller\CabinetController.java:42: error: cannot find symbol
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+             ^
+  symbol:   class AuthenticationPrincipal
+  location: class CabinetController
+1 error
+
+> Task :compileJava FAILED
+
+[Incubating] Problems report is available at: file:///D:/cabinet/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava'.
+> Compilation failed; see the compiler output below.
+  D:\cabinet\src\main\java\com\gyeongsan\cabinet\cabinet\controller\CabinetController.java:42: error: cannot find symbol
+              @AuthenticationPrincipal UserPrincipal userPrincipal) {
+               ^
+    symbol:   class AuthenticationPrincipal
+    location: class CabinetController
+  1 error
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights.
+
+BUILD FAILED in 4s
+1 actionable task: 1 executed
