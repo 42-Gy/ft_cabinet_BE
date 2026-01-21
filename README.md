@@ -315,6 +315,7 @@ erDiagram
 | **Ver 5.1** | **Stability & UX** | **반납/이사 사유 입력**, **코인 동시성 제어(낙관적 락)** 보안 패치 |
 | **Ver 5.2** | **Auto-Extension & Scheduler** | **자동 연장 시스템**, **스케줄러 고도화(D-7/D-1 알림)**, 관리자 모니터링 API 추가 |
 | **Ver 5.3** | **Logic Refinement** | **블랙홀 유예(D+7)**, **스케줄러 최적화(시간분산)**, **Intra ID 알림**, 블랙홀 대여제한 해제 |
+| **Ver 5.4** | **Camera & Security** | **인앱 카메라 전용 모드(In-App Only)**, **Exif 의존성 제거**, **익명 요청 정보 마스킹**, 배포 안정성 강화(DB Init Disable) |
 
 <br>
 
@@ -328,7 +329,7 @@ erDiagram
 | **Monitoring** | **Prometheus** (Metrics), **Grafana** (Visualization), **Actuator** |
 | **Stability** | **Graceful Shutdown**, **DB Indexing**, **Resilience4j**, **Logback (Rolling)** |
 | **Tools** | Gradle, **Slack Bot (Web API)**, **Spring Actuator** |
-| **AI Module** | **WebFlux (WebClient)**, Metadata-extractor (Exif Analysis) |
+| **AI Module** | **WebFlux (WebClient)**, Python FastAPI (Image Analysis) |
 
 <br>
 
@@ -341,7 +342,7 @@ erDiagram
 
 ### 2. 🤖 개선된 AI 반납 시스템 (AI-Powered Return)
 * **AI 청결도 검사:** 반납 시 업로드한 사물함 내부 사진을 Python(FastAPI) AI 서버로 실시간 전송. 쓰레기나 짐 방치 여부를 분석하여 자동 승인/거절 처리.
-* **Exif 보안 (Anti-Replay):** 사진의 메타데이터를 분석하여 **"촬영 후 10분 이내"**의 원본 사진인지 검증. 캡처본이나 과거 사진을 이용한 어뷰징 차단.
+* **인앱 카메라 검증 (In-App Camera):** 갤러리 업로드를 차단하고 **앱 내 카메라로만 촬영**하도록 강제하여, 과거 사진이나 캡처본을 이용한 어뷰징을 원천 차단했습니다. (Exif 메타데이터 의존성 제거)
 * **수동 반납 (사유 입력):** AI 검사 실패 시, 사용자가 직접 **사유를 입력하고 강제 반납**을 요청할 수 있습니다. 사물함은 `PENDING` 상태가 되며 관리자가 해당 사유를 확인 후 승인합니다.
 
 ### 3. 🍉 수동 출석 & 황금 수박 이벤트 (New in v5.0)
