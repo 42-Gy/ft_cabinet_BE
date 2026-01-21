@@ -85,14 +85,14 @@ public class LentFacadeService {
         log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
     }
 
-    public void checkLentCabinetImage(MultipartFile file) {
-        log.info("AI 반납 전 선검증 시도 - File: {}", file.getOriginalFilename());
+    public void checkLentCabinetImage(Long userId, MultipartFile file) {
+        log.info("AI 반납 전 선검증 시도 - User: {}, File: {}", userId, file.getOriginalFilename());
         boolean isClean = itemCheckService.checkItem(file);
         if (!isClean) {
-            log.warn("AI 선검증 실패 (짐 감지)");
+            log.warn("AI 선검증 실패 (짐 감지) - User: {}", userId);
             throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
         }
-        log.info("AI 선검증 성공 (Clean)");
+        log.info("AI 선검증 성공 (Clean) - User: {}", userId);
     }
 
     public void endLentCabinet(Long userId, String previousPassword, MultipartFile file, Boolean forceReturn,
@@ -110,7 +110,7 @@ public class LentFacadeService {
         }
 
         // 2. 이미지 업로드 (검사 통과 후 실행)
-        String photoUrl = imageUploadService.uploadImage(file);
+        String photoUrl = imageUploadService.uploadImage(userId, file);
 
         // 3. 트랜잭션 실행
         transactionTemplate.execute(status -> {
@@ -194,7 +194,7 @@ public class LentFacadeService {
         }
 
         // 2. 이미지 업로드
-        String photoUrl = imageUploadService.uploadImage(file);
+        String photoUrl = imageUploadService.uploadImage(userId, file);
 
         // 3. 트랜잭션 실행
         transactionTemplate.execute(status -> {

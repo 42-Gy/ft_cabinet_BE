@@ -43,7 +43,7 @@ public class LentController {
         public ApiResponse<MessageResponse> checkLentCabinetImage(
                         @RequestPart("file") MultipartFile file,
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
-                lentFacadeService.checkLentCabinetImage(file);
+                lentFacadeService.checkLentCabinetImage(userPrincipal.getUserId(), file);
                 return ApiResponse.success(new MessageResponse("✅ AI 검증 통과! 반납을 계속 진행해주세요."));
         }
 
