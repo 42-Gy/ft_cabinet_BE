@@ -104,7 +104,8 @@ public class CabinetService {
                                 .build();
         }
 
-        public CabinetDetailResponseDto getCabinetDetail(Long cabinetId) {
+        public CabinetDetailResponseDto getCabinetDetail(Long cabinetId,
+                        com.gyeongsan.cabinet.auth.domain.UserPrincipal userPrincipal) {
                 Cabinet cabinet = cabinetRepository.findById(cabinetId)
                                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사물함입니다."));
 
@@ -118,6 +119,14 @@ public class CabinetService {
 
                 String prevName = (previousLent != null) ? previousLent.getUser().getName() : "-";
                 LocalDateTime prevEnd = (previousLent != null) ? previousLent.getEndedAt() : null;
+
+                // 비로그인 유저(Anonymous)일 경우 이름 마스킹 처리
+                if (userPrincipal == null) {
+                        if (curName != null)
+                                curName = "*****";
+                        if (!"-".equals(prevName))
+                                prevName = "*****";
+                }
 
                 return CabinetDetailResponseDto.builder()
                                 .cabinetId(cabinet.getId())
