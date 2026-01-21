@@ -52,4 +52,11 @@ public interface LentRepository extends JpaRepository<LentHistory, Long> {
 
         @Query("SELECT count(lh) FROM LentHistory lh WHERE lh.endedAt BETWEEN :start AND :end")
         long countLentsEndedAtBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+        @Query("SELECT lh FROM LentHistory lh " +
+                        "JOIN FETCH lh.cabinet c " +
+                        "JOIN FETCH lh.user u " +
+                        "WHERE c.status = 'PENDING' " +
+                        "AND lh.endedAt = (SELECT MAX(lh2.endedAt) FROM LentHistory lh2 WHERE lh2.cabinet = c)")
+        List<LentHistory> findAllLatestLentForPendingCabinets();
 }
