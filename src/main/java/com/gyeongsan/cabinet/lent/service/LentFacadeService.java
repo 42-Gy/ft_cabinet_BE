@@ -126,8 +126,8 @@ public class LentFacadeService {
     }
 
     @Transactional
-    public void endLentCabinetManual(Long userId, String shareCode, String reason, String photoUrl) {
-        log.info("수동 반납 요청 - User: {}, Password: {}, Reason: {}", userId, shareCode, reason);
+    public void endLentCabinetManual(Long userId, String previousPassword, String reason, String photoUrl) {
+        log.info("수동 반납 요청 - User: {}, Password: {}, Reason: {}", userId, previousPassword, reason);
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
@@ -141,13 +141,13 @@ public class LentFacadeService {
         log.info("수동 반납 완료. 사물함 {}번 상태 -> PENDING", cabinet.getVisibleNum());
     }
 
-    protected void processReturnTransaction(Long userId, String shareCode, String photoUrl) {
+    protected void processReturnTransaction(Long userId, String previousPassword, String photoUrl) {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
         Cabinet cabinet = lentHistory.getCabinet();
 
-        lentHistory.endLent(LocalDateTime.now(), shareCode);
+        lentHistory.endLent(LocalDateTime.now(), previousPassword);
         lentHistory.setPhotoUrl(photoUrl);
 
         if (cabinet.getStatus() == CabinetStatus.FULL) {
@@ -155,7 +155,7 @@ public class LentFacadeService {
         }
 
         log.info("반납 성공! 대여 ID: {}, 사물함: {}, 저장된 비번: {}",
-                lentHistory.getId(), cabinet.getVisibleNum(), shareCode);
+                lentHistory.getId(), cabinet.getVisibleNum(), previousPassword);
     }
 
     @Transactional
