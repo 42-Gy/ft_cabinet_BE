@@ -39,6 +39,14 @@ public class LentController {
                                 "✅ " + user.getName() + "님, " + visibleNum + "번 사물함 대여 성공!"));
         }
 
+        @PostMapping(value = "/check-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+        public ApiResponse<MessageResponse> checkLentCabinetImage(
+                        @RequestPart("file") MultipartFile file,
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                lentFacadeService.checkLentCabinetImage(file);
+                return ApiResponse.success(new MessageResponse("✅ AI 검증 통과! 반납을 계속 진행해주세요."));
+        }
+
         @PostMapping(value = "/return", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public ApiResponse<MessageResponse> endLentCabinet(
                         @RequestPart("file") MultipartFile file,

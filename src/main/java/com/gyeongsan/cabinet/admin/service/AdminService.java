@@ -136,21 +136,15 @@ public class AdminService {
 
         @Transactional(readOnly = true)
         public List<CabinetPendingResponseDto> getPendingCabinets() {
-                List<Cabinet> pendingCabinets = cabinetRepository.findAllByStatus(CabinetStatus.PENDING);
+                List<LentHistory> pendingLentHistories = lentRepository.findAllLatestLentForPendingCabinets();
 
-                return pendingCabinets.stream()
-                                .map(cabinet -> {
-                                        String photoUrl = lentRepository
-                                                        .findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(
-                                                                        cabinet.getId())
-                                                        .map(LentHistory::getPhotoUrl)
-                                                        .orElse(null);
-                                        return new CabinetPendingResponseDto(
-                                                        cabinet.getVisibleNum(),
-                                                        cabinet.getStatusNote(),
-                                                        cabinet.getLentType(),
-                                                        photoUrl);
-                                })
+                return pendingLentHistories.stream()
+                                .map(lh -> new CabinetPendingResponseDto(
+                                                lh.getCabinet().getVisibleNum(),
+                                                lh.getCabinet().getStatusNote(),
+                                                lh.getCabinet().getLentType(),
+                                                lh.getPhotoUrl(),
+                                                lh.getUser().getName()))
                                 .collect(Collectors.toList());
         }
 

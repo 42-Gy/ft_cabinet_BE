@@ -85,6 +85,16 @@ public class LentFacadeService {
         log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
     }
 
+    public void checkLentCabinetImage(MultipartFile file) {
+        log.info("AI 반납 전 선검증 시도 - File: {}", file.getOriginalFilename());
+        boolean isClean = itemCheckService.checkItem(file);
+        if (!isClean) {
+            log.warn("AI 선검증 실패 (짐 감지)");
+            throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+        }
+        log.info("AI 선검증 성공 (Clean)");
+    }
+
     public void endLentCabinet(Long userId, String previousPassword, MultipartFile file, Boolean forceReturn,
             String reason) {
         log.info("AI 반납 시도 - User: {}, Next Password: {}, Force: {}, Reason: {}", userId, previousPassword, forceReturn,
@@ -122,7 +132,7 @@ public class LentFacadeService {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
-        lentHistory.endLent(LocalDateTime.now(), shareCode);
+        lentHistory.endLent(LocalDateTime.now(), reason);
         lentHistory.setPhotoUrl(photoUrl);
 
         Cabinet cabinet = lentHistory.getCabinet();
