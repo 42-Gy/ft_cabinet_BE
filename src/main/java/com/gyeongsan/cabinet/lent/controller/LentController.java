@@ -72,16 +72,6 @@ public class LentController {
                                 "✅ " + user.getName() + "님, 반납 성공! (AI 청결도 검사 통과 🧹)"));
         }
 
-        @Deprecated
-        @PostMapping("/return/manual")
-        public ApiResponse<MessageResponse> endLentCabinetManual(
-                        @Valid @RequestBody LentReturnRequest request,
-                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
-
-                return ApiResponse.success(new MessageResponse(
-                                "🚫 이 API는 더 이상 사용되지 않습니다. /v4/lent/return (forceReturn=true)를 사용해주세요."));
-        }
-
         @PostMapping("/extension")
         public ApiResponse<MessageResponse> useExtension(
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
