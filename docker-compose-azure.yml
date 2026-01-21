@@ -45,6 +45,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    volumes:
+      - db_data_azure:/var/lib/mysql
 
   redis:
     image: redis:alpine
@@ -59,3 +61,6 @@ services:
       - "8000:8000"
     environment:
       - MODEL_PATH=${AI_MODEL_PATH}
+
+volumes:
+  db_data_azure:
