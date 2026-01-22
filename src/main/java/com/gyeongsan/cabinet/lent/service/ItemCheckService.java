@@ -4,8 +4,6 @@ import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.domain.ItemType;
 import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
-import com.gyeongsan.cabinet.item.domain.ItemHistory;
-import com.gyeongsan.cabinet.item.domain.ItemType;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -59,7 +57,7 @@ public class ItemCheckService {
                     case "EMPTY":
                         return true; // 통과
 
-                    case "FULL":
+                    case "OCCUPIED":
                         log.warn("❌ 물품 감지됨 (FULL)");
                         throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
 
