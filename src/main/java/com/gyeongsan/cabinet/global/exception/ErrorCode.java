@@ -30,6 +30,7 @@ public enum ErrorCode {
     AI_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "AI_001",
             "AI 검사 서버 오류로 반납이 보류되었습니다. 홈페이지 공지된 연락처로 연락 주시면 감사하겠습니다."),
     CABINET_NOT_EMPTY(HttpStatus.BAD_REQUEST, "AI_002", "사물함 안에 물품이 감지되었습니다. 물품 수거 후 다시 사진을 찍어주세요."),
+    INVALID_IMAGE(HttpStatus.BAD_REQUEST, "AI_003", "사물함 사진이 아닙니다. 올바른 사진을 촬영해주세요."),
 
     EXTENSION_ITEM_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "ITEM_007", "연장권 보유 개수 초과입니다."),
     EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "ITEM_008", "연장권 월간 구매 한도 초과입니다.");
