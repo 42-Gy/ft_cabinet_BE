@@ -2,6 +2,10 @@ package com.gyeongsan.cabinet.lent.service;
 
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.domain.ItemType;
+import com.gyeongsan.cabinet.global.exception.ErrorCode;
+import com.gyeongsan.cabinet.global.exception.ServiceException;
+import com.gyeongsan.cabinet.item.domain.ItemHistory;
+import com.gyeongsan.cabinet.item.domain.ItemType;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -31,7 +35,7 @@ public class ItemCheckService {
     public boolean checkItem(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             log.warn("❌ AI 검사 실패: 사진 파일이 없습니다.");
-            return false;
+            throw new ServiceException(ErrorCode.INVALID_IMAGE);
         }
 
         try {
@@ -49,15 +53,32 @@ public class ItemCheckService {
             log.info("🤖 AI Server Response: {}", response);
 
             if (response != null && response.containsKey("status")) {
-                String statusValue = String.valueOf(response.get("status"));
-                return "EMPTY".equalsIgnoreCase(statusValue);
-            }
+                String statusValue = String.valueOf(response.get("status")).toUpperCase();
 
+                switch (statusValue) {
+                    case "EMPTY":
+                        return true; // 통과
+
+                    case "FULL":
+                        log.warn("❌ 물품 감지됨 (FULL)");
+                        throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+
+                    case "INVALID":
+                        log.warn("❌ 잘못된 사진 형식 (INVALID)");
+                        throw new ServiceException(ErrorCode.INVALID_IMAGE);
+
+                    default:
+                        log.warn("⚠️ 알 수 없는 상태 값: {}", statusValue);
+                        throw new ServiceException(ErrorCode.AI_SERVER_ERROR);
+                }
+            }
             return false;
 
+        } catch (ServiceException e) {
+            throw e; // 서비스 예외는 그대로 컨트롤러로 전달
         } catch (Exception e) {
             log.error("🚨 AI 서버 통신 오류: ", e);
-            return false;
+            throw new ServiceException(ErrorCode.AI_SERVER_ERROR);
         }
     }
 
