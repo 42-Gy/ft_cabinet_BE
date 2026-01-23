@@ -26,18 +26,15 @@ public class ImageUploadService {
         if (file.isEmpty())
             return null;
 
-        // 1. 파일명 중복 방지 (UUID)
         String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
 
         try {
-            // 2. 컨테이너 클라이언트 가져오기
+
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
 
-            // 3. Blob 클라이언트 생성 및 업로드
             BlobClient blobClient = containerClient.getBlobClient(fileName);
             blobClient.upload(file.getInputStream(), file.getSize(), true);
 
-            // 4. 업로드된 이미지 URL 반환
             log.info("✅ 이미지 업로드 성공 - User: {}, File: {}", userId, fileName);
             return blobClient.getBlobUrl();
 

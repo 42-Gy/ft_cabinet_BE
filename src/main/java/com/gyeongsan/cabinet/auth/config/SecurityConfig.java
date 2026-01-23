@@ -87,7 +87,7 @@ public class SecurityConfig {
                                                         ResponseCookie accessTokenCookie = ResponseCookie
                                                                         .from("access_token", "")
                                                                         .path("/")
-                                                                        .maxAge(0) // 쿠키 삭제
+                                                                        .maxAge(0)
                                                                         .sameSite("None")
                                                                         .secure(true)
                                                                         .httpOnly(true)
@@ -95,7 +95,7 @@ public class SecurityConfig {
                                                         ResponseCookie refreshTokenCookie = ResponseCookie
                                                                         .from("refresh_token", "")
                                                                         .path("/")
-                                                                        .maxAge(0) // 쿠키 삭제
+                                                                        .maxAge(0)
                                                                         .sameSite("None")
                                                                         .secure(true)
                                                                         .httpOnly(true)

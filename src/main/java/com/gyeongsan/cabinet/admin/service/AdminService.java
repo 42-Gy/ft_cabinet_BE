@@ -222,7 +222,6 @@ public class AdminService {
         public void sendEmergencyNotice(String message) {
                 List<LentHistory> activeLents = lentRepository.findAllActiveLents();
 
-                // 간단한 루프로 전송 (긴 메시지나 많은 유저일 경우 비동기 처리 권장)
                 int successCount = 0;
                 for (LentHistory lent : activeLents) {
                         try {
@@ -278,7 +277,7 @@ public class AdminService {
         }
 
         public List<AttendanceStatResponse> getAttendanceStats(LocalDate start, LocalDate end) {
-                // 기본값: 최근 30일
+
                 if (start == null)
                         start = LocalDate.now().minusDays(30);
                 if (end == null)

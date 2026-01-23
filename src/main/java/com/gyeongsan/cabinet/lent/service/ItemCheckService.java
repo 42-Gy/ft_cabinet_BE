@@ -55,7 +55,7 @@ public class ItemCheckService {
 
                 switch (statusValue) {
                     case "EMPTY":
-                        return true; // 통과
+                        return true;
 
                     case "OCCUPIED":
                         log.warn("❌ 물품 감지됨 (FULL)");
@@ -73,7 +73,7 @@ public class ItemCheckService {
             return false;
 
         } catch (ServiceException e) {
-            throw e; // 서비스 예외는 그대로 컨트롤러로 전달
+            throw e;
         } catch (Exception e) {
             log.error("🚨 AI 서버 통신 오류: ", e);
             throw new ServiceException(ErrorCode.AI_SERVER_ERROR);
