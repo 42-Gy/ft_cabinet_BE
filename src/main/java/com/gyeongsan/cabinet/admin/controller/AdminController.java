@@ -5,7 +5,7 @@ import com.gyeongsan.cabinet.admin.service.AdminService;
 
 import com.gyeongsan.cabinet.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
