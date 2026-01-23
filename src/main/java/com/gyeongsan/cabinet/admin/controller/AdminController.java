@@ -102,8 +102,6 @@ public class AdminController {
         return ApiResponse.success(adminService.getCabinetDetail(visibleNum));
     }
 
-    // --- Added Features ---
-
     @GetMapping("/stats/weekly")
     public ApiResponse<AdminWeeklyStatsResponse> getWeeklyStats() {
         return ApiResponse.success(adminService.getWeeklyStats());

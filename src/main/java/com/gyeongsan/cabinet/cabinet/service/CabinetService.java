@@ -125,7 +125,6 @@ public class CabinetService {
                 String prevName = (previousLent != null) ? previousLent.getUser().getName() : "-";
                 LocalDateTime prevEnd = (previousLent != null) ? previousLent.getEndedAt() : null;
 
-                // 비로그인 유저(Anonymous)일 경우 이름 마스킹 처리
                 if (userPrincipal == null) {
                         if (curName != null)
                                 curName = "*****";

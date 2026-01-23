@@ -1,4 +1,4 @@
-package com.gyeongsan.cabinet.cabinet.dto;
+package com.gyeongsan.cabinet.admin.dto;
 
 import com.gyeongsan.cabinet.cabinet.domain.LentType;
 import lombok.AllArgsConstructor;

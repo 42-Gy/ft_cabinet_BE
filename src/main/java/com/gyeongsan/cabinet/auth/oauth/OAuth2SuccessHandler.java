@@ -60,11 +60,10 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
                 log.info("💾 Refresh Token Redis 저장 완료: {}", user.getId());
 
-                // Refresh Token Cookie
                 ResponseCookie refreshTokenCookie = ResponseCookie.from("refresh_token", refreshToken)
                                 .maxAge(14 * 24 * 60 * 60)
                                 .path("/")
-                                // SameSite=None requires Secure=true
+
                                 .secure(true)
                                 .sameSite("None")
                                 .httpOnly(true)
@@ -72,10 +71,9 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
                 response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
-                // Access Token Cookie
                 ResponseCookie accessTokenCookie = ResponseCookie.from("access_token", accessToken)
                                 .path("/")
-                                // SameSite=None requires Secure=true
+
                                 .secure(true)
                                 .sameSite("None")
                                 .httpOnly(true)
