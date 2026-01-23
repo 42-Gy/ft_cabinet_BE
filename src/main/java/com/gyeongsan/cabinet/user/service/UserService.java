@@ -83,10 +83,7 @@ public class UserService {
                     .orElse(null);
 
             if (prevHistory != null) {
-                String memo = prevHistory.getReturnMemo();
-                if (memo != null && memo.matches("\\d{4}")) {
-                    previousPassword = memo;
-                }
+                previousPassword = prevHistory.getReturnMemo();
             }
         }
 

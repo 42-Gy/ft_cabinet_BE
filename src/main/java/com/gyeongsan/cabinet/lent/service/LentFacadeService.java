@@ -138,7 +138,7 @@ public class LentFacadeService {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
-        lentHistory.endLent(LocalDateTime.now(), reason);
+        lentHistory.endLent(LocalDateTime.now(), previousPassword);
         lentHistory.setPhotoUrl(photoUrl);
 
         Cabinet cabinet = lentHistory.getCabinet();
