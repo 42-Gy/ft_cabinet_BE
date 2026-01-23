@@ -100,21 +100,35 @@ public class LentFacadeService {
         log.info("AI 반납 시도 - User: {}, Next Password: {}, Force: {}, Reason: {}", userId, previousPassword, forceReturn,
                 reason);
 
-        // 1. 이미지 검사 (검사 실패 시 예외 발생)
-        if (!forceReturn) {
-            boolean isClean = itemCheckService.checkItem(file);
-            if (!isClean) {
-                log.warn("AI 검사 실패 (짐 감지) - User: {}", userId);
-                throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+        // 1. 이미지 검사 (검사 실패 시 예외 발생, 무조건 실행)
+        boolean isAiSuccess = false;
+        try {
+            isAiSuccess = itemCheckService.checkItem(file);
+        } catch (ServiceException e) {
+            // 짐이 차있는 경우(CABINET_NOT_EMPTY)만 catch해서 로직 흐름 제어, 그 외(INVALID_IMAGE 등)는 throw
+            if (!e.getErrorCode().equals(ErrorCode.CABINET_NOT_EMPTY)) {
+                throw e;
             }
         }
 
-        // 2. 이미지 업로드 (검사 통과 후 실행)
+        // 2. 검사 결과에 따른 분기 처리
+        // AI 성공 시: Clean -> forceReturn 여부 무시하고 정상 반납
+        // AI 실패 시: Dirty -> forceReturn=true 일 때만 수동 반납(PENDING), 아니면 예외 발생
+        if (!isAiSuccess && !forceReturn) {
+            log.warn("AI 검사 실패 (짐 감지) - User: {}", userId);
+            throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+        }
+
+        // 실제로 수동 반납(PENDING) 처리를 할지 여부 결정
+        // AI가 성공했다면 강제 반납 플래그가 있어도 정상 반납으로 처리
+        boolean doManualReturn = !isAiSuccess && forceReturn;
+
+        // 3. 이미지 업로드 (검사 통과 혹은 강제 반납 승인 시 실행)
         String photoUrl = imageUploadService.uploadImage(userId, file);
 
-        // 3. 트랜잭션 실행
+        // 4. 트랜잭션 실행
         transactionTemplate.execute(status -> {
-            if (forceReturn) {
+            if (doManualReturn) {
                 String returnReason = (reason != null && !reason.isBlank()) ? "[User Force] " + reason
                         : "AI 검사 실패 및 강제 반납";
                 endLentCabinetManual(userId, previousPassword, returnReason, photoUrl);
