@@ -4,7 +4,7 @@ import com.gyeongsan.cabinet.admin.dto.*;
 import com.gyeongsan.cabinet.alarm.SlackBotService;
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
-import com.gyeongsan.cabinet.cabinet.dto.CabinetPendingResponseDto;
+
 import com.gyeongsan.cabinet.cabinet.repository.CabinetRepository;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;

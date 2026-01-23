@@ -2,7 +2,7 @@ package com.gyeongsan.cabinet.admin.controller;
 
 import com.gyeongsan.cabinet.admin.dto.*;
 import com.gyeongsan.cabinet.admin.service.AdminService;
-import com.gyeongsan.cabinet.cabinet.dto.CabinetPendingResponseDto;
+
 import com.gyeongsan.cabinet.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
