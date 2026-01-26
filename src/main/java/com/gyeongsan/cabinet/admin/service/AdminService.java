@@ -321,8 +321,16 @@ public class AdminService {
                 Item item = itemRepository.findByName(request.itemName())
                                 .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND));
 
-                itemHistoryRepository.deleteAllByUserAndItemAndUsedAtIsNull(user, item);
-                log.info("[Admin] 유저({})의 사용하지 않은 아이템({}) 전량 회수 완료", username, request.itemName());
+                List<ItemHistory> unusedItems = itemHistoryRepository.findUnusedItems(user.getId(), item.getType());
+
+                if (request.amount() != null) {
+                        unusedItems = unusedItems.stream()
+                                        .limit(request.amount())
+                                        .collect(Collectors.toList());
+                }
+
+                itemHistoryRepository.deleteAll(unusedItems);
+                log.info("[Admin] 유저({})의 아이템({}) {}개 회수 완료", username, request.itemName(), unusedItems.size());
         }
 
         public void revokeUserCoin(String username, CoinRevokeRequest request) {
