@@ -13,6 +13,7 @@ public enum ErrorCode {
 
     CABINET_NOT_FOUND(HttpStatus.NOT_FOUND, "CABINET_001", "사물함을 찾을 수 없습니다."),
     INVALID_CABINET_STATUS(HttpStatus.BAD_REQUEST, "CABINET_002", "사용할 수 없는 사물함 상태입니다."),
+    CABINET_ALREADY_RESERVED(HttpStatus.BAD_REQUEST, "CABINET_003", "다른 사용자가 이미 선점한 사물함입니다."),
 
     LENT_ALREADY_EXIST(HttpStatus.BAD_REQUEST, "LENT_001", "이미 대여 중인 사물함이 있습니다."),
     LENT_NOT_FOUND(HttpStatus.NOT_FOUND, "LENT_002", "대여 기록이 없습니다."),
