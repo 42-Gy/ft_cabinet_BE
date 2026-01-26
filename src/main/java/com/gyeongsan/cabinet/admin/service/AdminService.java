@@ -24,6 +24,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -67,7 +70,13 @@ public class AdminService {
                                 .map(lent -> lent.getCabinet().getVisibleNum())
                                 .orElse(null);
 
-                return AdminUserDetailResponse.of(user, currentCabinetNum);
+                Map<String, Integer> itemCounts = itemHistoryRepository.findAllByUserIdAndUsedAtIsNull(user.getId())
+                                .stream()
+                                .collect(Collectors.groupingBy(
+                                                itemHistory -> itemHistory.getItem().getType().name(),
+                                                Collectors.collectingAndThen(Collectors.counting(), Long::intValue)));
+
+                return AdminUserDetailResponse.of(user, currentCabinetNum, itemCounts);
         }
 
         @Transactional(readOnly = true)
