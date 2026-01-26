@@ -340,6 +340,7 @@ public class LentFacadeService {
         log.info("자동 연장 설정 변경 - User: {}, Enabled: {}", userId, enabled);
     }
 
+    @Transactional
     public void makeReservation(Long userId, Integer visibleNum) {
         log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
 
