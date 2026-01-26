@@ -104,8 +104,8 @@ public class LentFacadeService {
         try {
             isAiSuccess = itemCheckService.checkItem(file);
         } catch (ServiceException e) {
-
-            if (!e.getErrorCode().equals(ErrorCode.CABINET_NOT_EMPTY)) {
+            if (!e.getErrorCode().equals(ErrorCode.CABINET_NOT_EMPTY) &&
+                    !(e.getErrorCode().equals(ErrorCode.INVALID_IMAGE) && forceReturn)) {
                 throw e;
             }
         }
