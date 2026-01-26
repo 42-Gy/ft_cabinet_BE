@@ -15,6 +15,7 @@ import com.gyeongsan.cabinet.item.repository.ItemRepository;
 import com.gyeongsan.cabinet.lent.domain.LentHistory;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.User;
+import com.gyeongsan.cabinet.user.domain.UserRole;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
 import com.gyeongsan.cabinet.user.repository.AttendanceRepository;
 import lombok.RequiredArgsConstructor;
@@ -288,5 +289,43 @@ public class AdminService {
                 return counts.stream()
                                 .map(row -> new AttendanceStatResponse((LocalDate) row[0], (Long) row[1]))
                                 .collect(Collectors.toList());
+        }
+
+        public void promoteUserToAdmin(String username) {
+                User user = userRepository.findByName(username)
+                                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+                user.updateRole(UserRole.ADMIN);
+                log.info("[Admin] 유저({}) 권한 변경: USER -> ADMIN", username);
+        }
+
+        public void demoteUserToUser(String username) {
+                User user = userRepository.findByName(username)
+                                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+                user.updateRole(UserRole.USER);
+                log.info("[Admin] 유저({}) 권한 변경: ADMIN -> USER", username);
+        }
+
+        public void revokeUserItem(String username, ItemRevokeRequest request) {
+                User user = userRepository.findByName(username)
+                                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+
+                Item item = itemRepository.findByName(request.itemName())
+                                .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND));
+
+                itemHistoryRepository.deleteAllByUserAndItemAndUsedAtIsNull(user, item);
+                log.info("[Admin] 유저({})의 사용하지 않은 아이템({}) 전량 회수 완료", username, request.itemName());
+        }
+
+        public void revokeUserCoin(String username, CoinRevokeRequest request) {
+                User user = userRepository.findByName(username)
+                                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+
+                long amountToRevoke = request.amount();
+                if (amountToRevoke <= 0) {
+                        throw new IllegalArgumentException("회수할 코인은 0보다 커야 합니다.");
+                }
+
+                user.useCoin(amountToRevoke);
+                log.info("[Admin] 유저({}) 코인 회수: {}개. 사유: {}", username, amountToRevoke, request.reason());
         }
 }

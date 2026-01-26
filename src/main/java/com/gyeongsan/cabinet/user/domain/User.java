@@ -128,4 +128,8 @@ public class User {
             this.monthlyLogtime = monthlyLogtime;
         }
     }
+
+    public void updateRole(UserRole role) {
+        this.role = role;
+    }
 }
