@@ -35,23 +35,6 @@ public class LentScheduler {
     @Value("${cabinet.policy.lent-term}")
     private Integer lentTerm;
 
-    @Scheduled(cron = "0 0 0 1 * *")
-    @Transactional
-    public void monthlyProcess() {
-        log.info("📅 [Monthly] 월간 정기 작업 시작");
-
-        grantRentalTicket();
-
-        handleExpiration();
-
-        log.info("✅ [Monthly] 월간 정기 작업 완료");
-    }
-
-    private void grantRentalTicket() {
-
-        log.info("1. [Grant] 대여권 지급 시작...");
-    }
-
     @Scheduled(cron = "0 30 6 * * *")
     @Transactional
     public void autoExtension() {
@@ -81,12 +64,6 @@ public class LentScheduler {
         }
 
         log.info("✅ 총 {}명의 대여가 자동 연장되었습니다.", extendedCount);
-    }
-
-    private void handleExpiration() {
-
-        log.info("3. [Expiration] 만료 및 연체 처리 시작...");
-        checkOverdue();
     }
 
     @Scheduled(cron = "0 0 9 * * *")
