@@ -25,6 +25,15 @@ public class LentController {
         private final LentFacadeService lentFacadeService;
         private final UserRepository userRepository;
 
+        @PostMapping("/reservation/{visibleNum}")
+        public ApiResponse<MessageResponse> makeReservation(
+                        @PathVariable Integer visibleNum,
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                Long userId = userPrincipal.getUserId();
+                lentFacadeService.makeReservation(userId, visibleNum);
+                return ApiResponse.success(new MessageResponse("✅ " + visibleNum + "번 사물함 15분 예약 완료! (다른 사람은 대여 불가)"));
+        }
+
         @PostMapping("/cabinets/{visibleNum}")
         public ApiResponse<MessageResponse> startLentCabinet(
                         @PathVariable Integer visibleNum,

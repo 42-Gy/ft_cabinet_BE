@@ -19,9 +19,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,7 @@ public class LentFacadeService {
     private final LentRepository lentRepository;
     private final ItemHistoryRepository itemHistoryRepository;
     private final TransactionTemplate transactionTemplate;
+    private final StringRedisTemplate redisTemplate;
 
     private final ItemCheckService itemCheckService;
     private final ImageUploadService imageUploadService;
@@ -43,9 +46,13 @@ public class LentFacadeService {
     @Value("${cabinet.policy.extension-term}")
     private long extensionTerm;
 
+    private static final String RESERVATION_KEY_PREFIX = "cabinet:reservation:";
+
     @Transactional
     public void startLentCabinet(Long userId, Integer visibleNum) {
         log.info("대여 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
+
+        checkCabinetReservation(visibleNum, userId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
@@ -81,6 +88,10 @@ public class LentFacadeService {
 
         LentHistory lentHistory = LentHistory.of(user, cabinet, now, expiredAt);
         lentRepository.save(lentHistory);
+
+        deleteReservation(visibleNum);
+
+        log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
 
         log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
     }
@@ -191,15 +202,24 @@ public class LentFacadeService {
         log.info("이사 시도(AI) - User: {}, NewCabinet: {}, Force: {}, Reason: {}", userId, newVisibleNum, forceReturn,
                 reason);
 
-        if (!forceReturn) {
-            boolean isClean = itemCheckService.checkItem(file);
-            if (!isClean) {
-                log.warn("AI 이사 검사 실패 - User: {}", userId);
-                throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+        boolean isAiSuccess = false;
+        try {
+            isAiSuccess = itemCheckService.checkItem(file);
+        } catch (ServiceException e) {
+            if (!e.getErrorCode().equals(ErrorCode.CABINET_NOT_EMPTY) &&
+                    !(e.getErrorCode().equals(ErrorCode.INVALID_IMAGE) && forceReturn)) {
+                throw e;
             }
         }
 
+        if (!isAiSuccess && !forceReturn) {
+            log.warn("AI 이사 검사 실패 - User: {}", userId);
+            throw new ServiceException(ErrorCode.CABINET_NOT_EMPTY);
+        }
+
         String photoUrl = imageUploadService.uploadImage(userId, file);
+
+        checkCabinetReservation(newVisibleNum, userId);
 
         transactionTemplate.execute(status -> {
             processSwapTransaction(userId, newVisibleNum, previousPassword, forceReturn, reason, photoUrl);
@@ -259,6 +279,8 @@ public class LentFacadeService {
 
         log.info("이사 성공! 🚚 Old(PW:{}): {} -> New: {}", previousPassword, oldCabinet.getVisibleNum(),
                 newCabinet.getVisibleNum());
+
+        deleteReservation(newVisibleNum);
     }
 
     @Transactional
@@ -316,5 +338,41 @@ public class LentFacadeService {
 
         lentHistory.setAutoExtension(enabled);
         log.info("자동 연장 설정 변경 - User: {}, Enabled: {}", userId, enabled);
+    }
+
+    public void makeReservation(Long userId, Integer visibleNum) {
+        log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
+
+        Cabinet cabinet = cabinetRepository.findByVisibleNumWithLock(visibleNum)
+                .orElseThrow(() -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));
+
+        if (cabinet.getStatus() != CabinetStatus.AVAILABLE) {
+            throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
+        }
+
+        String key = RESERVATION_KEY_PREFIX + visibleNum;
+        String reservedUserId = redisTemplate.opsForValue().get(key);
+
+        if (reservedUserId != null && !reservedUserId.equals(userId.toString())) {
+            throw new ServiceException(ErrorCode.CABINET_ALREADY_RESERVED);
+        }
+
+        redisTemplate.opsForValue().set(key, userId.toString(), 15, TimeUnit.MINUTES);
+        log.info("사물함 예약 성공 - User: {}, Cabinet: {}", userId, visibleNum);
+    }
+
+    private void checkCabinetReservation(Integer visibleNum, Long userId) {
+        String key = RESERVATION_KEY_PREFIX + visibleNum;
+        String reservedUserId = redisTemplate.opsForValue().get(key);
+
+        if (reservedUserId != null && !reservedUserId.equals(userId.toString())) {
+            log.warn("❌ 대여/이사 실패: 다른 사용자가 예약함 - Owner: {}, Requester: {}", reservedUserId, userId);
+            throw new ServiceException(ErrorCode.CABINET_ALREADY_RESERVED);
+        }
+    }
+
+    private void deleteReservation(Integer visibleNum) {
+        String key = RESERVATION_KEY_PREFIX + visibleNum;
+        redisTemplate.delete(key);
     }
 }
