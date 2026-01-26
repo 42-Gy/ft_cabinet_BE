@@ -154,6 +154,34 @@ public class AdminController {
         return ApiResponse.success(adminService.getAttendanceStats(startDate, endDate));
     }
 
+    @PostMapping("/users/{name}/role/admin")
+    public ApiResponse<String> promoteUserToAdmin(@PathVariable String name) {
+        adminService.promoteUserToAdmin(name);
+        return ApiResponse.success("관리자 권한 부여 완료");
+    }
+
+    @DeleteMapping("/users/{name}/role/admin")
+    public ApiResponse<String> demoteUserToUser(@PathVariable String name) {
+        adminService.demoteUserToUser(name);
+        return ApiResponse.success("관리자 권한 해제 완료");
+    }
+
+    @DeleteMapping("/users/{name}/items")
+    public ApiResponse<String> revokeUserItem(
+            @PathVariable String name,
+            @RequestBody ItemRevokeRequest request) {
+        adminService.revokeUserItem(name, request);
+        return ApiResponse.success("아이템 회수 완료 (미사용 아이템 전체 삭제)");
+    }
+
+    @DeleteMapping("/users/{name}/coin")
+    public ApiResponse<String> revokeUserCoin(
+            @PathVariable String name,
+            @RequestBody CoinRevokeRequest request) {
+        adminService.revokeUserCoin(name, request);
+        return ApiResponse.success("코인 회수 완료");
+    }
+
     public record UserLogtimeRequest(Integer monthlyLogtime) {
     }
 
