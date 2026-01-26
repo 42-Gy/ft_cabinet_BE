@@ -34,10 +34,10 @@ public class ItemPriceInitializer {
     public void initItemPrices() {
         log.info("🛒 아이템 가격 동기화 시작...");
 
-        updateOrCreateItem(ItemType.EXTENSION, "EXTENSION", extensionPrice, "대여 기간을 연장합니다.");
-        updateOrCreateItem(ItemType.SWAP, "SWAP", swapPrice, "다른 사물함으로 이동합니다.");
-        updateOrCreateItem(ItemType.PENALTY_EXEMPTION, "PENALTY_EXEMPTION", penaltyExemptionPrice, "패널티를 감면합니다.");
-        updateOrCreateItem(ItemType.LENT, "LENT", 0L, "30일간 사물함을 대여합니다.");
+        updateOrCreateItem(ItemType.EXTENSION, "연장권", extensionPrice, "대여 기간을 연장합니다.");
+        updateOrCreateItem(ItemType.SWAP, "이사권", swapPrice, "다른 사물함으로 이동합니다.");
+        updateOrCreateItem(ItemType.PENALTY_EXEMPTION, "패널티 감면권", penaltyExemptionPrice, "패널티를 감면합니다.");
+        updateOrCreateItem(ItemType.LENT, "대여권", 0L, "30일간 사물함을 대여합니다.");
 
         log.info("✅ 아이템 가격 동기화 완료!");
     }
