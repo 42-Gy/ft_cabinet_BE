@@ -31,6 +31,17 @@ public interface ItemHistoryRepository extends JpaRepository<ItemHistory, Long> 
         @Query("SELECT i.name, COUNT(ih) FROM ItemHistory ih JOIN ih.item i GROUP BY i.name")
         List<Object[]> findItemSales();
 
+        @Query("""
+                        SELECT i.name, i.type,
+                               COUNT(ih),
+                               SUM(CASE WHEN ih.usedAt IS NOT NULL THEN 1 ELSE 0 END)
+                        FROM ItemHistory ih
+                        JOIN ih.item i
+                        GROUP BY i.name, i.type
+                        ORDER BY i.name
+                        """)
+        List<Object[]> findItemUsageStats();
+
         void deleteAllByUserAndItemAndUsedAtIsNull(com.gyeongsan.cabinet.user.domain.User user,
                         com.gyeongsan.cabinet.item.domain.Item item);
 }

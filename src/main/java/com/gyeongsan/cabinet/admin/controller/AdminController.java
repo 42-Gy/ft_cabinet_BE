@@ -61,6 +61,12 @@ public class AdminController {
         return ApiResponse.success("사물함 상태 변경 완료");
     }
 
+    @PatchMapping("/cabinets/bundle/status")
+    public ApiResponse<String> bulkUpdateCabinetStatus(@RequestBody BulkStatusUpdateRequest request) {
+        adminService.bulkUpdateCabinetStatus(request);
+        return ApiResponse.success("사물함 상태 일괄 변경 완료");
+    }
+
     @PostMapping("/cabinets/{visibleNum}/force-return")
     public ApiResponse<String> forceReturn(@PathVariable Integer visibleNum) {
         adminService.forceReturn(visibleNum);
@@ -97,14 +103,39 @@ public class AdminController {
         return ApiResponse.success(adminService.getOverdueUsers());
     }
 
-    @GetMapping("/cabinets/{visibleNum}")
-    public ApiResponse<CabinetDetailResponse> getCabinetDetail(@PathVariable Integer visibleNum) {
-        return ApiResponse.success(adminService.getCabinetDetail(visibleNum));
-    }
-
     @GetMapping("/stats/weekly")
     public ApiResponse<AdminWeeklyStatsResponse> getWeeklyStats() {
         return ApiResponse.success(adminService.getWeeklyStats());
+    }
+
+    @GetMapping("/stats/floors")
+    public ApiResponse<AdminFloorStatsResponse> getFloorStats() {
+        return ApiResponse.success(adminService.getFloorStats());
+    }
+
+    @GetMapping("/stats/coins")
+    public ApiResponse<AdminCoinStatsResponse> getCoinStats() {
+        return ApiResponse.success(adminService.getCoinStats());
+    }
+
+    @GetMapping("/stats/items")
+    public ApiResponse<AdminItemUsageStatsResponse> getItemUsageStats() {
+        return ApiResponse.success(adminService.getItemUsageStats());
+    }
+
+    @GetMapping("/users/penalty")
+    public ApiResponse<List<PenaltyUserResponse>> getPenaltyUsers() {
+        return ApiResponse.success(adminService.getPenaltyUsers());
+    }
+
+    @GetMapping("/cabinets/broken")
+    public ApiResponse<List<BrokenCabinetResponse>> getBrokenCabinets() {
+        return ApiResponse.success(adminService.getBrokenCabinets());
+    }
+
+    @GetMapping("/cabinets/{visibleNum}")
+    public ApiResponse<CabinetDetailResponse> getCabinetDetail(@PathVariable Integer visibleNum) {
+        return ApiResponse.success(adminService.getCabinetDetail(visibleNum));
     }
 
     @PostMapping("/users/{name}/penalty")
