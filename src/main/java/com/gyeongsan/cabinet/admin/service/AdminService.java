@@ -6,6 +6,9 @@ import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
 
 import com.gyeongsan.cabinet.cabinet.repository.CabinetRepository;
+import com.gyeongsan.cabinet.coin.domain.CoinHistory;
+import com.gyeongsan.cabinet.coin.domain.CoinLogType;
+import com.gyeongsan.cabinet.coin.repository.CoinHistoryRepository;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
 import com.gyeongsan.cabinet.global.exception.ErrorCode;
@@ -30,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +52,7 @@ public class AdminService {
         private final ItemHistoryRepository itemHistoryRepository;
         private final SlackBotService slackBotService;
         private final AttendanceRepository attendanceRepository;
+        private final CoinHistoryRepository coinHistoryRepository;
 
         @Transactional(readOnly = true)
         public AdminDashboardResponse getDashboard() {
@@ -101,6 +106,10 @@ public class AdminService {
                                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
                 user.addCoin(request.amount());
+
+                CoinHistory adminGrant = CoinHistory.of(user, request.amount(), CoinLogType.ADMIN_GRANT);
+                coinHistoryRepository.save(adminGrant);
+
                 log.info(
                                 "[Admin] 유저({})에게 코인 {}개 지급. 사유: {}",
                                 user.getName(),
@@ -247,13 +256,30 @@ public class AdminService {
 
         @Transactional(readOnly = true)
         public AdminWeeklyStatsResponse getWeeklyStats() {
-                LocalDateTime end = LocalDateTime.now();
-                LocalDateTime start = end.minusDays(7);
+                LocalDateTime now = LocalDateTime.now();
+                List<AdminWeeklyStatsResponse.WeekData> weeklyData = new ArrayList<>();
 
-                long startedCount = lentRepository.countLentsStartedAtBetween(start, end);
-                long endedCount = lentRepository.countLentsEndedAtBetween(start, end);
+                for (int i = 3; i >= 0; i--) {
+                        LocalDateTime weekEnd = now.minusWeeks(i);
+                        LocalDateTime weekStart = weekEnd.minusWeeks(1);
 
-                return new AdminWeeklyStatsResponse(startedCount, endedCount);
+                        long started = lentRepository.countLentsStartedAtBetween(weekStart, weekEnd);
+                        long ended = lentRepository.countLentsEndedAtBetween(weekStart, weekEnd);
+
+                        String label = String.format("Week %d (%s - %s)",
+                                        4 - i,
+                                        weekStart.toLocalDate(),
+                                        weekEnd.toLocalDate());
+
+                        weeklyData.add(new AdminWeeklyStatsResponse.WeekData(
+                                        label,
+                                        weekStart.toLocalDate(),
+                                        weekEnd.toLocalDate(),
+                                        started,
+                                        ended));
+                }
+
+                return new AdminWeeklyStatsResponse(weeklyData);
         }
 
         @Transactional(readOnly = true)
@@ -343,6 +369,122 @@ public class AdminService {
                 }
 
                 user.useCoin(amountToRevoke);
+
+                CoinHistory adminRevoke = CoinHistory.of(user, -amountToRevoke, CoinLogType.ADMIN_REVOKE);
+                coinHistoryRepository.save(adminRevoke);
+
                 log.info("[Admin] 유저({}) 코인 회수: {}개. 사유: {}", username, amountToRevoke, request.reason());
+        }
+
+        @Transactional(readOnly = true)
+        public AdminFloorStatsResponse getFloorStats() {
+                List<CabinetRepository.FloorStatProjection> projections = cabinetRepository.findFloorStatistics();
+
+                List<AdminFloorStatsResponse.FloorStat> floors = projections.stream()
+                                .map(p -> new AdminFloorStatsResponse.FloorStat(
+                                                p.getFloor(),
+                                                p.getTotal(),
+                                                p.getUsed(),
+                                                p.getAvailable(),
+                                                p.getOverdue(),
+                                                p.getBroken(),
+                                                p.getPending()))
+                                .collect(Collectors.toList());
+
+                return new AdminFloorStatsResponse(floors);
+        }
+
+        @Transactional(readOnly = true)
+        public List<PenaltyUserResponse> getPenaltyUsers() {
+                return userRepository.findAllPenaltyUsers()
+                                .stream()
+                                .map(PenaltyUserResponse::from)
+                                .collect(Collectors.toList());
+        }
+
+        @Transactional(readOnly = true)
+        public List<BrokenCabinetResponse> getBrokenCabinets() {
+                return cabinetRepository.findAllByStatus(CabinetStatus.BROKEN)
+                                .stream()
+                                .map(BrokenCabinetResponse::from)
+                                .collect(Collectors.toList());
+        }
+
+        public void bulkUpdateCabinetStatus(BulkStatusUpdateRequest request) {
+                List<Long> cabinetIds = request.cabinetIds();
+                CabinetStatus targetStatus = request.status();
+
+                if (cabinetIds == null || cabinetIds.isEmpty()) {
+                        throw new IllegalArgumentException("사물함 ID 목록이 비어있습니다.");
+                }
+
+                List<Cabinet> cabinets = cabinetRepository.findAllById(cabinetIds);
+
+                if (cabinets.size() != cabinetIds.size()) {
+                        log.warn("[Admin] 일부 사물함을 찾을 수 없습니다. 요청: {}, 발견: {}", cabinetIds.size(), cabinets.size());
+                }
+
+                for (Cabinet cabinet : cabinets) {
+                        cabinet.updateStatus(targetStatus);
+                }
+
+                log.info("[Admin] 사물함 상태 일괄 변경 완료: {} -> {} (대상: {}개)",
+                                cabinetIds.size(), targetStatus, cabinets.size());
+        }
+
+        @Transactional(readOnly = true)
+        public AdminCoinStatsResponse getCoinStats() {
+                LocalDateTime now = LocalDateTime.now();
+                List<AdminCoinStatsResponse.WeekCoinData> weeklyData = new ArrayList<>();
+
+                for (int i = 3; i >= 0; i--) {
+                        LocalDateTime weekEnd = now.minusWeeks(i);
+                        LocalDateTime weekStart = weekEnd.minusWeeks(1);
+
+                        Object[] result = coinHistoryRepository.sumIssuedAndUsedBetween(weekStart, weekEnd);
+
+                        long issued = result[0] != null ? ((Number) result[0]).longValue() : 0L;
+                        long used = result[1] != null ? ((Number) result[1]).longValue() : 0L;
+
+                        String label = String.format("Week %d (%s - %s)",
+                                        4 - i,
+                                        weekStart.toLocalDate(),
+                                        weekEnd.toLocalDate());
+
+                        weeklyData.add(new AdminCoinStatsResponse.WeekCoinData(
+                                        label,
+                                        weekStart.toLocalDate(),
+                                        weekEnd.toLocalDate(),
+                                        issued,
+                                        used));
+                }
+
+                return new AdminCoinStatsResponse(weeklyData);
+        }
+
+        @Transactional(readOnly = true)
+        public AdminItemUsageStatsResponse getItemUsageStats() {
+                List<Object[]> statsData = itemHistoryRepository.findItemUsageStats();
+
+                List<AdminItemUsageStatsResponse.ItemUsageStat> itemStats = statsData.stream()
+                                .map(row -> new AdminItemUsageStatsResponse.ItemUsageStat(
+                                                (String) row[0], // itemName
+                                                row[1].toString(), // itemType
+                                                ((Number) row[2]).longValue(), // purchaseCount
+                                                ((Number) row[3]).longValue() // usedCount
+                                ))
+                                .collect(Collectors.toList());
+
+                long attendanceCount = coinHistoryRepository.countByTypeAndCreatedAtBetween(
+                                CoinLogType.ATTENDANCE,
+                                LocalDateTime.of(2000, 1, 1, 0, 0),
+                                LocalDateTime.now());
+
+                long watermelonCount = coinHistoryRepository.countByTypeAndCreatedAtBetween(
+                                CoinLogType.WATERMELON,
+                                LocalDateTime.of(2000, 1, 1, 0, 0),
+                                LocalDateTime.now());
+
+                return new AdminItemUsageStatsResponse(itemStats, attendanceCount, watermelonCount);
         }
 }

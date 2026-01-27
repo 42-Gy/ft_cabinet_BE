@@ -1,6 +1,9 @@
 package com.gyeongsan.cabinet.user.service;
 
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
+import com.gyeongsan.cabinet.coin.domain.CoinHistory;
+import com.gyeongsan.cabinet.coin.domain.CoinLogType;
+import com.gyeongsan.cabinet.coin.repository.CoinHistoryRepository;
 import com.gyeongsan.cabinet.item.domain.Item;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
@@ -33,6 +36,7 @@ public class UserService {
     private final LentRepository lentRepository;
     private final ItemHistoryRepository itemHistoryRepository;
     private final AttendanceRepository attendanceRepository;
+    private final CoinHistoryRepository coinHistoryRepository;
 
     private static final int MONTHLY_TARGET_MINUTES = 4800;
 
@@ -130,12 +134,16 @@ public class UserService {
         attendanceRepository.save(attendance);
 
         user.addCoin(100L);
+        CoinHistory attendanceReward = CoinHistory.of(user, 100L, CoinLogType.ATTENDANCE);
+        coinHistoryRepository.save(attendanceReward);
 
         LocalDate startOfMonth = today.withDayOfMonth(1);
         long attendanceCount = attendanceRepository.countLoginDaysByUserId(userId, startOfMonth, today);
 
         if (attendanceCount == 20) {
             user.addCoin(2000L);
+            CoinHistory watermelonReward = CoinHistory.of(user, 2000L, CoinLogType.WATERMELON);
+            coinHistoryRepository.save(watermelonReward);
             log.info("🍉 [Golden Watermelon] {}님 이번 달 20번째 출석 달성! 2000 코인 추가 지급! (총 출석: {}일)", user.getName(),
                     attendanceCount);
         } else {

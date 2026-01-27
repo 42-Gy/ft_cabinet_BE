@@ -22,4 +22,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT SUM(u.coin) FROM User u")
     Optional<Long> sumCoins();
+
+    @Query("SELECT u FROM User u WHERE u.penaltyDays > 0 ORDER BY u.penaltyDays DESC")
+    List<User> findAllPenaltyUsers();
 }

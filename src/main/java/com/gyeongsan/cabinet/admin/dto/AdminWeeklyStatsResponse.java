@@ -1,6 +1,15 @@
 package com.gyeongsan.cabinet.admin.dto;
 
+import java.time.LocalDate;
+import java.util.List;
+
 public record AdminWeeklyStatsResponse(
-        long lentsStarted,
-        long lentsEnded) {
+                List<WeekData> weeklyData) {
+        public static record WeekData(
+                        String weekLabel,
+                        LocalDate startDate,
+                        LocalDate endDate,
+                        Long lentsStarted,
+                        Long lentsEnded) {
+        }
 }

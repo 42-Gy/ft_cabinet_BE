@@ -1,5 +1,8 @@
 package com.gyeongsan.cabinet.item.service;
 
+import com.gyeongsan.cabinet.coin.domain.CoinHistory;
+import com.gyeongsan.cabinet.coin.domain.CoinLogType;
+import com.gyeongsan.cabinet.coin.repository.CoinHistoryRepository;
 import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
 import com.gyeongsan.cabinet.item.domain.Item;
@@ -28,6 +31,7 @@ public class StoreService {
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final ItemHistoryRepository itemHistoryRepository;
+    private final CoinHistoryRepository coinHistoryRepository;
 
     public List<ItemResponseDto> getItems() {
         return itemRepository.findAll().stream()
@@ -59,6 +63,9 @@ public class StoreService {
         }
 
         user.useCoin(item.getPrice());
+
+        CoinHistory coinUsage = CoinHistory.of(user, -item.getPrice(), CoinLogType.ITEM_PURCHASE);
+        coinHistoryRepository.save(coinUsage);
 
         ItemHistory history = new ItemHistory(LocalDateTime.now(), null, user, item);
         itemHistoryRepository.save(history);

@@ -28,4 +28,35 @@ public interface CabinetRepository extends JpaRepository<Cabinet, Long> {
     List<Cabinet> findAllByStatus(CabinetStatus status);
 
     long countByStatus(CabinetStatus status);
+
+    interface FloorStatProjection {
+        Integer getFloor();
+
+        Long getTotal();
+
+        Long getUsed();
+
+        Long getAvailable();
+
+        Long getOverdue();
+
+        Long getBroken();
+
+        Long getPending();
+    }
+
+    @Query(value = """
+            SELECT
+                c.floor AS floor,
+                COUNT(*) AS total,
+                SUM(CASE WHEN c.status = 'FULL' THEN 1 ELSE 0 END) AS used,
+                SUM(CASE WHEN c.status = 'AVAILABLE' THEN 1 ELSE 0 END) AS available,
+                SUM(CASE WHEN c.status = 'OVERDUE' THEN 1 ELSE 0 END) AS overdue,
+                SUM(CASE WHEN c.status = 'BROKEN' THEN 1 ELSE 0 END) AS broken,
+                SUM(CASE WHEN c.status = 'PENDING' THEN 1 ELSE 0 END) AS pending
+            FROM CABINET c
+            GROUP BY c.floor
+            ORDER BY c.floor
+            """, nativeQuery = true)
+    List<FloorStatProjection> findFloorStatistics();
 }
