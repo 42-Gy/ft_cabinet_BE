@@ -26,7 +26,7 @@ import com.gyeongsan.cabinet.item.dto.ItemResponseDto;
 @Log4j2
 public class StoreService {
 
-    private static final int MAX_EXTENSION_COUNT = 2;
+    private static final int MAX_EXTENSION_COUNT = 1;
 
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;

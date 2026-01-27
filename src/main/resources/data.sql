@@ -71,7 +71,7 @@ VALUES (
         2,
         '???湲곌컙??15???곗옣?⑸땲??',
         '?곗옣沅?',
-        1000,
+        2000,
         'EXTENSION'
     );
 INSERT IGNORE INTO item (id, description, name, price, type)
@@ -87,7 +87,7 @@ VALUES (
         4,
         ' ? ⑤ 꼸 ? ? 湲곌컙 ? ?2 ? ? 以꾩뿬以띾땲 ? ? ',
         ' ? ⑤ 꼸 ? ? 媛먮 ㈃ 沅 ? ',
-        100,
+        300,
         'PENALTY_EXEMPTION'
     );
 INSERT IGNORE INTO cabinet (
