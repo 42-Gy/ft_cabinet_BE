@@ -83,9 +83,25 @@ public class LentScheduler {
             User user = lh.getUser();
             Cabinet cabinet = lh.getCabinet();
 
-            long overdueDays = ChronoUnit.DAYS.between(lh.getExpiredAt(), now);
-            if (overdueDays <= 0)
-                overdueDays = 1;
+            if (user.getBlackholedAt() != null) {
+                continue;
+            }
+
+            LocalDateTime gracePeriodEnd = lh.getExpiredAt()
+                    .toLocalDate()
+                    .atTime(23, 59, 59);
+
+            if (now.isBefore(gracePeriodEnd) || now.isEqual(gracePeriodEnd)) {
+                continue;
+            }
+
+            long overdueDays = ChronoUnit.DAYS.between(
+                    lh.getExpiredAt().toLocalDate().plusDays(1).atStartOfDay(),
+                    now);
+
+            if (overdueDays <= 0) {
+                continue;
+            }
 
             int newPenalty = (int) (overdueDays * 3);
             user.updatePenaltyDays(newPenalty);
