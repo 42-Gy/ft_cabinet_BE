@@ -58,8 +58,8 @@ public class MyProfileResponseDto {
     public static class CoinHistoryDto {
         private String date;
         private Long amount;
-        private String type; // EARN or SPEND
-        private String reason; // ATTENDANCE, PURCHASE, etc.
+        private String type;
+        private String reason;
     }
 
     @Getter
@@ -67,10 +67,10 @@ public class MyProfileResponseDto {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class ItemHistoryDto {
-        private String date; // purchaseAt or usedAt? Maybe purchase date
+        private String date;
         private String itemName;
         private String itemType;
-        private String status; // USED, UNUSED
+        private String status;
         private String usedAt;
     }
 }

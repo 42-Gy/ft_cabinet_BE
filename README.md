@@ -305,6 +305,7 @@ erDiagram
         Long user_id FK
         Long amount "거래량 (양수: 지급, 음수: 사용)"
         String type "거래 타입 (ATTENDANCE, WATERMELON, ITEM_PURCHASE, ADMIN_GRANT, ADMIN_REVOKE)"
+        String description "상세 사유 (아이템명, 보상명 등)"
         LocalDateTime createdAt "거래 발생 시각"
     }
 ```
@@ -326,6 +327,7 @@ erDiagram
 | **Ver 5.3** | **Logic Refinement** | **블랙홀 유예(D+7)**, **스케줄러 최적화(시간분산)**, **Intra ID 알림**, 블랙홀 대여제한 해제 |
 | **Ver 5.4** | **Camera & Security** | **인앱 카메라 전용 모드(In-App Only)**, **Exif 의존성 제거**, **익명 요청 정보 마스킹**, 배포 안정성 강화(DB Init Disable) |
 | **Ver 5.5** | **CoinHistory & Statistics** | **코인 거래 추적 시스템**, **주간 재화 흐름 통계 API**, **아이템 사용 현황 통계 API**, 모든 코인 거래를 타임스탬프와 함께 기록 |
+| **Ver 5.6** | **MyPage & Logtime** | **마이페이지 재화/아이템 사용 이력 추가**, **재화 사용 상세 사유(Description) 기록**, **로그타임 월말 세션 분리(Spanning Session) 버그 수정** |
 
 <br>
 
@@ -515,7 +517,7 @@ sequenceDiagram
 ### 2. 👤 유저 (User)
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
-| `GET` | `/v4/users/me` | 내 정보 (대여, 연체, 코인 등) 조회 |
+| `GET` | `/v4/users/me` | 내 정보 (대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회 |
 | `GET` | `/v4/users/me/lent-histories` | 나의 과거 대여 기록 조회 |
 | `POST` | `/v4/users/attendance` | **[NEW]** 수동 출석 체크 (코인 획득) |
 | `GET` | `/v4/users/attendance` | 이번 달 출석 현황 조회 |
