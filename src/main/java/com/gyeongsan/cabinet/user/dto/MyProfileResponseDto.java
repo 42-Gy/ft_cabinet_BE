@@ -34,7 +34,7 @@ public class MyProfileResponseDto {
 
     private String lentStartedAt;
 
-    private LocalDateTime expiredAt;
+    private String expiredAt;
 
     private List<MyItemDto> myItems;
 
