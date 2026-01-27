@@ -116,6 +116,23 @@ public class UserService {
                 .expiredAt(expiredAt)
                 .previousPassword(previousPassword)
                 .myItems(itemDtos)
+                .coinHistories(coinHistoryRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
+                        .map(ch -> MyProfileResponseDto.CoinHistoryDto.builder()
+                                .date(ch.getCreatedAt().toLocalDate().toString())
+                                .amount(ch.getAmount())
+                                .type(ch.getAmount() > 0 ? "EARN" : "SPEND")
+                                .reason(ch.getType().name())
+                                .build())
+                        .collect(Collectors.toList()))
+                .itemHistories(itemHistoryRepository.findAllByUserIdOrderByPurchaseAtDesc(userId).stream()
+                        .map(ih -> MyProfileResponseDto.ItemHistoryDto.builder()
+                                .date(ih.getPurchaseAt().toLocalDate().toString())
+                                .itemName(ih.getItem().getName())
+                                .itemType(ih.getItem().getType().name())
+                                .status(ih.getUsedAt() != null ? "USED" : "UNUSED")
+                                .usedAt(ih.getUsedAt() != null ? ih.getUsedAt().toLocalDate().toString() : null)
+                                .build())
+                        .collect(Collectors.toList()))
                 .build();
     }
 

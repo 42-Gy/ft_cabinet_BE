@@ -37,6 +37,8 @@ public class MyProfileResponseDto {
     private String expiredAt;
 
     private List<MyItemDto> myItems;
+    private List<CoinHistoryDto> coinHistories;
+    private List<ItemHistoryDto> itemHistories;
 
     @Getter
     @Builder
@@ -47,5 +49,28 @@ public class MyProfileResponseDto {
         private String itemName;
         private String itemType;
         private LocalDateTime purchaseAt;
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class CoinHistoryDto {
+        private String date;
+        private Long amount;
+        private String type; // EARN or SPEND
+        private String reason; // ATTENDANCE, PURCHASE, etc.
+    }
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ItemHistoryDto {
+        private String date; // purchaseAt or usedAt? Maybe purchase date
+        private String itemName;
+        private String itemType;
+        private String status; // USED, UNUSED
+        private String usedAt;
     }
 }
