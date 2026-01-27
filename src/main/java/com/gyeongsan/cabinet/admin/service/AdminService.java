@@ -388,7 +388,8 @@ public class AdminService {
                                                 p.getAvailable(),
                                                 p.getOverdue(),
                                                 p.getBroken(),
-                                                p.getPending()))
+                                                p.getPending(),
+                                                p.getDisabled()))
                                 .collect(Collectors.toList());
 
                 return new AdminFloorStatsResponse(floors);
