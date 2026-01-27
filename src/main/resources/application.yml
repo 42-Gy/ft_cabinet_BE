@@ -85,9 +85,9 @@ cabinet:
     lent-term: 30
     extension-term: 15
   items:
-    extension-price: 1000
+    extension-price: 2000
     swap-price: 1000
-    penalty-exemption-price: 100
+    penalty-exemption-price: 300
 
 springdoc:
   api-docs:
