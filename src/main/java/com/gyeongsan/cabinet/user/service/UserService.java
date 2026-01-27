@@ -70,7 +70,7 @@ public class UserService {
         Integer visibleNum = null;
         String section = null;
         String lentStartedAt = null;
-        LocalDateTime expiredAt = null;
+        String expiredAt = null;
         String previousPassword = null;
 
         if (activeLent != null && activeLent.getCabinet() != null) {
@@ -79,8 +79,8 @@ public class UserService {
             visibleNum = cabinet.getVisibleNum();
             section = cabinet.getSection();
 
-            lentStartedAt = activeLent.getStartedAt().toString();
-            expiredAt = activeLent.getExpiredAt();
+            lentStartedAt = activeLent.getStartedAt().toLocalDate().toString();
+            expiredAt = activeLent.getExpiredAt().toLocalDate().toString();
 
             LentHistory prevHistory = lentRepository
                     .findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(cabinet.getId())
