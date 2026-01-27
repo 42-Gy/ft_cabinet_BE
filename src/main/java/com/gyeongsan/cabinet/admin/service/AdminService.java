@@ -476,11 +476,10 @@ public class AdminService {
 
                 List<AdminItemUsageStatsResponse.ItemUsageStat> itemStats = statsData.stream()
                                 .map(row -> new AdminItemUsageStatsResponse.ItemUsageStat(
-                                                (String) row[0], // itemName
-                                                row[1].toString(), // itemType
-                                                ((Number) row[2]).longValue(), // purchaseCount
-                                                ((Number) row[3]).longValue() // usedCount
-                                ))
+                                                (String) row[0],
+                                                row[1].toString(),
+                                                ((Number) row[2]).longValue(),
+                                                ((Number) row[3]).longValue()))
                                 .collect(Collectors.toList());
 
                 long attendanceCount = coinHistoryRepository.countByTypeAndCreatedAtBetween(

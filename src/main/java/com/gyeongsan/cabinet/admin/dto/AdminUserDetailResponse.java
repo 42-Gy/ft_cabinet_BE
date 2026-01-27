@@ -17,8 +17,7 @@ public record AdminUserDetailResponse(
                 UserRole role,
                 Integer currentCabinetNum,
                 Integer monthlyLogtime,
-                Map<String, Integer> itemCounts // Added field
-) {
+                Map<String, Integer> itemCounts) {
         public static AdminUserDetailResponse of(User user, Integer currentCabinetNum,
                         Map<String, Integer> itemCounts) {
                 LocalDateTime unbannedAtVal = (user.getPenaltyDays() != null && user.getPenaltyDays() > 0)
