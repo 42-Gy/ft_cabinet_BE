@@ -107,7 +107,7 @@ public class AdminService {
 
                 user.addCoin(request.amount());
 
-                CoinHistory adminGrant = CoinHistory.of(user, request.amount(), CoinLogType.ADMIN_GRANT);
+                CoinHistory adminGrant = CoinHistory.of(user, request.amount(), CoinLogType.ADMIN_GRANT, "관리자 지급");
                 coinHistoryRepository.save(adminGrant);
 
                 log.info(
@@ -370,7 +370,7 @@ public class AdminService {
 
                 user.useCoin(amountToRevoke);
 
-                CoinHistory adminRevoke = CoinHistory.of(user, -amountToRevoke, CoinLogType.ADMIN_REVOKE);
+                CoinHistory adminRevoke = CoinHistory.of(user, -amountToRevoke, CoinLogType.ADMIN_REVOKE, "관리자 회수");
                 coinHistoryRepository.save(adminRevoke);
 
                 log.info("[Admin] 유저({}) 코인 회수: {}개. 사유: {}", username, amountToRevoke, request.reason());

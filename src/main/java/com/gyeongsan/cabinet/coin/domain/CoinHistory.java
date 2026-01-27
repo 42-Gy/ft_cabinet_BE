@@ -26,6 +26,9 @@ public class CoinHistory {
     @Column(name = "TYPE", nullable = false, length = 32)
     private CoinLogType type;
 
+    @Column(name = "DESCRIPTION")
+    private String description;
+
     @Column(name = "CREATED_AT", nullable = false)
     private LocalDateTime createdAt;
 
@@ -33,14 +36,15 @@ public class CoinHistory {
     @JoinColumn(name = "USER_ID", nullable = false)
     private User user;
 
-    protected CoinHistory(User user, Long amount, CoinLogType type, LocalDateTime createdAt) {
+    protected CoinHistory(User user, Long amount, CoinLogType type, String description, LocalDateTime createdAt) {
         this.user = user;
         this.amount = amount;
         this.type = type;
+        this.description = description;
         this.createdAt = createdAt;
     }
 
-    public static CoinHistory of(User user, Long amount, CoinLogType type) {
-        return new CoinHistory(user, amount, type, LocalDateTime.now());
+    public static CoinHistory of(User user, Long amount, CoinLogType type, String description) {
+        return new CoinHistory(user, amount, type, description, LocalDateTime.now());
     }
 }
