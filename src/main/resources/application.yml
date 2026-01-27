@@ -53,7 +53,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     defer-datasource-initialization: true
     properties:
       hibernate:
