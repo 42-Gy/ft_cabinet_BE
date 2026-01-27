@@ -258,8 +258,12 @@ public class LentFacadeService {
         Cabinet oldCabinet = oldLent.getCabinet();
 
         String returnReason = previousPassword;
-        if (forceReturn && reason != null && !reason.isBlank()) {
-            returnReason = "[User Force] " + reason;
+        if (reason != null && !reason.isBlank()) {
+            returnReason = forceReturn
+                    ? "[User Force] " + reason
+                    : "[Swap] " + reason;
+        } else if (forceReturn) {
+            returnReason = "[User Force] " + previousPassword;
         }
 
         oldLent.endLent(LocalDateTime.now(), returnReason);
