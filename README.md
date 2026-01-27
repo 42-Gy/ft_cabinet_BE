@@ -232,6 +232,7 @@ erDiagram
     USER ||--o{ ATTENDANCE : "출석체크 함"
     USER ||--o{ LENT_HISTORY : "대여 기록 보유"
     USER ||--o{ ITEM_HISTORY : "아이템 구매/사용 이력"
+    USER ||--o{ COIN_HISTORY : "코인 거래 이력"
     
     CABINET ||--o{ LENT_HISTORY : "대여 이력 포함"
     
@@ -298,6 +299,14 @@ erDiagram
         LocalDateTime purchaseAt "구매 일시"
         LocalDateTime usedAt "사용 일시 (null이면 미사용)"
     }
+
+    COIN_HISTORY {
+        Long id PK
+        Long user_id FK
+        Long amount "거래량 (양수: 지급, 음수: 사용)"
+        String type "거래 타입 (ATTENDANCE, WATERMELON, ITEM_PURCHASE, ADMIN_GRANT, ADMIN_REVOKE)"
+        LocalDateTime createdAt "거래 발생 시각"
+    }
 ```
 
 <br>
@@ -316,6 +325,7 @@ erDiagram
 | **Ver 5.2** | **Auto-Extension & Scheduler** | **자동 연장 시스템**, **스케줄러 고도화(D-7/D-1 알림)**, 관리자 모니터링 API 추가 |
 | **Ver 5.3** | **Logic Refinement** | **블랙홀 유예(D+7)**, **스케줄러 최적화(시간분산)**, **Intra ID 알림**, 블랙홀 대여제한 해제 |
 | **Ver 5.4** | **Camera & Security** | **인앱 카메라 전용 모드(In-App Only)**, **Exif 의존성 제거**, **익명 요청 정보 마스킹**, 배포 안정성 강화(DB Init Disable) |
+| **Ver 5.5** | **CoinHistory & Statistics** | **코인 거래 추적 시스템**, **주간 재화 흐름 통계 API**, **아이템 사용 현황 통계 API**, 모든 코인 거래를 타임스탬프와 함께 기록 |
 
 <br>
 
@@ -555,6 +565,8 @@ sequenceDiagram
 | `POST` | `/v4/admin/alarm/emergency` | **[NEW]** 전체 유저 긴급 공지(DM) 발송 |
 | `GET` | `/v4/admin/cabinets/overdue` | **[NEW]** 현재 연체 중인 유저 목록 조회 |
 | `GET` | `/v4/admin/cabinets/{visibleNum}` | **[NEW]** 사물함 상세 정보 조회 |
+| `GET` | `/v4/admin/stats/coins` | **[NEW v5.5]** 주간 코인 흐름 통계 (지급/사용) |
+| `GET` | `/v4/admin/stats/items` | **[NEW v5.5]** 아이템 사용 통계 + 출석/수박씨 집계 |
 
 <br>
 
