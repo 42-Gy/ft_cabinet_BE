@@ -43,6 +43,8 @@ public interface CabinetRepository extends JpaRepository<Cabinet, Long> {
         Long getBroken();
 
         Long getPending();
+
+        Long getDisabled();
     }
 
     @Query(value = """
@@ -53,7 +55,8 @@ public interface CabinetRepository extends JpaRepository<Cabinet, Long> {
                 SUM(CASE WHEN c.status = 'AVAILABLE' THEN 1 ELSE 0 END) AS available,
                 SUM(CASE WHEN c.status = 'OVERDUE' THEN 1 ELSE 0 END) AS overdue,
                 SUM(CASE WHEN c.status = 'BROKEN' THEN 1 ELSE 0 END) AS broken,
-                SUM(CASE WHEN c.status = 'PENDING' THEN 1 ELSE 0 END) AS pending
+                SUM(CASE WHEN c.status = 'PENDING' THEN 1 ELSE 0 END) AS pending,
+                SUM(CASE WHEN c.status = 'DISABLED' THEN 1 ELSE 0 END) AS disabled
             FROM CABINET c
             GROUP BY c.floor
             ORDER BY c.floor
