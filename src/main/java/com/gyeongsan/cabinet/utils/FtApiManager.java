@@ -86,16 +86,17 @@ public class FtApiManager {
         ZonedDateTime yesterdayStartKst = nowKst.minusDays(1).toLocalDate().atStartOfDay(kstZone);
         ZonedDateTime yesterdayEndKst = yesterdayStartKst.plusDays(1).minusSeconds(1);
 
-        String rangeStart = yesterdayStartKst.withZoneSameInstant(ZoneId.of("UTC"))
-                .format(DateTimeFormatter.ISO_INSTANT);
-        String rangeEnd = yesterdayEndKst.withZoneSameInstant(ZoneId.of("UTC"))
-                .format(DateTimeFormatter.ISO_INSTANT);
+        ZonedDateTime reqStart = yesterdayStartKst.withZoneSameInstant(ZoneId.of("UTC"));
+        ZonedDateTime reqEnd = yesterdayEndKst.withZoneSameInstant(ZoneId.of("UTC"));
+
+        String rangeStart = reqStart.format(DateTimeFormatter.ISO_INSTANT);
+        String rangeEnd = reqEnd.format(DateTimeFormatter.ISO_INSTANT);
 
         String url = String.format(
                 "%s/v2/users/%s/locations?range[begin_at]=%s,%s&page[size]=100",
                 ftApiRootUrl, intraId, rangeStart, rangeEnd);
 
-        return callApiWithRetry(url, intraId);
+        return callApiWithRetry(url, intraId, reqStart, reqEnd);
     }
 
     @RateLimiter(name = "ftApi")
@@ -108,11 +109,14 @@ public class FtApiManager {
 
         ZoneId zone = ZoneId.of("Asia/Seoul");
 
-        String rangeStart = start.atZone(zone)
+        ZonedDateTime zonedStart = start.atZone(zone);
+        ZonedDateTime zonedEnd = end.atZone(zone);
+
+        String rangeStart = zonedStart
                 .withZoneSameInstant(ZoneId.of("UTC"))
                 .format(DateTimeFormatter.ISO_INSTANT);
 
-        String rangeEnd = end.atZone(zone)
+        String rangeEnd = zonedEnd
                 .withZoneSameInstant(ZoneId.of("UTC"))
                 .format(DateTimeFormatter.ISO_INSTANT);
 
@@ -120,17 +124,17 @@ public class FtApiManager {
                 "%s/v2/users/%s/locations?range[begin_at]=%s,%s&page[size]=100",
                 ftApiRootUrl, intraId, rangeStart, rangeEnd);
 
-        return callApiWithRetry(url, intraId);
+        return callApiWithRetry(url, intraId, zonedStart, zonedEnd);
     }
 
-    private int callApiWithRetry(String url, String intraId) {
+    private int callApiWithRetry(String url, String intraId, ZonedDateTime start, ZonedDateTime end) {
         try {
-            return requestLogtime(url);
+            return requestLogtime(url, start, end);
         } catch (WebClientResponseException.Unauthorized e) {
             log.warn("🔄 [401 Unauthorized] 토큰 만료. 재발급 후 재시도... ({})", intraId);
             try {
                 generateToken();
-                return requestLogtime(url);
+                return requestLogtime(url, start, end);
             } catch (Exception ex) {
                 log.error("❌ 재시도 실패 ({}): {}", intraId, ex.getMessage());
                 throw new RuntimeException("42 API call failed after retry", ex);
@@ -141,7 +145,7 @@ public class FtApiManager {
         }
     }
 
-    private int requestLogtime(String url) {
+    private int requestLogtime(String url, ZonedDateTime reqStart, ZonedDateTime reqEnd) {
         JsonNode locations = webClient.get()
                 .uri(url)
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
@@ -163,7 +167,19 @@ public class FtApiManager {
                 ZonedDateTime begin = ZonedDateTime.parse(beginStr);
                 ZonedDateTime end = ZonedDateTime.parse(endStr);
 
-                totalSeconds += Duration.between(begin, end).getSeconds();
+                // 범위 교차 검사
+                if (end.isBefore(reqStart) || begin.isAfter(reqEnd)) {
+                    continue;
+                }
+
+                // 범위 자르기 (Clamping)
+                ZonedDateTime effectiveBegin = begin.isBefore(reqStart) ? reqStart : begin;
+                ZonedDateTime effectiveEnd = end.isAfter(reqEnd) ? reqEnd : end;
+
+                long seconds = Duration.between(effectiveBegin, effectiveEnd).getSeconds();
+                if (seconds > 0) {
+                    totalSeconds += seconds;
+                }
             }
         }
 
