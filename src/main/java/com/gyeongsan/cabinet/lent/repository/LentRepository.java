@@ -59,4 +59,13 @@ public interface LentRepository extends JpaRepository<LentHistory, Long> {
                         "WHERE c.status = 'PENDING' " +
                         "AND lh.endedAt = (SELECT MAX(lh2.endedAt) FROM LentHistory lh2 WHERE lh2.cabinet = c)")
         List<LentHistory> findAllLatestLentForPendingCabinets();
+
+        @Query("SELECT lh FROM LentHistory lh " +
+                        "JOIN FETCH lh.user " +
+                        "JOIN FETCH lh.cabinet " +
+                        "WHERE lh.endedAt IS NULL " +
+                        "AND lh.expiredAt BETWEEN :start AND :end")
+        List<LentHistory> findRecentExpiredActiveLents(
+                        @Param("start") LocalDateTime start,
+                        @Param("end") LocalDateTime end);
 }

@@ -66,6 +66,53 @@ public class LentScheduler {
         log.info("✅ 총 {}명의 대여가 자동 연장되었습니다.", extendedCount);
     }
 
+    @Scheduled(cron = "0 5 6 1 * *")
+    @Transactional
+    public void monthlyAutoExtensionRetry() {
+        log.info("🔄 [Monthly] 월초 자동 연장 재시도 시작...");
+
+        LocalDateTime now = LocalDateTime.now();
+
+        LocalDateTime lastMonthEnd = now.minusMonths(1)
+                .withDayOfMonth(now.minusMonths(1).toLocalDate().lengthOfMonth())
+                .toLocalDate()
+                .atStartOfDay();
+
+        List<LentHistory> recentExpiredLents = lentRepository.findRecentExpiredActiveLents(lastMonthEnd, now);
+
+        int retryCount = 0;
+        int successCount = 0;
+
+        for (LentHistory lent : recentExpiredLents) {
+            if (!lent.isAutoExtension()) {
+                continue;
+            }
+
+            retryCount++;
+            User user = lent.getUser();
+
+            List<ItemHistory> tickets = itemHistoryRepository
+                    .findUnusedItems(user.getId(), ItemType.LENT);
+
+            if (!tickets.isEmpty()) {
+                ItemHistory ticket = tickets.get(0);
+                ticket.use();
+
+                lent.extendExpiration(lentTerm.longValue());
+                LocalDateTime newExpiredAt = lent.getExpiredAt();
+
+                successCount++;
+                log.info("✅ [Monthly Retry] 자동 연장 성공: User={}, OldExpiry={}, NewExpiry={}",
+                        user.getName(), lent.getExpiredAt(), newExpiredAt);
+            } else {
+                log.warn("⚠️ [Monthly Retry] 자동 연장 실패 (대여권 없음): User={}",
+                        user.getName());
+            }
+        }
+
+        log.info("✅ [Monthly Retry] 완료: 시도 {}명, 성공 {}명", retryCount, successCount);
+    }
+
     @Scheduled(cron = "0 0 9 * * *")
     @Transactional
     public void checkOverdue() {
