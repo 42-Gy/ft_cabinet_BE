@@ -5,6 +5,7 @@ import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
 import java.util.List;
 
 public record BulkStatusUpdateRequest(
-        List<Long> cabinetIds,
-        CabinetStatus status) {
+                List<Long> cabinetIds,
+                CabinetStatus status,
+                String statusNote) {
 }
