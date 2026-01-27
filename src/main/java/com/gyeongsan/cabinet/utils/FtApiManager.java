@@ -167,12 +167,10 @@ public class FtApiManager {
                 ZonedDateTime begin = ZonedDateTime.parse(beginStr);
                 ZonedDateTime end = ZonedDateTime.parse(endStr);
 
-                // 범위 교차 검사
                 if (end.isBefore(reqStart) || begin.isAfter(reqEnd)) {
                     continue;
                 }
 
-                // 범위 자르기 (Clamping)
                 ZonedDateTime effectiveBegin = begin.isBefore(reqStart) ? reqStart : begin;
                 ZonedDateTime effectiveEnd = end.isAfter(reqEnd) ? reqEnd : end;
 
