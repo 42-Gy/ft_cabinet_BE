@@ -64,7 +64,7 @@ public class StoreService {
 
         user.useCoin(item.getPrice());
 
-        CoinHistory coinUsage = CoinHistory.of(user, -item.getPrice(), CoinLogType.ITEM_PURCHASE);
+        CoinHistory coinUsage = CoinHistory.of(user, -item.getPrice(), CoinLogType.ITEM_PURCHASE, item.getName());
         coinHistoryRepository.save(coinUsage);
 
         ItemHistory history = new ItemHistory(LocalDateTime.now(), null, user, item);

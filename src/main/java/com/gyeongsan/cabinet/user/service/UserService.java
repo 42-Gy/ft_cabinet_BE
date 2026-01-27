@@ -121,7 +121,7 @@ public class UserService {
                                 .date(ch.getCreatedAt().toLocalDate().toString())
                                 .amount(ch.getAmount())
                                 .type(ch.getAmount() > 0 ? "EARN" : "SPEND")
-                                .reason(ch.getType().name())
+                                .reason(ch.getDescription() != null ? ch.getDescription() : ch.getType().name())
                                 .build())
                         .collect(Collectors.toList()))
                 .itemHistories(itemHistoryRepository.findAllByUserIdOrderByPurchaseAtDesc(userId).stream()
@@ -151,7 +151,7 @@ public class UserService {
         attendanceRepository.save(attendance);
 
         user.addCoin(100L);
-        CoinHistory attendanceReward = CoinHistory.of(user, 100L, CoinLogType.ATTENDANCE);
+        CoinHistory attendanceReward = CoinHistory.of(user, 100L, CoinLogType.ATTENDANCE, "출석 보상");
         coinHistoryRepository.save(attendanceReward);
 
         LocalDate startOfMonth = today.withDayOfMonth(1);
@@ -159,7 +159,7 @@ public class UserService {
 
         if (attendanceCount == 20) {
             user.addCoin(2000L);
-            CoinHistory watermelonReward = CoinHistory.of(user, 2000L, CoinLogType.WATERMELON);
+            CoinHistory watermelonReward = CoinHistory.of(user, 2000L, CoinLogType.WATERMELON, "월간 만근 보상 (황금 수박씨)");
             coinHistoryRepository.save(watermelonReward);
             log.info("🍉 [Golden Watermelon] {}님 이번 달 20번째 출석 달성! 2000 코인 추가 지급! (총 출석: {}일)", user.getName(),
                     attendanceCount);
