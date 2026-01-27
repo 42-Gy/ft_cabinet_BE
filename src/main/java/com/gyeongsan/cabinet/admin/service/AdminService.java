@@ -449,7 +449,8 @@ public class AdminService {
                         LocalDateTime weekEnd = now.minusWeeks(i);
                         LocalDateTime weekStart = weekEnd.minusWeeks(1);
 
-                        Object[] result = coinHistoryRepository.sumIssuedAndUsedBetween(weekStart, weekEnd);
+                        List<Object[]> resultList = coinHistoryRepository.sumIssuedAndUsedBetween(weekStart, weekEnd);
+                        Object[] result = resultList.get(0);
 
                         long issued = result[0] != null ? ((Number) result[0]).longValue() : 0L;
                         long used = result[1] != null ? ((Number) result[1]).longValue() : 0L;

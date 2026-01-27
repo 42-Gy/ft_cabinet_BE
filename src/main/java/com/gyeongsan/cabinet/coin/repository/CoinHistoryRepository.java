@@ -11,25 +11,25 @@ import java.util.List;
 
 public interface CoinHistoryRepository extends JpaRepository<CoinHistory, Long> {
 
-        @Query("""
-                        SELECT
-                            SUM(CASE WHEN ch.amount > 0 THEN ch.amount ELSE 0 END),
-                            SUM(CASE WHEN ch.amount < 0 THEN ABS(ch.amount) ELSE 0 END)
-                        FROM CoinHistory ch
-                        WHERE ch.createdAt BETWEEN :start AND :end
-                        """)
-        Object[] sumIssuedAndUsedBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    @Query("""
+            SELECT
+                SUM(CASE WHEN ch.amount > 0 THEN ch.amount ELSE 0 END),
+                SUM(CASE WHEN ch.amount < 0 THEN ABS(ch.amount) ELSE 0 END)
+            FROM CoinHistory ch
+            WHERE ch.createdAt BETWEEN :start AND :end
+            """)
+    List<Object[]> sumIssuedAndUsedBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-        @Query("""
-                        SELECT COUNT(ch)
-                        FROM CoinHistory ch
-                        WHERE ch.type = :type
-                        AND ch.createdAt BETWEEN :start AND :end
-                        """)
-        long countByTypeAndCreatedAtBetween(
-                        @Param("type") CoinLogType type,
-                        @Param("start") LocalDateTime start,
-                        @Param("end") LocalDateTime end);
+    @Query("""
+            SELECT COUNT(ch)
+            FROM CoinHistory ch
+            WHERE ch.type = :type
+            AND ch.createdAt BETWEEN :start AND :end
+            """)
+    long countByTypeAndCreatedAtBetween(
+            @Param("type") CoinLogType type,
+            @Param("start") LocalDateTime start,
+            @Param("end") LocalDateTime end);
 
-        List<CoinHistory> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+    List<CoinHistory> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 }
