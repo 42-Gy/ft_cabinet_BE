@@ -413,9 +413,14 @@ public class AdminService {
         public void bulkUpdateCabinetStatus(BulkStatusUpdateRequest request) {
                 List<Long> cabinetIds = request.cabinetIds();
                 CabinetStatus targetStatus = request.status();
+                String statusNote = request.statusNote();
 
                 if (cabinetIds == null || cabinetIds.isEmpty()) {
                         throw new IllegalArgumentException("사물함 ID 목록이 비어있습니다.");
+                }
+
+                if (targetStatus == CabinetStatus.BROKEN && (statusNote == null || statusNote.isBlank())) {
+                        throw new IllegalArgumentException("고장 상태로 변경 시 사유(statusNote)는 필수입니다.");
                 }
 
                 List<Cabinet> cabinets = cabinetRepository.findAllById(cabinetIds);
@@ -426,10 +431,13 @@ public class AdminService {
 
                 for (Cabinet cabinet : cabinets) {
                         cabinet.updateStatus(targetStatus);
+                        if (statusNote != null && !statusNote.isBlank()) {
+                                cabinet.updateStatusNote(statusNote);
+                        }
                 }
 
-                log.info("[Admin] 사물함 상태 일괄 변경 완료: {} -> {} (대상: {}개)",
-                                cabinetIds.size(), targetStatus, cabinets.size());
+                log.info("[Admin] 사물함 상태 일괄 변경 완료: {} -> {} (사유: {}, 대상: {}개)",
+                                cabinetIds.size(), targetStatus, statusNote, cabinets.size());
         }
 
         @Transactional(readOnly = true)
