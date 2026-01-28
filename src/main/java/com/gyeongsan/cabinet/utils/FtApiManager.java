@@ -93,7 +93,7 @@ public class FtApiManager {
         String rangeEnd = reqEnd.format(DateTimeFormatter.ISO_INSTANT);
 
         String url = String.format(
-                "%s/v2/users/%s/locations?range[begin_at]=%s,%s&page[size]=100",
+                "%s/v2/users/%s/locations?range[begin_at]=%s,%s",
                 ftApiRootUrl, intraId, rangeStart, rangeEnd);
 
         return callApiWithRetry(url, intraId, reqStart, reqEnd);
@@ -121,7 +121,7 @@ public class FtApiManager {
                 .format(DateTimeFormatter.ISO_INSTANT);
 
         String url = String.format(
-                "%s/v2/users/%s/locations?range[begin_at]=%s,%s&page[size]=100",
+                "%s/v2/users/%s/locations?range[begin_at]=%s,%s",
                 ftApiRootUrl, intraId, rangeStart, rangeEnd);
 
         return callApiWithRetry(url, intraId, zonedStart, zonedEnd);
@@ -146,15 +146,24 @@ public class FtApiManager {
     }
 
     private int requestLogtime(String url, ZonedDateTime reqStart, ZonedDateTime reqEnd) {
-        JsonNode locations = webClient.get()
-                .uri(url)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .block();
         long totalSeconds = 0;
+        int page = 1;
+        int size = 100;
 
-        if (locations != null) {
+        while (true) {
+            String paginatedUrl = String.format("%s&page[number]=%d&page[size]=%d", url, page, size);
+
+            JsonNode locations = webClient.get()
+                    .uri(paginatedUrl)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
+                    .retrieve()
+                    .bodyToMono(JsonNode.class)
+                    .block();
+
+            if (locations == null || locations.isEmpty()) {
+                break;
+            }
+
             for (JsonNode loc : locations) {
                 String beginStr = loc.get("begin_at").asText();
                 JsonNode endNode = loc.get("end_at");
@@ -179,6 +188,11 @@ public class FtApiManager {
                     totalSeconds += seconds;
                 }
             }
+
+            if (locations.size() < size) {
+                break;
+            }
+            page++;
         }
 
         return (int) (totalSeconds / 60);
