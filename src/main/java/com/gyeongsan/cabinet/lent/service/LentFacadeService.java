@@ -428,9 +428,7 @@ public class LentFacadeService {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime expiredAt = lentHistory.getExpiredAt();
 
-        LocalDateTime gracePeriodEnd = expiredAt.toLocalDate().atTime(23, 59, 59);
-
-        if (now.isBefore(gracePeriodEnd) || now.isEqual(gracePeriodEnd)) {
+        if (now.isBefore(expiredAt) || now.isEqual(expiredAt)) {
             return;
         }
 
@@ -439,7 +437,7 @@ public class LentFacadeService {
                 now.toLocalDate());
 
         if (overdueDays <= 0) {
-            return;
+            overdueDays = 1;
         }
 
         int penalty = (int) (overdueDays * 3);
