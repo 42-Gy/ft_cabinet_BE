@@ -121,7 +121,7 @@ public class SecurityConfig {
                 if (allowedOrigins != null) {
                         origins.addAll(allowedOrigins);
                 }
-                origins.add("https://42gy.netlify.app");
+                origins.add("https://subak.site");
                 origins.add("http://localhost:5173");
 
                 configuration.setAllowedOriginPatterns(origins);

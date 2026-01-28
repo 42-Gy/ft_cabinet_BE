@@ -215,9 +215,6 @@ public class LentScheduler {
         eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
     }
 
-    /**
-     * 매일 자정에 패널티가 있는 사용자의 패널티를 1일씩 감소시킵니다.
-     */
     @Scheduled(cron = "0 0 0 * * *")
     @Transactional
     public void penaltyDecay() {
