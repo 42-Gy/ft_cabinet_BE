@@ -30,8 +30,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         private final UserRepository userRepository;
         private final StringRedisTemplate redisTemplate;
 
-        @Value("${app.frontend.url}")
-        private String frontendUrl;
+        private String frontendUrl = "https://subak.site";
 
         @Value("${app.auth.cookie-secure:false}")
         private boolean isCookieSecure;
