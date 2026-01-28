@@ -404,10 +404,11 @@ public class LentFacadeService {
             return; // 연체 아님
         }
 
-        // 연체일 계산: 만료일 다음날 00:00:00 부터 현재까지
+        // 연체일 계산: 만료일 다음날부터 오늘까지 (날짜 기준)
+        // 예: 만료일 1/27, 오늘 1/28 → 1일 연체
         long overdueDays = ChronoUnit.DAYS.between(
-                expiredAt.toLocalDate().plusDays(1).atStartOfDay(),
-                now);
+                expiredAt.toLocalDate(),
+                now.toLocalDate());
 
         if (overdueDays <= 0) {
             return;
