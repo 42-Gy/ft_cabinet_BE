@@ -38,6 +38,7 @@ public class SecurityConfig {
         private final OAuth2SuccessHandler oAuth2SuccessHandler;
         private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
         private final CustomAccessDeniedHandler customAccessDeniedHandler;
+        private final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
 
         @Value("${app.cors.allowed-origins}")
         private List<String> allowedOrigins;
@@ -70,6 +71,9 @@ public class SecurityConfig {
                                                 new JwtAuthenticationFilter(jwtTokenProvider),
                                                 UsernamePasswordAuthenticationFilter.class)
                                 .oauth2Login(oauth2 -> oauth2
+                                                .authorizationEndpoint(authorization -> authorization
+                                                                .authorizationRequestRepository(
+                                                                                cookieOAuth2AuthorizationRequestRepository))
                                                 .userInfoEndpoint(userInfo -> userInfo
                                                                 .userService(customOAuth2UserService))
                                                 .successHandler(oAuth2SuccessHandler)
