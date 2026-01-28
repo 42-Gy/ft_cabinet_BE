@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -149,6 +150,9 @@ public class LentFacadeService {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
+        User user = lentHistory.getUser();
+        checkAndApplyPenalty(user, lentHistory);
+
         lentHistory.endLent(LocalDateTime.now(), previousPassword);
         lentHistory.setPhotoUrl(photoUrl);
 
@@ -162,6 +166,9 @@ public class LentFacadeService {
     protected void processReturnTransaction(Long userId, String previousPassword, String photoUrl) {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
+
+        User user = lentHistory.getUser();
+        checkAndApplyPenalty(user, lentHistory);
 
         Cabinet cabinet = lentHistory.getCabinet();
 
@@ -265,6 +272,8 @@ public class LentFacadeService {
         } else if (forceReturn) {
             returnReason = "[User Force] " + previousPassword;
         }
+
+        checkAndApplyPenalty(user, oldLent);
 
         oldLent.endLent(LocalDateTime.now(), returnReason);
         oldLent.setPhotoUrl(photoUrl);
@@ -379,5 +388,35 @@ public class LentFacadeService {
     private void deleteReservation(Integer visibleNum) {
         String key = RESERVATION_KEY_PREFIX + visibleNum;
         redisTemplate.delete(key);
+    }
+
+    /**
+     * 반납 시점에 연체 여부를 확인하고 즉시 패널티를 부여합니다.
+     */
+    private void checkAndApplyPenalty(User user, LentHistory lentHistory) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime expiredAt = lentHistory.getExpiredAt();
+
+        // Grace period: 만료일 당일 23:59:59까지는 연체 아님
+        LocalDateTime gracePeriodEnd = expiredAt.toLocalDate().atTime(23, 59, 59);
+
+        if (now.isBefore(gracePeriodEnd) || now.isEqual(gracePeriodEnd)) {
+            return; // 연체 아님
+        }
+
+        // 연체일 계산: 만료일 다음날 00:00:00 부터 현재까지
+        long overdueDays = ChronoUnit.DAYS.between(
+                expiredAt.toLocalDate().plusDays(1).atStartOfDay(),
+                now);
+
+        if (overdueDays <= 0) {
+            return;
+        }
+
+        int penalty = (int) (overdueDays * 3);
+        user.updatePenaltyDays(penalty);
+
+        log.info("🚨 연체 패널티 즉시 부여: User={}, 연체일={}일, 패널티={}일",
+                user.getName(), overdueDays, penalty);
     }
 }
