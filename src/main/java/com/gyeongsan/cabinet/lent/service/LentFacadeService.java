@@ -93,8 +93,6 @@ public class LentFacadeService {
         deleteReservation(visibleNum);
 
         log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
-
-        log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
     }
 
     public void checkLentCabinetImage(Long userId, MultipartFile file) {
@@ -242,6 +240,11 @@ public class LentFacadeService {
         LentHistory oldLent = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
+        // 연체 상태에서는 이사 불가 (새 사물함 획득 방지)
+        if (oldLent.getExpiredAt().toLocalDate().isBefore(java.time.LocalDate.now())) {
+            throw new ServiceException(ErrorCode.OVERDUE_USER_CANNOT_SWAP);
+        }
+
         if (oldLent.getCabinet().getVisibleNum().equals(newVisibleNum)) {
             throw new ServiceException(ErrorCode.SAME_CABINET_SWAP);
         }
@@ -356,6 +359,11 @@ public class LentFacadeService {
     @Transactional
     public void makeReservation(Long userId, Integer visibleNum) {
         log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
+
+        // 이미 대여 중인 사용자는 예약 불가
+        if (lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent()) {
+            throw new ServiceException(ErrorCode.ALREADY_RENTING_CANNOT_RESERVE);
+        }
 
         Cabinet cabinet = cabinetRepository.findByVisibleNumWithLock(visibleNum)
                 .orElseThrow(() -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));
