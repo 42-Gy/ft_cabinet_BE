@@ -70,7 +70,7 @@ spring:
             client-secret: ${FT_CLIENT_SECRET}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
-            redirect-uri: "https://ft-cabinet-server-dpa9dkauhkdkajcr.koreacentral-01.azurewebsites.net/login/oauth2/code/42"
+            redirect-uri: "https://subak.site/login/oauth2/code/42"
             scope: public
             client-name: 42 gyeongsan
         provider:
