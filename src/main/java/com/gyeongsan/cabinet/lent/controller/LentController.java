@@ -86,7 +86,7 @@ public class LentController {
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
                 Long userId = userPrincipal.getUserId();
                 lentFacadeService.useExtension(userId);
-                return ApiResponse.success(new MessageResponse("✅ 대여 기간이 15일 연장되었습니다! 🎉"));
+                return ApiResponse.success(new MessageResponse("✅ 대여 기간이 3일 연장되었습니다! 🎉"));
         }
 
         @PatchMapping("/extension/auto")

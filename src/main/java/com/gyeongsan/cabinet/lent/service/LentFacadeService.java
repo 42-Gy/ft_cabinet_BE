@@ -206,6 +206,13 @@ public class LentFacadeService {
     public void manualRenew(Long userId) {
         log.info("수동 연장(대여권 사용) 시도 - User: {}", userId);
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+
+        if (user.getPenaltyDays() > 0) {
+            throw new ServiceException(ErrorCode.PENALTY_USER);
+        }
+
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
