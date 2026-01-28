@@ -98,6 +98,14 @@ public class LentController {
                 return ApiResponse.success(new MessageResponse("✅ 자동 연장 설정이 " + status + "로 변경되었습니다."));
         }
 
+        @PostMapping("/renew")
+        public ApiResponse<MessageResponse> manualRenew(
+                        @AuthenticationPrincipal UserPrincipal userPrincipal) {
+                Long userId = userPrincipal.getUserId();
+                lentFacadeService.manualRenew(userId);
+                return ApiResponse.success(new MessageResponse("✅ 대여권을 사용하여 대여 기간이 31일 연장되었습니다! 🎉"));
+        }
+
         @PostMapping(value = "/swap/{newVisibleNum}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
         public ApiResponse<MessageResponse> useSwap(
                         @PathVariable Integer newVisibleNum,
