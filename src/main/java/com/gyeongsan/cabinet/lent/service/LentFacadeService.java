@@ -240,7 +240,6 @@ public class LentFacadeService {
         LentHistory oldLent = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
-        // 연체 상태에서는 이사 불가 (새 사물함 획득 방지)
         if (oldLent.getExpiredAt().toLocalDate().isBefore(java.time.LocalDate.now())) {
             throw new ServiceException(ErrorCode.OVERDUE_USER_CANNOT_SWAP);
         }
@@ -360,7 +359,6 @@ public class LentFacadeService {
     public void makeReservation(Long userId, Integer visibleNum) {
         log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
 
-        // 이미 대여 중인 사용자는 예약 불가
         if (lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent()) {
             throw new ServiceException(ErrorCode.ALREADY_RENTING_CANNOT_RESERVE);
         }
@@ -398,22 +396,16 @@ public class LentFacadeService {
         redisTemplate.delete(key);
     }
 
-    /**
-     * 반납 시점에 연체 여부를 확인하고 즉시 패널티를 부여합니다.
-     */
     private void checkAndApplyPenalty(User user, LentHistory lentHistory) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime expiredAt = lentHistory.getExpiredAt();
 
-        // Grace period: 만료일 당일 23:59:59까지는 연체 아님
         LocalDateTime gracePeriodEnd = expiredAt.toLocalDate().atTime(23, 59, 59);
 
         if (now.isBefore(gracePeriodEnd) || now.isEqual(gracePeriodEnd)) {
-            return; // 연체 아님
+            return;
         }
 
-        // 연체일 계산: 만료일 다음날부터 오늘까지 (날짜 기준)
-        // 예: 만료일 1/27, 오늘 1/28 → 1일 연체
         long overdueDays = ChronoUnit.DAYS.between(
                 expiredAt.toLocalDate(),
                 now.toLocalDate());
