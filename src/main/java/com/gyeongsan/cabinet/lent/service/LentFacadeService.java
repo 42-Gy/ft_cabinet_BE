@@ -202,6 +202,27 @@ public class LentFacadeService {
         log.info("연장 성공! 변경된 만료일: {}", lentHistory.getExpiredAt());
     }
 
+    @Transactional
+    public void manualRenew(Long userId) {
+        log.info("수동 연장(대여권 사용) 시도 - User: {}", userId);
+
+        LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
+
+        List<ItemHistory> lentTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.LENT);
+
+        if (lentTickets.isEmpty()) {
+            throw new ServiceException(ErrorCode.LENT_TICKET_NOT_FOUND);
+        }
+
+        ItemHistory ticket = lentTickets.get(0);
+        ticket.use();
+
+        lentHistory.extendExpiration((long) lentTerm);
+
+        log.info("수동 연장 성공! 새 만료일: {}", lentHistory.getExpiredAt());
+    }
+
     public void useSwap(Long userId, Integer newVisibleNum, String previousPassword, MultipartFile file,
             Boolean forceReturn, String reason) {
         log.info("이사 시도(AI) - User: {}, NewCabinet: {}, Force: {}, Reason: {}", userId, newVisibleNum, forceReturn,
