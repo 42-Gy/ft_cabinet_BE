@@ -83,9 +83,9 @@ spring:
 cabinet:
   policy:
     lent-term: 31
-    extension-term: 15
+    extension-term: 3
   items:
-    extension-price: 2000
+    extension-price: 400
     swap-price: 1000
     penalty-exemption-price: 300
 
