@@ -9,6 +9,7 @@ import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
 import com.gyeongsan.cabinet.item.domain.ItemType;
 import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
+import com.gyeongsan.cabinet.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,7 @@ public class LentScheduler {
     private final LentRepository lentRepository;
     private final ItemHistoryRepository itemHistoryRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserRepository userRepository;
 
     @Value("${cabinet.policy.lent-term}")
     private Integer lentTerm;
@@ -143,8 +145,8 @@ public class LentScheduler {
             }
 
             long overdueDays = ChronoUnit.DAYS.between(
-                    lh.getExpiredAt().toLocalDate().plusDays(1).atStartOfDay(),
-                    now);
+                    lh.getExpiredAt().toLocalDate(),
+                    now.toLocalDate());
 
             if (overdueDays <= 0) {
                 continue;
@@ -211,5 +213,32 @@ public class LentScheduler {
                 "⏳ *[반납 알림]*\n%s님, 사용 중인 사물함(%d번)의 반납 기한이 %d일 남았습니다.\n(반납 예정일: %s)\n잊지 말고 반납해주세요! 😊",
                 user.getName(), visibleNum, daysLeft, dateStr);
         eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
+    }
+
+    /**
+     * 매일 자정에 패널티가 있는 사용자의 패널티를 1일씩 감소시킵니다.
+     */
+    @Scheduled(cron = "0 0 0 * * *")
+    @Transactional
+    public void penaltyDecay() {
+        log.info("⏳ 패널티 감소 프로세스 시작...");
+
+        List<User> penaltyUsers = userRepository.findAllPenaltyUsers();
+
+        if (penaltyUsers.isEmpty()) {
+            log.info(" - 패널티 보유자가 없습니다.");
+            return;
+        }
+
+        int decayedCount = 0;
+        for (User user : penaltyUsers) {
+            int currentPenalty = user.getPenaltyDays();
+            int newPenalty = currentPenalty - 1;
+            user.updatePenaltyDays(newPenalty);
+            decayedCount++;
+            log.info("📉 패널티 감소: User={}, {}일 → {}일", user.getName(), currentPenalty, newPenalty);
+        }
+
+        log.info("✅ 총 {}명의 패널티가 감소되었습니다.", decayedCount);
     }
 }
