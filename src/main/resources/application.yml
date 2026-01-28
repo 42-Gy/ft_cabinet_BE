@@ -82,7 +82,7 @@ spring:
 
 cabinet:
   policy:
-    lent-term: 30
+    lent-term: 31
     extension-term: 15
   items:
     extension-price: 2000
