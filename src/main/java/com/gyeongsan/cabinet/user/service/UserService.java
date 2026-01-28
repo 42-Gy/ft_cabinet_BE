@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -72,6 +74,8 @@ public class UserService {
         String lentStartedAt = null;
         String expiredAt = null;
         String previousPassword = null;
+        Integer overdueDays = null;
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM월 dd일 HH:mm");
 
         if (activeLent != null && activeLent.getCabinet() != null) {
             Cabinet cabinet = activeLent.getCabinet();
@@ -79,8 +83,15 @@ public class UserService {
             visibleNum = cabinet.getVisibleNum();
             section = cabinet.getSection();
 
-            lentStartedAt = activeLent.getStartedAt().toLocalDate().toString();
-            expiredAt = activeLent.getExpiredAt().toLocalDate().toString();
+            lentStartedAt = activeLent.getStartedAt().format(formatter);
+            expiredAt = activeLent.getExpiredAt().format(formatter);
+
+            LocalDateTime now = LocalDateTime.now();
+            if (now.isAfter(activeLent.getExpiredAt())) {
+                overdueDays = (int) ChronoUnit.DAYS.between(activeLent.getExpiredAt().toLocalDate(), now.toLocalDate());
+                if (overdueDays == 0)
+                    overdueDays = 1;
+            }
 
             LentHistory prevHistory = lentRepository
                     .findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(cabinet.getId())
@@ -114,6 +125,7 @@ public class UserService {
                 .autoExtensionEnabled(autoExtensionEnabled)
                 .lentStartedAt(lentStartedAt)
                 .expiredAt(expiredAt)
+                .overdueDays(overdueDays)
                 .previousPassword(previousPassword)
                 .myItems(itemDtos)
                 .coinHistories(coinHistoryRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
@@ -186,9 +198,15 @@ public class UserService {
 
         if (isPayDay) {
             if (lentTicketItem != null && user.getMonthlyLogtime() >= MONTHLY_TARGET_MINUTES) {
-                ItemHistory reward = new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
-                itemHistoryRepository.save(reward);
-                log.info("🎉 [Reward] {}님 지난달 80시간 달성! 대여권 지급 완료.", user.getName());
+                int currentLentCount = itemHistoryRepository.countByUserIdAndItem_TypeAndUsedAtIsNull(
+                        userId, lentTicketItem.getType());
+                if (currentLentCount < 1) {
+                    ItemHistory reward = new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
+                    itemHistoryRepository.save(reward);
+                    log.info("🎉 [Reward] {}님 지난달 50시간 달성! 대여권 지급 완료.", user.getName());
+                } else {
+                    log.info("⚠️ [Skip] {}님 대여권 이미 보유 중 (최대 1개). 지급 생략.", user.getName());
+                }
             }
             user.resetMonthlyLogtime();
         }
