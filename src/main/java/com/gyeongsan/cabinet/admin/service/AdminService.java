@@ -430,6 +430,12 @@ public class AdminService {
                         log.warn("[Admin] 일부 사물함을 찾을 수 없습니다. 요청: {}, 발견: {}", cabinetIds.size(), cabinets.size());
                 }
 
+                List<LentHistory> activeLents = lentRepository.findAllActiveLentByCabinetIds(cabinetIds);
+                for (LentHistory lent : activeLents) {
+                        lent.endLent(LocalDateTime.now());
+                        log.info("[Admin] 사물함({}) 상태 일괄 변경으로 인한 반납 처리 완료", lent.getCabinet().getVisibleNum());
+                }
+
                 for (Cabinet cabinet : cabinets) {
                         cabinet.updateStatus(targetStatus);
                         if (statusNote != null && !statusNote.isBlank()) {
