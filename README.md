@@ -43,6 +43,7 @@ graph TD
         AI_Server["🤖 AI Server<br>Python FastAPI"]
         Intra_API["42 Intra API<br>OAuth2"]
         Slack["Slack Bot<br>Web API"]
+        Azure_Blob["☁️ Azure Blob<br>Image Storage"]
     end
 
     %% 연결 관계
@@ -52,6 +53,7 @@ graph TD
     AI_Server -->|"Analysis Result"| SpringBoot
     SpringBoot -->|"OAuth2 Auth"| Intra_API
     SpringBoot -->|API Call| Slack
+    SpringBoot -->|"Image Upload"| Azure_Blob
 ```
 
 <br>
@@ -76,6 +78,7 @@ flowchart TD
     Main --> Action_My{"내 정보 관리?"}:::decision
     Main --> Action_Store{"상점 이용?"}:::decision
     Main --> Action_Attend{"출석 체크?"}:::decision
+    Main --> Action_Calendar{"일정 확인?"}:::decision
 
     %% 1. 대여 프로세스
     Action_Lent -- Yes --> Select["📦 사물함 선택"]:::process
@@ -102,9 +105,11 @@ flowchart TD
     Use_Ext --> Main
     Use_Swap --> Main
 
-    %% 4. 출석 프로세스
+    %% 4. 출석 및 캘린더 프로세스
     Action_Attend -- Click --> Reward["💰 코인 획득"]:::process
+    Action_Calendar -- Click --> Calendar["📅 캘린더 페이지"]:::process
     Reward --> Main
+    Calendar --> Main
 
     %% 종료
     Main --> Logout{"로그아웃?"}:::decision
@@ -520,6 +525,39 @@ sequenceDiagram
         Service-->>User: 이사 완료
     end
     deactivate Service
+```
+
+### 5. 캘린더 일정 관리 (Calendar Management)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as 👮‍♂️ 관리자
+    actor User as 👤 사용자
+    participant Controller as 🎮 CalendarController
+    participant Service as ⚙️ CalendarService
+    participant DB as 🗄️ Database
+
+    %% 관리자 일정 등록
+    Admin->>Controller: "일정 등록 (POST /admin/calendar)"
+    activate Controller
+    Controller->>Service: createEvent()
+    activate Service
+    Service->>DB: "일정 저장 (INSERT)"
+    Service-->>Controller: 등록 성공
+    Controller-->>Admin: "200 OK (일정 추가됨)"
+    deactivate Service
+    deactivate Controller
+
+    %% 사용자 일정 조회
+    User->>Controller: "달력 조회 (GET /calendar)"
+    activate Controller
+    Controller->>Service: getEvents(month)
+    activate Service
+    Service->>DB: "일정 목록 조회 (SELECT)"
+    Service-->>Controller: "이벤트 리스트 반환"
+    Controller-->>User: "200 OK (달력 데이터)"
+    deactivate Service
+    deactivate Controller
 ```
 
 <br>
