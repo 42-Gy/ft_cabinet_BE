@@ -29,7 +29,7 @@ public class UserController {
     public ApiResponse<String> doAttendance(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         userService.doAttendance(userPrincipal.getUserId());
-        return ApiResponse.success("출석체크 완료! 100 코인이 지급되었습니다. 💰");
+        return ApiResponse.success("출석체크 완료! 100 씨앗이 지급되었습니다. 🌱");
     }
 
     @GetMapping("/attendance")

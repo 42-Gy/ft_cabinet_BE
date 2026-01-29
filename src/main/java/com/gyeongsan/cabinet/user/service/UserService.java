@@ -163,7 +163,7 @@ public class UserService {
             user.addCoin(2000L);
             CoinHistory watermelonReward = CoinHistory.of(user, 2000L, CoinLogType.WATERMELON, "월간 만근 보상 (황금 수박씨)");
             coinHistoryRepository.save(watermelonReward);
-            log.info("🍉 [Golden Watermelon] {}님 이번 달 20번째 출석 달성! 2000 코인 추가 지급! (총 출석: {}일)", user.getName(),
+            log.info("🍉 [Golden Watermelon] {}님 이번 달 20번째 출석 달성! 2000 씨앗 추가 지급! (총 출석: {}일)", user.getName(),
                     attendanceCount);
         } else {
             log.info("{}님 오늘 출석 완료. (이번 달 {}일째)", user.getName(), attendanceCount);

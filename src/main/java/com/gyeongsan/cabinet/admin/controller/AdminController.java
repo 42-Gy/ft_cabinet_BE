@@ -36,7 +36,7 @@ public class AdminController {
             @PathVariable String name,
             @RequestBody CoinProvideRequest request) {
         adminService.provideCoin(name, request);
-        return ApiResponse.success("코인 지급 완료");
+        return ApiResponse.success("씨앗 지급 완료");
     }
 
     @PatchMapping("/users/{name}/logtime")
@@ -210,7 +210,7 @@ public class AdminController {
             @PathVariable String name,
             @RequestBody CoinRevokeRequest request) {
         adminService.revokeUserCoin(name, request);
-        return ApiResponse.success("코인 회수 완료");
+        return ApiResponse.success("씨앗 회수 완료");
     }
 
     public record UserLogtimeRequest(Integer monthlyLogtime) {

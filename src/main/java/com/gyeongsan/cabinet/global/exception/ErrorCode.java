@@ -9,7 +9,7 @@ import org.springframework.http.HttpStatus;
 public enum ErrorCode {
 
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "유저를 찾을 수 없습니다."),
-    NOT_ENOUGH_COIN(HttpStatus.BAD_REQUEST, "USER_002", "코인이 부족합니다."),
+    NOT_ENOUGH_COIN(HttpStatus.BAD_REQUEST, "USER_002", "씨앗이 부족합니다."),
 
     CABINET_NOT_FOUND(HttpStatus.NOT_FOUND, "CABINET_001", "사물함을 찾을 수 없습니다."),
     INVALID_CABINET_STATUS(HttpStatus.BAD_REQUEST, "CABINET_002", "사용할 수 없는 사물함 상태입니다."),
