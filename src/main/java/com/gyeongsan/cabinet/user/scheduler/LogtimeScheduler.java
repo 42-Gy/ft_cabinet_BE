@@ -15,9 +15,6 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Component
 @RequiredArgsConstructor
@@ -28,8 +25,6 @@ public class LogtimeScheduler {
     private final ItemRepository itemRepository;
     private final FtApiManager ftApiManager;
     private final UserService userService;
-
-    private static final int THREAD_POOL_SIZE = 10;
 
     @Scheduled(cron = "0 * * * * *") // ⚠️ 테스트용 매분 실행 - 테스트 후 "0 0 6 * * *"로 복구
     public void processDailyLogtime() {
@@ -66,23 +61,20 @@ public class LogtimeScheduler {
 
         List<User> allUsers = userRepository.findAll();
 
-        ExecutorService executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
-
         Item finalRewardItem = lentTicketItem;
 
-        List<CompletableFuture<Void>> futures = allUsers.stream()
-                .map(user -> CompletableFuture.runAsync(() -> {
-                    try {
-                        processUserLogtime(user, startOfMonth, endOfYesterday, finalRewardItem, isPayDay);
-                    } catch (Exception e) {
-                        log.error("{} 로그타임 처리 중 에러: {}", user.getName(), e.getMessage());
-                    }
-                }, executor))
-                .toList();
-
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
-        executor.shutdown();
+        for (User user : allUsers) {
+            try {
+                processUserLogtime(user, startOfMonth, endOfYesterday, finalRewardItem, isPayDay);
+                Thread.sleep(600); // 42 API Rate Limit 방지 (초당 2회 제한)
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.error("스케줄러 인터럽트 발생");
+                break;
+            } catch (Exception e) {
+                log.error("{} 로그타임 처리 중 에러: {}", user.getName(), e.getMessage());
+            }
+        }
 
         if (isPayDay) {
             log.info("✅ [Monthly] 월간 보상 지급 및 초기화 완료");

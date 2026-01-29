@@ -130,8 +130,8 @@ public class FtApiManager {
                 if (parts.length == 3) {
                     int hours = Integer.parseInt(parts[0]);
                     int minutes = Integer.parseInt(parts[1]);
-                    int seconds = Integer.parseInt(parts[2]);
-                    totalSeconds += hours * 3600L + minutes * 60L + seconds;
+                    double seconds = Double.parseDouble(parts[2]);
+                    totalSeconds += hours * 3600L + minutes * 60L + (long) seconds;
                 }
             }
         }
