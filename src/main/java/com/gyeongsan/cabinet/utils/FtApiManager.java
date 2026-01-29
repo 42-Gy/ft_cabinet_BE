@@ -16,11 +16,10 @@ import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
-import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.Iterator;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -46,13 +45,10 @@ public class FtApiManager {
     private synchronized void generateToken() {
         String url = ftApiTokenUrl;
 
-        HttpHeaders headers = new HttpHeaders();
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("grant_type", "client_credentials");
         body.add("client_id", clientId);
         body.add("client_secret", clientSecret);
-
-        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
         try {
             JsonNode response = webClient.post()
@@ -74,32 +70,6 @@ public class FtApiManager {
     }
 
     @RateLimiter(name = "ftApi")
-    public int getYesterdayLogtimeMinutes(String intraId) {
-        synchronized (this) {
-            if (this.accessToken == null) {
-                generateToken();
-            }
-        }
-
-        ZoneId kstZone = ZoneId.of("Asia/Seoul");
-        ZonedDateTime nowKst = ZonedDateTime.now(kstZone);
-        ZonedDateTime yesterdayStartKst = nowKst.minusDays(1).toLocalDate().atStartOfDay(kstZone);
-        ZonedDateTime yesterdayEndKst = yesterdayStartKst.plusDays(1).minusSeconds(1);
-
-        ZonedDateTime reqStart = yesterdayStartKst.withZoneSameInstant(ZoneId.of("UTC"));
-        ZonedDateTime reqEnd = yesterdayEndKst.withZoneSameInstant(ZoneId.of("UTC"));
-
-        String rangeStart = reqStart.format(DateTimeFormatter.ISO_INSTANT);
-        String rangeEnd = reqEnd.format(DateTimeFormatter.ISO_INSTANT);
-
-        String url = String.format(
-                "%s/v2/users/%s/locations?range[begin_at]=%s,%s",
-                ftApiRootUrl, intraId, rangeStart, rangeEnd);
-
-        return callApiWithRetry(url, intraId, reqStart, reqEnd);
-    }
-
-    @RateLimiter(name = "ftApi")
     public int getLogtimeBetween(String intraId, LocalDateTime start, LocalDateTime end) {
         synchronized (this) {
             if (this.accessToken == null) {
@@ -107,92 +77,65 @@ public class FtApiManager {
             }
         }
 
-        ZoneId zone = ZoneId.of("Asia/Seoul");
+        LocalDate startDate = start.toLocalDate();
+        LocalDate endDate = end.toLocalDate();
 
-        ZonedDateTime zonedStart = start.atZone(zone);
-        ZonedDateTime zonedEnd = end.atZone(zone);
+        String url = String.format("%s/v2/users/%s/locations_stats", ftApiRootUrl, intraId);
 
-        String rangeStart = zonedStart
-                .withZoneSameInstant(ZoneId.of("UTC"))
-                .format(DateTimeFormatter.ISO_INSTANT);
-
-        String rangeEnd = zonedEnd
-                .withZoneSameInstant(ZoneId.of("UTC"))
-                .format(DateTimeFormatter.ISO_INSTANT);
-
-        String url = String.format(
-                "%s/v2/users/%s/locations?range[begin_at]=%s,%s",
-                ftApiRootUrl, intraId, rangeStart, rangeEnd);
-
-        return callApiWithRetry(url, intraId, zonedStart, zonedEnd);
+        return callApiWithRetry(url, intraId, startDate, endDate);
     }
 
-    private int callApiWithRetry(String url, String intraId, ZonedDateTime start, ZonedDateTime end) {
+    private int callApiWithRetry(String url, String intraId, LocalDate startDate, LocalDate endDate) {
         try {
-            return requestLogtime(url, start, end);
+            return requestLocationStats(url, startDate, endDate);
         } catch (WebClientResponseException.Unauthorized e) {
             log.warn("🔄 [401 Unauthorized] 토큰 만료. 재발급 후 재시도... ({})", intraId);
             try {
                 generateToken();
-                return requestLogtime(url, start, end);
+                return requestLocationStats(url, startDate, endDate);
             } catch (Exception ex) {
                 log.error("❌ 재시도 실패 ({}): {}", intraId, ex.getMessage());
-                throw new RuntimeException("42 API call failed after retry", ex);
+                return 0;
             }
         } catch (Exception e) {
             log.error("❌ API 호출 실패 ({}): {}", intraId, e.getMessage());
-            throw new RuntimeException("42 API call failed", e);
+            return 0;
         }
     }
 
-    private int requestLogtime(String url, ZonedDateTime reqStart, ZonedDateTime reqEnd) {
+    private int requestLocationStats(String url, LocalDate startDate, LocalDate endDate) {
+        JsonNode stats = webClient.get()
+                .uri(url)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .block();
+
+        if (stats == null || stats.isEmpty()) {
+            return 0;
+        }
+
         long totalSeconds = 0;
-        int page = 1;
-        int size = 100;
 
-        while (true) {
-            String paginatedUrl = String.format("%s&page[number]=%d&page[size]=%d", url, page, size);
+        Iterator<Map.Entry<String, JsonNode>> fields = stats.fields();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> entry = fields.next();
+            String dateStr = entry.getKey();
+            String timeStr = entry.getValue().asText();
 
-            JsonNode locations = webClient.get()
-                    .uri(paginatedUrl)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block();
+            LocalDate date = LocalDate.parse(dateStr);
 
-            if (locations == null || locations.isEmpty()) {
-                break;
-            }
+            if ((date.isEqual(startDate) || date.isAfter(startDate)) &&
+                    (date.isEqual(endDate) || date.isBefore(endDate))) {
 
-            for (JsonNode loc : locations) {
-                String beginStr = loc.get("begin_at").asText();
-                JsonNode endNode = loc.get("end_at");
-
-                String endStr = (endNode == null || endNode.isNull()) ? null : endNode.asText();
-
-                if (endStr == null)
-                    continue;
-
-                ZonedDateTime begin = ZonedDateTime.parse(beginStr);
-                ZonedDateTime end = ZonedDateTime.parse(endStr);
-
-                if (end.isBefore(reqStart) || begin.isAfter(reqEnd)) {
-                    continue;
-                }
-
-                ZonedDateTime effectiveBegin = begin.isBefore(reqStart) ? reqStart : begin;
-                ZonedDateTime effectiveEnd = end.isAfter(reqEnd) ? reqEnd : end;
-
-                long seconds = Duration.between(effectiveBegin, effectiveEnd).getSeconds();
-                if (seconds > 0) {
-                    totalSeconds += seconds;
+                String[] parts = timeStr.split(":");
+                if (parts.length == 3) {
+                    int hours = Integer.parseInt(parts[0]);
+                    int minutes = Integer.parseInt(parts[1]);
+                    int seconds = Integer.parseInt(parts[2]);
+                    totalSeconds += hours * 3600L + minutes * 60L + seconds;
                 }
             }
-
-            if (locations.size() < size) {
-                break;
-            }
-            page++;
         }
 
         return (int) (totalSeconds / 60);
