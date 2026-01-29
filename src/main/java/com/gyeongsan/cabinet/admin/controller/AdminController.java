@@ -4,11 +4,13 @@ import com.gyeongsan.cabinet.admin.dto.*;
 import com.gyeongsan.cabinet.admin.service.AdminService;
 
 import com.gyeongsan.cabinet.common.ApiResponse;
+import com.gyeongsan.cabinet.utils.FtApiManager;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,6 +22,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 public class AdminController {
 
     private final AdminService adminService;
+    private final FtApiManager ftApiManager;
 
     @GetMapping("/dashboard")
     public ApiResponse<AdminDashboardResponse> getDashboard() {
@@ -217,5 +220,16 @@ public class AdminController {
     }
 
     public record ItemPriceRequest(Long price) {
+    }
+
+    // ⚠️ 임시 테스트용 - 테스트 후 삭제할 것
+    @GetMapping("/test/logtime/{username}")
+    public ApiResponse<String> testLogtime(@PathVariable String username) {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime startOfMonth = now.withDayOfMonth(1).toLocalDate().atStartOfDay();
+        LocalDateTime endOfYesterday = now.minusDays(1).toLocalDate().atTime(23, 59, 59);
+
+        int minutes = ftApiManager.getLogtimeBetween(username, startOfMonth, endOfYesterday);
+        return ApiResponse.success(String.format("%s의 이번 달 로그타임: %d분 (%.1f시간)", username, minutes, minutes / 60.0));
     }
 }
