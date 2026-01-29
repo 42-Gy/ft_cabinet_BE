@@ -48,6 +48,7 @@ public class LentFacadeService {
     private long extensionTerm;
 
     private static final String RESERVATION_KEY_PREFIX = "cabinet:reservation:";
+    private static final String USER_RESERVATION_KEY_PREFIX = "user:reservation:";
 
     @Transactional
     public void startLentCabinet(Long userId, Integer visibleNum) {
@@ -90,7 +91,7 @@ public class LentFacadeService {
         LentHistory lentHistory = LentHistory.of(user, cabinet, now, expiredAt);
         lentRepository.save(lentHistory);
 
-        deleteReservation(visibleNum);
+        deleteReservation(visibleNum, userId);
 
         log.info("대여 성공! 대여 ID: {}", lentHistory.getId());
     }
@@ -323,7 +324,7 @@ public class LentFacadeService {
         log.info("이사 성공! 🚚 Old(PW:{}): {} -> New: {}", previousPassword, oldCabinet.getVisibleNum(),
                 newCabinet.getVisibleNum());
 
-        deleteReservation(newVisibleNum);
+        deleteReservation(newVisibleNum, userId);
     }
 
     @Transactional
@@ -387,6 +388,12 @@ public class LentFacadeService {
     public void makeReservation(Long userId, Integer visibleNum) {
         log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
 
+        // 1. 이미 다른 예약이 있는지 확인 (중복 선점 방지)
+        String userKey = USER_RESERVATION_KEY_PREFIX + userId;
+        if (redisTemplate.opsForValue().get(userKey) != null) {
+            throw new ServiceException(ErrorCode.ALREADY_RESERVED);
+        }
+
         // 현재 대여 중인지 확인 (대여 중이면 이사 예약으로 간주)
         boolean isRenting = lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent();
 
@@ -406,14 +413,17 @@ public class LentFacadeService {
             throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
         }
 
-        String key = RESERVATION_KEY_PREFIX + visibleNum;
-        String reservedUserId = redisTemplate.opsForValue().get(key);
+        String cabinetKey = RESERVATION_KEY_PREFIX + visibleNum;
+        String reservedUserId = redisTemplate.opsForValue().get(cabinetKey);
 
         if (reservedUserId != null && !reservedUserId.equals(userId.toString())) {
             throw new ServiceException(ErrorCode.CABINET_ALREADY_RESERVED);
         }
 
-        redisTemplate.opsForValue().set(key, userId.toString(), 15, TimeUnit.MINUTES);
+        // 이중 키 저장 (15분)
+        redisTemplate.opsForValue().set(cabinetKey, userId.toString(), 15, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(userKey, visibleNum.toString(), 15, TimeUnit.MINUTES);
+
         log.info("사물함 예약 성공 - User: {}, Cabinet: {}", userId, visibleNum);
     }
 
@@ -427,9 +437,12 @@ public class LentFacadeService {
         }
     }
 
-    private void deleteReservation(Integer visibleNum) {
-        String key = RESERVATION_KEY_PREFIX + visibleNum;
-        redisTemplate.delete(key);
+    private void deleteReservation(Integer visibleNum, Long userId) {
+        String cabinetKey = RESERVATION_KEY_PREFIX + visibleNum;
+        String userKey = USER_RESERVATION_KEY_PREFIX + userId;
+
+        redisTemplate.delete(cabinetKey);
+        redisTemplate.delete(userKey);
     }
 
     private void checkAndApplyPenalty(User user, LentHistory lentHistory) {
