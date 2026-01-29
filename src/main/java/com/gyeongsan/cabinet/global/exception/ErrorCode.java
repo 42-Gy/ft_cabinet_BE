@@ -22,6 +22,7 @@ public enum ErrorCode {
     SAME_CABINET_SWAP(HttpStatus.BAD_REQUEST, "LENT_005", "현재 사용 중인 사물함과 같은 곳으로 이사할 수 없습니다."),
     OVERDUE_USER_CANNOT_SWAP(HttpStatus.FORBIDDEN, "LENT_006", "연체 중에는 이사할 수 없습니다. 먼저 반납해주세요."),
     ALREADY_RENTING_CANNOT_RESERVE(HttpStatus.BAD_REQUEST, "LENT_007", "이미 대여 중인 사용자는 예약할 수 없습니다."),
+    ALREADY_RESERVED(HttpStatus.BAD_REQUEST, "LENT_008", "이미 예약 중인 사물함이 있습니다."),
 
     ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "ITEM_001", "아이템이 존재하지 않습니다."),
     LENT_TICKET_NOT_FOUND(HttpStatus.BAD_REQUEST, "ITEM_002", "대여권이 부족합니다."),
