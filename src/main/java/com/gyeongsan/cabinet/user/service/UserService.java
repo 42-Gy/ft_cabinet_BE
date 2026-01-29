@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -74,7 +73,6 @@ public class UserService {
         String lentStartedAt = null;
         String expiredAt = null;
         String previousPassword = null;
-        Integer overdueDays = null;
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM월 dd일 HH:mm");
 
         if (activeLent != null && activeLent.getCabinet() != null) {
@@ -85,13 +83,6 @@ public class UserService {
 
             lentStartedAt = activeLent.getStartedAt().format(formatter);
             expiredAt = activeLent.getExpiredAt().format(formatter);
-
-            LocalDateTime now = LocalDateTime.now();
-            if (now.isAfter(activeLent.getExpiredAt())) {
-                overdueDays = (int) ChronoUnit.DAYS.between(activeLent.getExpiredAt().toLocalDate(), now.toLocalDate());
-                if (overdueDays == 0)
-                    overdueDays = 1;
-            }
 
             LentHistory prevHistory = lentRepository
                     .findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(cabinet.getId())
@@ -125,7 +116,6 @@ public class UserService {
                 .autoExtensionEnabled(autoExtensionEnabled)
                 .lentStartedAt(lentStartedAt)
                 .expiredAt(expiredAt)
-                .overdueDays(overdueDays)
                 .previousPassword(previousPassword)
                 .myItems(itemDtos)
                 .coinHistories(coinHistoryRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
