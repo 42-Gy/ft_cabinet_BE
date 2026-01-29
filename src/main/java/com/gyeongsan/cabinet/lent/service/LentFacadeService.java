@@ -385,17 +385,19 @@ public class LentFacadeService {
 
     @Transactional
     public void makeReservation(Long userId, Integer visibleNum) {
-        makeReservation(userId, visibleNum, false);
-    }
+        log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
 
-    @Transactional
-    public void makeReservation(Long userId, Integer visibleNum, boolean forSwap) {
-        log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}, forSwap: {}", userId, visibleNum, forSwap);
+        // 현재 대여 중인지 확인 (대여 중이면 이사 예약으로 간주)
+        boolean isRenting = lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent();
 
-        // 이사용 예약(forSwap=true)이 아닌 경우에만 대여 중 체크
-        if (!forSwap && lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent()) {
-            throw new ServiceException(ErrorCode.ALREADY_RENTING_CANNOT_RESERVE);
+        if (isRenting) {
+            // 이사 예약: 이사권이 반드시 있어야 함
+            List<ItemHistory> swapTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.SWAP);
+            if (swapTickets.isEmpty()) {
+                throw new ServiceException(ErrorCode.SWAP_TICKET_NOT_FOUND);
+            }
         }
+        // 대여 중이 아니면 -> 일반 예약 (추가 조건 없음)
 
         Cabinet cabinet = cabinetRepository.findByVisibleNumWithLock(visibleNum)
                 .orElseThrow(() -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));

@@ -28,14 +28,10 @@ public class LentController {
         @PostMapping("/reservation/{visibleNum}")
         public ApiResponse<MessageResponse> makeReservation(
                         @PathVariable Integer visibleNum,
-                        @RequestParam(value = "forSwap", required = false, defaultValue = "false") Boolean forSwap,
                         @AuthenticationPrincipal UserPrincipal userPrincipal) {
                 Long userId = userPrincipal.getUserId();
-                lentFacadeService.makeReservation(userId, visibleNum, forSwap);
-                String message = forSwap
-                                ? "✅ " + visibleNum + "번 사물함 이사 예약 완료! (15분간 유지)"
-                                : "✅ " + visibleNum + "번 사물함 15분 예약 완료! (다른 사람은 대여 불가)";
-                return ApiResponse.success(new MessageResponse(message));
+                lentFacadeService.makeReservation(userId, visibleNum);
+                return ApiResponse.success(new MessageResponse("✅ " + visibleNum + "번 사물함 예약 완료! (15분간 선점)"));
         }
 
         @PostMapping("/cabinets/{visibleNum}")

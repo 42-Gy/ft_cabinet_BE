@@ -623,7 +623,7 @@ sequenceDiagram
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
 | `POST` | `/v4/lent/cabinets/{visibleNum}` | 사물함 대여 시작 |
-| `POST` | `/v4/lent/reservation/{visibleNum}` | **[NEW]** 이사 전용 사물함 예약 (15분 선점) |
+| `POST` | `/v4/lent/reservation/{visibleNum}` | **[NEW]** 사물함 예약 (15분 선점, 대여 중이면 이사 예약으로 자동 처리) |
 | `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력) |
 | `POST` | `/v4/lent/swap/{newVisibleNum}` | **[Item]** 이사권을 사용해 사물함 이동 |
 | `POST` | `/v4/lent/extension` | **[Item]** 연장권을 사용해 기간 연장 |
