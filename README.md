@@ -391,7 +391,7 @@ erDiagram
 * **패널티($D*3$):** 연체 시 `연체일수 * 3` 만큼 대여 불가 기간을 부여하여 정시 반납 유도.
 * **아이템 상점:** 출석과 로그타임으로 모은 코인을 사용하여 아이템 구매.
     * **🚚 이사권 (Swap):** 반납 절차 없이 즉시 다른 빈 사물함으로 이동.
-    * **⏳ 연장권 (Extension):** 현재 대여 중인 사물함 기간을 15일 연장.
+    * **⏳ 연장권 (Extension):** 현재 대여 중인 사물함 기간을 15일 연장. (최대 **5회** 연장 가능)
     * **🛡️ 감면권 (Exemption):** 연체 패널티 기간 1일 감면.
     * **⏳ 자동 연장 (Auto-Extension):** (New) 유저가 **자동 연장 설정(`ON`)**을 하고 연장권을 보유 중이라면, 대여 만료 1일 전(`D-1`) 시스템이 자동으로 아이템을 사용하여 연장합니다.
 
@@ -407,6 +407,10 @@ erDiagram
 ### 8. 👮‍♂️ 관리자 감사 기능 강화 (Admin Audit)
 * **전체 유저 조회:** 페이징을 지원하는 전체 유저 목록 조회 API로 회원 관리 효율성을 높였습니다.
 * **반납 사진 감사:** 정상 처리된 반납 건에 대해서도 사진을 조회할 수 있어, 불시 점검 및 사물함 상태 모니터링이 가능합니다.
+
+### 9. ⚡ 이사 전용 실시간 예약 (Swap Reservation) [New]
+* **15분 선점(Ticketing):** 사용자가 이사하고 싶은 사물함을 발견하면, **이사 전용 예약**을 통해 **15분간** 해당 사물함을 선점할 수 있습니다.
+* **Redis TTL:** Redis를 활용한 만료 시간 관리로, 예약 후 15분 내에 이사를 완료하지 않으면 예약이 자동 취소되어 다른 사용자가 이용 가능해집니다.
 
 <br>
 
@@ -516,6 +520,13 @@ sequenceDiagram
     participant Azure as ☁️ Azure Blob
     participant DB as 🗄️ Database
 
+    %% 0. 이사 예약 (선점)
+    User->>Service: "이사 예약 요청 (forSwap=true)"
+    activate Service
+    Service->>Service: Redis Key 저장 (TTL 15min)
+    Service-->>User: "200 OK (예약 완료)"
+    deactivate Service
+
     User->>Service: "이사 요청 (사진 포함)"
     activate Service
     
@@ -612,9 +623,11 @@ sequenceDiagram
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
 | `POST` | `/v4/lent/cabinets/{visibleNum}` | 사물함 대여 시작 |
+| `POST` | `/v4/lent/reservation/{visibleNum}` | **[NEW]** 이사 전용 사물함 예약 (15분 선점) |
 | `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력) |
 | `POST` | `/v4/lent/swap/{newVisibleNum}` | **[Item]** 이사권을 사용해 사물함 이동 |
 | `POST` | `/v4/lent/extension` | **[Item]** 연장권을 사용해 기간 연장 |
+| `POST` | `/v4/lent/renew` | **[Ticket]** 대여권을 새로 사용하여 기간 연장 (31일) |
 | `PATCH` | `/v4/lent/extension/auto` | **[NEW]** 자동 연장 설정 ON/OFF 토글 |
 | `POST` | `/v4/lent/penalty-exemption` | **[Item]** 패널티 감면권 사용 |
 
@@ -625,8 +638,8 @@ sequenceDiagram
 | `POST` | `/v4/store/buy/{itemId}` | 아이템 구매 (코인 차감) |
 
 > **구매 API Error Codes:**
-> * `EXTENSION_ITEM_LIMIT_EXCEEDED`: 연장권은 최대 **2개**까지만 보유 가능.
-> * `EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED`: 연장권은 매월 최대 **2회**만 구매 가능.
+> * `EXTENSION_ITEM_LIMIT_EXCEEDED`: 연장권은 최대 **5개**까지만 보유 가능.
+> * `EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED`: 연장권은 매월 최대 **5회**만 구매 가능.
 
 ### 6. 📅 캘린더 (Calendar) [New]
 | Method | URI | 설명 |
