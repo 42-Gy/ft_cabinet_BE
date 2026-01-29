@@ -26,7 +26,7 @@ public class LogtimeScheduler {
     private final FtApiManager ftApiManager;
     private final UserService userService;
 
-    @Scheduled(cron = "0 * * * * *") // ⚠️ 테스트용 매분 실행 - 테스트 후 "0 0 6 * * *"로 복구
+    @Scheduled(cron = "0 0 3 * * *")
     public void processDailyLogtime() {
         log.info("📅 [Daily] 로그타임 집계 시작 (병렬 처리 모드)");
 
