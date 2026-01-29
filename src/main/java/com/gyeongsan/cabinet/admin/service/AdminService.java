@@ -229,10 +229,15 @@ public class AdminService {
                 Item item = itemRepository.findByName(request.itemName())
                                 .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND));
 
-                ItemHistory itemHistory = new ItemHistory(LocalDateTime.now(), null, user, item);
-                itemHistoryRepository.save(itemHistory);
+                int quantity = (request.quantity() == null || request.quantity() < 1) ? 1 : request.quantity();
 
-                log.info("[Admin] 유저({})에게 아이템({}) 지급. 사유: {}", username, request.itemName(), request.reason());
+                for (int i = 0; i < quantity; i++) {
+                        ItemHistory itemHistory = new ItemHistory(LocalDateTime.now(), null, user, item);
+                        itemHistoryRepository.save(itemHistory);
+                }
+
+                log.info("[Admin] 유저({})에게 아이템({}) {}개 지급. 사유: {}", username, request.itemName(), quantity,
+                                request.reason());
         }
 
         public void sendEmergencyNotice(String message) {

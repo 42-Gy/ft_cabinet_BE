@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.admin.dto;
 
 public record ItemGrantRequest(
-        String itemName,
-        String reason) {
+                String itemName,
+                String reason,
+                Integer quantity) {
 }
