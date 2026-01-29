@@ -452,6 +452,7 @@ sequenceDiagram
     participant Controller as 🎮 LentController
     participant Service as ⚙️ LentService
     participant AI as 🤖 AI Server (Python)
+    participant Azure as ☁️ Azure Blob
 
     User->>Controller: "반납 사진 전송 (POST /return)"
     activate Controller
@@ -468,6 +469,11 @@ sequenceDiagram
         Controller-->>User: 400 Bad Request
         Note over User, Controller: "💡 계속 실패 시 '수동 반납(사유 입력)' 요청 가능"
     else ✅ 깨끗함
+        Service->>Azure: 📸 사진 업로드
+        activate Azure
+        Azure-->>Service: (URL 획득)
+        deactivate Azure
+
         Service->>DB: 사물함 상태 변경 (AVAILABLE)
         Service-->>Controller: 반납 성공
         Controller-->>User: "200 OK (반납 완료!)"
@@ -501,28 +507,43 @@ sequenceDiagram
 ```
 
 ### 4. 이사권 사용 (Transaction Swap)
-```mermaid
 sequenceDiagram
     autonumber
     actor User as 👤 사용자
     participant Service as ⚙️ LentFacadeService
+    participant AI as 🤖 AI Server
+    participant Azure as ☁️ Azure Blob
     participant DB as 🗄️ Database
 
-    User->>Service: "이사 요청 (swapPrivateCabinet)"
+    User->>Service: "이사 요청 (사진 포함)"
     activate Service
     
+    %% 1. AI 검사
+    Service->>AI: 📡 청결도 분석 요청
+    activate AI
+    AI-->>Service: "✅ CLEAN"
+    deactivate AI
+
+    %% 2. 이미지 업로드
+    Service->>Azure: 📸 사진 업로드
+    activate Azure
+    Azure-->>Service: (URL 획득)
+    deactivate Azure
+
+    %% 3. 트랜잭션
     rect rgb(240, 248, 255)
-        Note over Service, DB: 🔄 Atomic Transaction
-        Service->>DB: "1. 아이템 차감"
-        Service->>DB: "2. 기존 사물함 반납 (EndedAt)"
-        Service->>DB: "3. 새 사물함 대여 (StartedAt)"
+        Note over Service, DB: 🔄 Atomic Transaction (Service)
+        Service->>DB: "1. 이사권 차감"
+        Service->>DB: "2. 기존 반납 처리 (URL 저장)"
+        Service->>DB: "3. 새 대여 생성"
     end
 
-    alt 🚫 실패 시
+    alt 🚫 실패 시 (AI/DB Error)
         Service->>DB: Rollback
-    else ✅ 성공 시
+        Service-->>User: 에러 응답
+    else ✅ 성공 시 (Commit)
         Service->>DB: Commit
-        Service-->>User: 이사 완료
+        Service-->>User: "200 OK (이사 완료)"
     end
     deactivate Service
 ```
