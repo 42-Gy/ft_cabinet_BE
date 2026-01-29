@@ -507,6 +507,7 @@ sequenceDiagram
 ```
 
 ### 4. 이사권 사용 (Transaction Swap)
+```mermaid
 sequenceDiagram
     autonumber
     actor User as 👤 사용자
