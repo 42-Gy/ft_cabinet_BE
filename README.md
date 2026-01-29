@@ -233,6 +233,7 @@ erDiagram
     USER ||--o{ LENT_HISTORY : "대여 기록 보유"
     USER ||--o{ ITEM_HISTORY : "아이템 구매/사용 이력"
     USER ||--o{ COIN_HISTORY : "코인 거래 이력"
+    USER ||--o{ CALENDAR_EVENT : "일정 등록"
     
     CABINET ||--o{ LENT_HISTORY : "대여 이력 포함"
     
@@ -307,6 +308,15 @@ erDiagram
         String type "거래 타입 (ATTENDANCE, WATERMELON, ITEM_PURCHASE, ADMIN_GRANT, ADMIN_REVOKE)"
         String description "상세 사유 (아이템명, 보상명 등)"
         LocalDateTime createdAt "거래 발생 시각"
+    }
+
+    CALENDAR_EVENT {
+        Long id PK
+        String title "일정 제목"
+        String description "상세 설명"
+        LocalDate eventDate "일정 날짜"
+        LocalDateTime createdAt "생성일"
+        Long announcer_id FK "작성자(User)"
     }
 ```
 
