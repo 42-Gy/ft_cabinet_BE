@@ -37,7 +37,7 @@ public class LentScheduler {
     @Value("${cabinet.policy.lent-term}")
     private Integer lentTerm;
 
-    @Scheduled(cron = "0 30 6 * * *")
+    @Scheduled(cron = "0 40 1 * * *")
     @Transactional
     public void autoExtension() {
         log.info("🔔 [Daily] 자동 연장 프로세스 시작...");
@@ -68,7 +68,7 @@ public class LentScheduler {
         log.info("✅ 총 {}명의 대여가 자동 연장되었습니다.", extendedCount);
     }
 
-    @Scheduled(cron = "0 5 6 1 * *")
+    @Scheduled(cron = "0 30 1 1 * *")
     @Transactional
     public void monthlyAutoExtensionRetry() {
         log.info("🔄 [Monthly] 월초 자동 연장 재시도 시작...");
