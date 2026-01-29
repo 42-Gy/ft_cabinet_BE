@@ -36,8 +36,6 @@ public class MyProfileResponseDto {
 
     private String expiredAt;
 
-    private Integer overdueDays;
-
     private List<MyItemDto> myItems;
     private List<CoinHistoryDto> coinHistories;
     private List<ItemHistoryDto> itemHistories;
