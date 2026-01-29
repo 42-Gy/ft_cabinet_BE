@@ -31,7 +31,7 @@ public class LogtimeScheduler {
 
     private static final int THREAD_POOL_SIZE = 10;
 
-    @Scheduled(cron = "0 0 6 * * *")
+    @Scheduled(cron = "0 * * * * *") // ⚠️ 테스트용 매분 실행 - 테스트 후 "0 0 6 * * *"로 복구
     public void processDailyLogtime() {
         log.info("📅 [Daily] 로그타임 집계 시작 (병렬 처리 모드)");
 
