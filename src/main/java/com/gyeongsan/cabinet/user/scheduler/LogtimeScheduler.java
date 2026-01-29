@@ -66,7 +66,7 @@ public class LogtimeScheduler {
         for (User user : allUsers) {
             try {
                 processUserLogtime(user, startOfMonth, endOfYesterday, finalRewardItem, isPayDay);
-                Thread.sleep(600); // 42 API Rate Limit 방지 (초당 2회 제한)
+                Thread.sleep(600);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.error("스케줄러 인터럽트 발생");

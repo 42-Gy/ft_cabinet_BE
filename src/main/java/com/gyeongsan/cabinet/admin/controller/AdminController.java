@@ -26,6 +26,11 @@ public class AdminController {
         return ApiResponse.success(adminService.getDashboard());
     }
 
+    @GetMapping("/users")
+    public ApiResponse<Page<AdminAllUsersResponseDto>> getAllUsers(Pageable pageable) {
+        return ApiResponse.success(adminService.getAllUsers(pageable));
+    }
+
     @GetMapping("/users/{name}")
     public ApiResponse<AdminUserDetailResponse> searchUser(@PathVariable String name) {
         return ApiResponse.success(adminService.getUserDetail(name));
@@ -76,6 +81,11 @@ public class AdminController {
     @GetMapping("/cabinets/pending")
     public ApiResponse<List<CabinetPendingResponseDto>> getPendingCabinets() {
         return ApiResponse.success(adminService.getPendingCabinets());
+    }
+
+    @GetMapping("/returns/photos")
+    public ApiResponse<Page<ReturnPhotoResponseDto>> getReturnPhotos(Pageable pageable) {
+        return ApiResponse.success(adminService.getReturnPhotos(pageable));
     }
 
     @PostMapping("/cabinets/{visibleNum}/approve")

@@ -64,6 +64,30 @@ public class AdminService {
         }
 
         @Transactional(readOnly = true)
+        public Page<AdminAllUsersResponseDto> getAllUsers(Pageable pageable) {
+                return userRepository.findAll(pageable)
+                                .map(user -> {
+                                        var activeLent = lentRepository
+                                                        .findByUserIdAndEndedAtIsNull(user.getId());
+                                        Integer cabinetNum = activeLent
+                                                        .map(lh -> lh.getCabinet().getVisibleNum())
+                                                        .orElse(null);
+
+                                        return new AdminAllUsersResponseDto(
+                                                        user.getId(),
+                                                        user.getName(),
+                                                        user.getEmail(),
+                                                        user.getRole(),
+                                                        user.getCoin(),
+                                                        user.getPenaltyDays(),
+                                                        user.getMonthlyLogtime(),
+                                                        user.getBlackholedAt(),
+                                                        activeLent.isPresent(),
+                                                        cabinetNum);
+                                });
+        }
+
+        @Transactional(readOnly = true)
         public AdminUserDetailResponse getUserDetail(String name) {
                 User user = userRepository.findByName(name)
                                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
@@ -162,6 +186,18 @@ public class AdminService {
                                                 lh.getPhotoUrl(),
                                                 lh.getUser().getName()))
                                 .collect(Collectors.toList());
+        }
+
+        @Transactional(readOnly = true)
+        public Page<ReturnPhotoResponseDto> getReturnPhotos(Pageable pageable) {
+                return lentRepository.findAllReturnedWithPhoto(pageable)
+                                .map(lh -> new ReturnPhotoResponseDto(
+                                                lh.getId(),
+                                                lh.getCabinet().getVisibleNum(),
+                                                lh.getUser().getName(),
+                                                lh.getPhotoUrl(),
+                                                lh.getEndedAt(),
+                                                lh.getReturnMemo()));
         }
 
         public void approveManualReturn(Integer visibleNum) {

@@ -385,9 +385,15 @@ public class LentFacadeService {
 
     @Transactional
     public void makeReservation(Long userId, Integer visibleNum) {
-        log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
+        makeReservation(userId, visibleNum, false);
+    }
 
-        if (lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent()) {
+    @Transactional
+    public void makeReservation(Long userId, Integer visibleNum, boolean forSwap) {
+        log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}, forSwap: {}", userId, visibleNum, forSwap);
+
+        // 이사용 예약(forSwap=true)이 아닌 경우에만 대여 중 체크
+        if (!forSwap && lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent()) {
             throw new ServiceException(ErrorCode.ALREADY_RENTING_CANNOT_RESERVE);
         }
 

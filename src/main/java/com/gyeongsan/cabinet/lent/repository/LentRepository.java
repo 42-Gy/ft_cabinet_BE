@@ -68,4 +68,11 @@ public interface LentRepository extends JpaRepository<LentHistory, Long> {
         List<LentHistory> findRecentExpiredActiveLents(
                         @Param("start") LocalDateTime start,
                         @Param("end") LocalDateTime end);
+
+        @Query("SELECT lh FROM LentHistory lh " +
+                        "JOIN FETCH lh.user " +
+                        "JOIN FETCH lh.cabinet " +
+                        "WHERE lh.endedAt IS NOT NULL AND lh.photoUrl IS NOT NULL " +
+                        "ORDER BY lh.endedAt DESC")
+        Page<LentHistory> findAllReturnedWithPhoto(Pageable pageable);
 }
