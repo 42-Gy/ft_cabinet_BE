@@ -70,7 +70,7 @@ public class StoreService {
         ItemHistory history = new ItemHistory(LocalDateTime.now(), null, user, item);
         itemHistoryRepository.save(history);
 
-        log.info("✅ 구매 성공! 남은 코인: {}", user.getCoin());
+        log.info("✅ 구매 성공! 남은 씨앗: {}", user.getCoin());
     }
 
     private void validateExtensionPurchase(Long userId) {

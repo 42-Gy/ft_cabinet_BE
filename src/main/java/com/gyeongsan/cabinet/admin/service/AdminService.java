@@ -108,7 +108,7 @@ public class AdminService {
                 coinHistoryRepository.save(adminGrant);
 
                 log.info(
-                                "[Admin] 유저({})에게 코인 {}개 지급. 사유: {}",
+                                "[Admin] 유저({})에게 씨앗 {}개 지급. 사유: {}",
                                 user.getName(),
                                 request.amount(),
                                 request.reason());
@@ -362,7 +362,7 @@ public class AdminService {
 
                 long amountToRevoke = request.amount();
                 if (amountToRevoke <= 0) {
-                        throw new IllegalArgumentException("회수할 코인은 0보다 커야 합니다.");
+                        throw new IllegalArgumentException("회수할 씨앗은 0보다 커야 합니다.");
                 }
 
                 user.useCoin(amountToRevoke);
@@ -370,7 +370,7 @@ public class AdminService {
                 CoinHistory adminRevoke = CoinHistory.of(user, -amountToRevoke, CoinLogType.ADMIN_REVOKE, "관리자 회수");
                 coinHistoryRepository.save(adminRevoke);
 
-                log.info("[Admin] 유저({}) 코인 회수: {}개. 사유: {}", username, amountToRevoke, request.reason());
+                log.info("[Admin] 유저({}) 씨앗 회수: {}개. 사유: {}", username, amountToRevoke, request.reason());
         }
 
         @Transactional(readOnly = true)
