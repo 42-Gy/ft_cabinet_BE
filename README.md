@@ -328,6 +328,7 @@ erDiagram
 | **Ver 5.4** | **Camera & Security** | **인앱 카메라 전용 모드(In-App Only)**, **Exif 의존성 제거**, **익명 요청 정보 마스킹**, 배포 안정성 강화(DB Init Disable) |
 | **Ver 5.5** | **CoinHistory & Statistics** | **코인 거래 추적 시스템**, **주간 재화 흐름 통계 API**, **아이템 사용 현황 통계 API**, 모든 코인 거래를 타임스탬프와 함께 기록 |
 | **Ver 5.6** | **MyPage & Logtime** | **마이페이지 재화/아이템 사용 이력 추가**, **재화 사용 상세 사유(Description) 기록**, **로그타임 월말 세션 분리(Spanning Session) 버그 수정** |
+| **Ver 5.7** | **New Features & Audit** | **관리자 전체 유저 조회**, **캘린더 일정 관리 시스템**, **반납 사진 감사(Audit) 기능**, 관리자 기능 강화 |
 
 <br>
 
@@ -383,6 +384,14 @@ erDiagram
 * **블랙홀 유저 보호:** 퇴소자 발생 시 자동 반납되지 않고 별도 목록으로 관리, 관리자가 짐 수거 확인 후 **강제 반납**.
 * **경제 밸런스 조절:** 상점의 아이템 가격을 API로 실시간 변경 가능.
 * **유저/사물함 관리:** 코인 수동 지급, 사물함 고장/복구 처리, 강제 반납, 로그타임 수정 등.
+
+### 7. 📅 캘린더 및 일정 관리 (New)
+* **일정 등록:** 관리자가 반납 마감일, 서버 점검 등 주요 일정을 등록하여 공지할 수 있습니다.
+* **월별 조회:** 사용자는 달력을 통해 월별 주요 이벤트를 한눈에 확인할 수 있습니다.
+
+### 8. 👮‍♂️ 관리자 감사 기능 강화 (Admin Audit)
+* **전체 유저 조회:** 페이징을 지원하는 전체 유저 목록 조회 API로 회원 관리 효율성을 높였습니다.
+* **반납 사진 감사:** 정상 처리된 반납 건에 대해서도 사진을 조회할 수 있어, 불시 점검 및 사물함 상태 모니터링이 가능합니다.
 
 <br>
 
@@ -549,26 +558,36 @@ sequenceDiagram
 > * `EXTENSION_ITEM_LIMIT_EXCEEDED`: 연장권은 최대 **2개**까지만 보유 가능.
 > * `EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED`: 연장권은 매월 최대 **2회**만 구매 가능.
 
-### 6. 🛡️ 관리자 (Admin)
+### 6. 📅 캘린더 (Calendar) [New]
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `GET` | `/v4/calendar/events` | 월별 일정 목록 조회 |
+
+### 7. 🛡️ 관리자 (Admin)
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
 | `GET` | `/v4/admin/dashboard` | 전체 통계 대시보드 |
+| `GET` | `/v4/admin/users` | **[NEW]** 전체 유저 목록 조회 (페이징) |
 | `GET` | `/v4/admin/users/{name}` | 특정 유저 정보 및 대여 이력 검색 |
 | `POST` | `/v4/admin/users/{name}/coin` | 유저에게 코인 수동 지급 |
 | `PATCH` | `/v4/admin/users/{name}/logtime` | 유저 로그타임 수동 수정 |
-| `POST` | `/v4/admin/users/{name}/penalty` | **[NEW]** 유저에게 패널티 수동 부여 |
-| `DELETE` | `/v4/admin/users/{name}/penalty` | **[NEW]** 유저 패널티 해제 (감면) |
-| `POST` | `/v4/admin/users/{name}/items` | **[NEW]** 유저에게 아이템 수동 지급 |
+| `POST` | `/v4/admin/users/{name}/penalty` | 유저에게 패널티 수동 부여 |
+| `DELETE` | `/v4/admin/users/{name}/penalty` | 유저 패널티 해제 (감면) |
+| `POST` | `/v4/admin/users/{name}/items` | 유저에게 아이템 수동 지급 |
 | `PATCH` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상태(고장 등) 변경 |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/force-return` | 관리자 권한 강제 반납 |
 | `GET` | `/v4/admin/cabinets/pending` | 수동 반납 승인 대기 목록 조회 |
+| `GET` | `/v4/admin/returns/photos` | **[NEW]** 반납 완료된 사물함 사진 조회 (Audit) |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/approve` | 수동 반납 최종 승인 (잠금 해제) |
 | `PATCH` | `/v4/admin/items/{itemName}/price` | 상점 아이템 가격 변경 |
-| `POST` | `/v4/admin/alarm/emergency` | **[NEW]** 전체 유저 긴급 공지(DM) 발송 |
-| `GET` | `/v4/admin/cabinets/overdue` | **[NEW]** 현재 연체 중인 유저 목록 조회 |
-| `GET` | `/v4/admin/cabinets/{visibleNum}` | **[NEW]** 사물함 상세 정보 조회 |
-| `GET` | `/v4/admin/stats/coins` | **[NEW v5.5]** 주간 코인 흐름 통계 (지급/사용) |
-| `GET` | `/v4/admin/stats/items` | **[NEW v5.5]** 아이템 사용 통계 + 출석/수박씨 집계 |
+| `POST` | `/v4/admin/alarm/emergency` | 전체 유저 긴급 공지(DM) 발송 |
+| `GET` | `/v4/admin/cabinets/overdue` | 현재 연체 중인 유저 목록 조회 |
+| `GET` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상세 정보 조회 |
+| `GET` | `/v4/admin/stats/coins` | 주간 코인 흐름 통계 (지급/사용) |
+| `GET` | `/v4/admin/stats/items` | 아이템 사용 통계 + 출석/수박씨 집계 |
+| `POST` | `/v4/admin/calendar/events` | **[NEW]** 일정 등록 |
+| `PUT` | `/v4/admin/calendar/events/{id}` | **[NEW]** 일정 수정 |
+| `DELETE` | `/v4/admin/calendar/events/{id}` | **[NEW]** 일정 삭제 |
 
 <br>
 

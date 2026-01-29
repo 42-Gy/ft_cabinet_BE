@@ -50,8 +50,7 @@ public class CalendarEventService {
 
     public void updateEvent(Long eventId, CalendarEventRequestDto request) {
         CalendarEvent event = calendarEventRepository.findById(eventId)
-                .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND)); // 적절한 ErrorCode 사용 (없으면
-                                                                                    // ITEM_NOT_FOUND 등 대용)
+                .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND));
         event.update(request.title(), request.description(), request.eventDate());
     }
 
