@@ -388,23 +388,20 @@ public class LentFacadeService {
     public void makeReservation(Long userId, Integer visibleNum) {
         log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
 
-        // 1. 이미 다른 예약이 있는지 확인 (중복 선점 방지)
         String userKey = USER_RESERVATION_KEY_PREFIX + userId;
         if (redisTemplate.opsForValue().get(userKey) != null) {
             throw new ServiceException(ErrorCode.ALREADY_RESERVED);
         }
 
-        // 현재 대여 중인지 확인 (대여 중이면 이사 예약으로 간주)
         boolean isRenting = lentRepository.findByUserIdAndEndedAtIsNull(userId).isPresent();
 
         if (isRenting) {
-            // 이사 예약: 이사권이 반드시 있어야 함
+
             List<ItemHistory> swapTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.SWAP);
             if (swapTickets.isEmpty()) {
                 throw new ServiceException(ErrorCode.SWAP_TICKET_NOT_FOUND);
             }
         }
-        // 대여 중이 아니면 -> 일반 예약 (추가 조건 없음)
 
         Cabinet cabinet = cabinetRepository.findByVisibleNumWithLock(visibleNum)
                 .orElseThrow(() -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));
@@ -420,7 +417,6 @@ public class LentFacadeService {
             throw new ServiceException(ErrorCode.CABINET_ALREADY_RESERVED);
         }
 
-        // 이중 키 저장 (15분)
         redisTemplate.opsForValue().set(cabinetKey, userId.toString(), 15, TimeUnit.MINUTES);
         redisTemplate.opsForValue().set(userKey, visibleNum.toString(), 15, TimeUnit.MINUTES);
 

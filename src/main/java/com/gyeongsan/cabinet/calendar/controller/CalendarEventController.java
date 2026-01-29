@@ -20,7 +20,6 @@ public class CalendarEventController {
 
     private final CalendarEventService calendarEventService;
 
-    // [일반 사용자/관리자 공용] 캘린더 이벤트 조회
     @GetMapping("/calendar/events")
     public ApiResponse<List<CalendarEventResponseDto>> getEvents(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
@@ -28,7 +27,6 @@ public class CalendarEventController {
         return ApiResponse.success(calendarEventService.getEvents(start, end));
     }
 
-    // [관리자] 이벤트 생성
     @PostMapping("/admin/calendar/events")
     public ApiResponse<MessageResponse> createEvent(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -37,7 +35,6 @@ public class CalendarEventController {
         return ApiResponse.success(new MessageResponse("✅ 일정이 등록되었습니다."));
     }
 
-    // [관리자] 이벤트 수정
     @PutMapping("/admin/calendar/events/{eventId}")
     public ApiResponse<MessageResponse> updateEvent(
             @PathVariable Long eventId,
@@ -46,7 +43,6 @@ public class CalendarEventController {
         return ApiResponse.success(new MessageResponse("✅ 일정이 수정되었습니다."));
     }
 
-    // [관리자] 이벤트 삭제
     @DeleteMapping("/admin/calendar/events/{eventId}")
     public ApiResponse<MessageResponse> deleteEvent(@PathVariable Long eventId) {
         calendarEventService.deleteEvent(eventId);
