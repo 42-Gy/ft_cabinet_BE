@@ -85,7 +85,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
                 String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
                                 .path("/auth/callback")
-                                .queryParam("access_token", accessToken)
                                 .build()
                                 .toUriString();
                 getRedirectStrategy().sendRedirect(request, response, targetUrl);
