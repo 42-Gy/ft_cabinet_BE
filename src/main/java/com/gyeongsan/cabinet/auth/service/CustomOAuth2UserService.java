@@ -56,19 +56,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return new DefaultOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority("USER")),
                 attributes,
-                userNameAttributeName
-        );
+                userNameAttributeName);
     }
 
     private LocalDateTime extractBlackholedAt(Map<String, Object> attributes) {
         try {
-            List<Map<String, Object>> cursusUsers =
-                    (List<Map<String, Object>>) attributes.get("cursus_users");
+            List<Map<String, Object>> cursusUsers = (List<Map<String, Object>>) attributes.get("cursus_users");
 
             if (cursusUsers != null) {
                 for (Map<String, Object> cursusUser : cursusUsers) {
-                    Map<String, Object> cursus =
-                            (Map<String, Object>) cursusUser.get("cursus");
+                    Map<String, Object> cursus = (Map<String, Object>) cursusUser.get("cursus");
                     Integer cursusId = (Integer) cursus.get("id");
 
                     if (cursusId != null && cursusId == 21) {
@@ -106,15 +103,26 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private void giveWelcomeGift(User user) {
-        Item lentItem = itemRepository.findByType(ItemType.LENT)
-                .orElse(null);
+        user.addCoin(10000L);
 
-        if (lentItem != null) {
-            ItemHistory ticket = new ItemHistory(LocalDateTime.now(), null, user, lentItem);
-            itemHistoryRepository.save(ticket);
-            log.info("🎁 [Welcome] 신규 유저 {}님께 웰컴 선물(대여권) 지급 완료!", user.getName());
-        } else {
-            log.warn("⚠️ [Welcome] 지급 실패: DB에 대여권(LENT) 아이템이 없습니다.");
+        List<ItemType> promoItems = List.of(
+                ItemType.LENT,
+                ItemType.SWAP,
+                ItemType.EXTENSION,
+                ItemType.PENALTY_EXEMPTION);
+
+        List<ItemHistory> tickets = new java.util.ArrayList<>();
+
+        for (ItemType type : promoItems) {
+            itemRepository.findByType(type)
+                    .ifPresentOrElse(item -> {
+                        for (int i = 0; i < 10; i++) {
+                            tickets.add(new ItemHistory(LocalDateTime.now(), null, user, item));
+                        }
+                    }, () -> log.warn("⚠️ [Beta] 지급 실패: DB에 {} 타입 아이템이 없습니다.", type));
         }
+
+        itemHistoryRepository.saveAll(tickets);
+        log.info("🚀 [Beta Start] 유저 {}님께 10,000코인 + 아이템 {}개 지급 완료", user.getName(), tickets.size());
     }
 }
