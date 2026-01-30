@@ -152,17 +152,14 @@ public class LentScheduler {
                 continue;
             }
 
-            int newPenalty = (int) (overdueDays * 3);
-            user.updatePenaltyDays(newPenalty);
-
             if (cabinet.getStatus() != CabinetStatus.OVERDUE) {
                 cabinet.updateStatus(CabinetStatus.OVERDUE);
                 sendOverdueAlarm(user, cabinet.getId());
             }
 
             log.info(
-                    "🚨 연체 처리: 유저={}, 연체일={}일, 패널티={}일",
-                    user.getName(), overdueDays, newPenalty);
+                    "🚨 연체 처리 (상태 변경 및 알림): 유저={}, 연체일={}일 (패널티는 반납 시 부여)",
+                    user.getName(), overdueDays);
         }
     }
 

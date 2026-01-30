@@ -162,6 +162,7 @@ public class LentFacadeService {
         log.info("수동 반납 완료. 사물함 {}번 상태 -> PENDING", cabinet.getVisibleNum());
     }
 
+    @Transactional
     protected void processReturnTransaction(Long userId, String previousPassword, String photoUrl) {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
@@ -457,10 +458,13 @@ public class LentFacadeService {
             overdueDays = 1;
         }
 
-        int penalty = (int) (overdueDays * 3);
-        user.updatePenaltyDays(penalty);
+        int newPenalty = (int) (overdueDays * 3);
+        int currentPenalty = user.getPenaltyDays();
+        int totalPenalty = currentPenalty + newPenalty;
 
-        log.info("🚨 연체 패널티 즉시 부여: User={}, 연체일={}일, 패널티={}일",
-                user.getName(), overdueDays, penalty);
+        user.updatePenaltyDays(totalPenalty);
+
+        log.info("🚨 연체 패널티 부여: User={}, 연체일={}일, 추가 패널티={}일, 총 패널티={}일",
+                user.getName(), overdueDays, newPenalty, totalPenalty);
     }
 }

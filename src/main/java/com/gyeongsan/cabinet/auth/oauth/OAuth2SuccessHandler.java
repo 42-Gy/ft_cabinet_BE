@@ -33,9 +33,6 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         @Value("${app.frontend.url}")
         private String frontendUrl;
 
-        @Value("${app.auth.cookie-secure:false}")
-        private boolean isCookieSecure;
-
         @Override
         public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                         Authentication authentication)

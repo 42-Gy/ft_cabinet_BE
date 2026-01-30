@@ -41,7 +41,7 @@ public class StoreService {
 
     @Transactional
     public void buyItem(Long userId, Long itemId) {
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByIdWithLock(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         Item item = itemRepository.findById(itemId)
