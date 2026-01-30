@@ -26,6 +26,9 @@ public class CabinetService {
 
         private final CabinetRepository cabinetRepository;
         private final LentRepository lentRepository;
+        private final org.springframework.data.redis.core.StringRedisTemplate redisTemplate;
+
+        private static final String RESERVATION_KEY_PREFIX = "cabinet:reservation:";
 
         public List<CabinetListResponseDto> getCabinetList(Integer floor,
                         com.gyeongsan.cabinet.auth.domain.UserPrincipal userPrincipal) {
@@ -132,6 +135,16 @@ public class CabinetService {
                                 prevName = "*****";
                 }
 
+                Boolean isReservedByMe = false;
+                if (userPrincipal != null) {
+                        String key = RESERVATION_KEY_PREFIX + cabinet.getVisibleNum();
+                        String reservedUserId = redisTemplate.opsForValue().get(key);
+
+                        if (reservedUserId != null && reservedUserId.equals(userPrincipal.getUserId().toString())) {
+                                isReservedByMe = true;
+                        }
+                }
+
                 return CabinetDetailResponseDto.builder()
                                 .cabinetId(cabinet.getId())
                                 .visibleNum(cabinet.getVisibleNum())
@@ -144,6 +157,7 @@ public class CabinetService {
                                 .lentExpiredAt(curEnd)
                                 .previousUserName(prevName)
                                 .previousEndedAt(prevEnd)
+                                .isReservedByMe(isReservedByMe)
                                 .build();
         }
 

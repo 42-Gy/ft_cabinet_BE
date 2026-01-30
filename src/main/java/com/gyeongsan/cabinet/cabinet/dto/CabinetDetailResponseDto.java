@@ -22,4 +22,6 @@ public class CabinetDetailResponseDto {
 
     private String previousUserName;
     private LocalDateTime previousEndedAt;
+
+    private Boolean isReservedByMe;
 }
