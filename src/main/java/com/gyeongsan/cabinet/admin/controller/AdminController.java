@@ -6,6 +6,7 @@ import com.gyeongsan.cabinet.admin.service.AdminService;
 import com.gyeongsan.cabinet.common.ApiResponse;
 import lombok.RequiredArgsConstructor;
 
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -17,6 +18,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 @RestController
 @RequestMapping("/v4/admin")
 @RequiredArgsConstructor
+@RateLimiter(name = "userApi")
 public class AdminController {
 
     private final AdminService adminService;

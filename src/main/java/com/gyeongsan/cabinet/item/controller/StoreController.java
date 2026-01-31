@@ -8,6 +8,7 @@ import com.gyeongsan.cabinet.user.domain.User;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/v4/store")
+@RateLimiter(name = "userApi")
 public class StoreController {
 
     private final StoreService storeService;

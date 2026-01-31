@@ -146,6 +146,10 @@ resilience4j:
         limitForPeriod: 5
         limitRefreshPeriod: 1s
         timeoutDuration: 5s
+      userApi:
+        limitForPeriod: 20
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0s
 
 cloud:
   azure:

@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,6 +24,7 @@ import java.util.Map;
 @RequestMapping("/v4/auth")
 @RequiredArgsConstructor
 @Log4j2
+@RateLimiter(name = "userApi")
 public class AuthController {
 
     private final JwtTokenProvider jwtTokenProvider;

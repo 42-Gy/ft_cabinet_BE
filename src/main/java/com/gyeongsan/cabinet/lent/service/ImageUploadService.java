@@ -9,6 +9,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.UUID;
 
@@ -26,14 +30,28 @@ public class ImageUploadService {
         if (file.isEmpty())
             return null;
 
+        String contentType = file.getContentType();
+        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png"))) {
+            throw new RuntimeException("이미지 파일만 업로드 가능합니다. (jpg, png)");
+        }
+
         String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
 
         try {
+            BufferedImage image = ImageIO.read(file.getInputStream());
+            if (image == null) {
+                throw new RuntimeException("유효하지 않은 이미지 파일입니다.");
+            }
+
+            String format = contentType.equals("image/png") ? "png" : "jpg";
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            ImageIO.write(image, format, os);
+            ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
 
             BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
-
             BlobClient blobClient = containerClient.getBlobClient(fileName);
-            blobClient.upload(file.getInputStream(), file.getSize(), true);
+
+            blobClient.upload(is, os.size(), true);
 
             log.info("✅ 이미지 업로드 성공 - User: {}, File: {}", userId, fileName);
             return blobClient.getBlobUrl();
