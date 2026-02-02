@@ -5,6 +5,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -34,6 +35,14 @@ public class GlobalExceptionHandler {
         ApiResponse<String> response = ApiResponse.fail(HttpStatus.METHOD_NOT_ALLOWED,
                 "❌ 지원하지 않는 요청 방식입니다. (GET/POST 등 메서드를 확인하세요)");
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
+    }
+
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ResponseEntity<ApiResponse<String>> handleRateLimitException(RequestNotPermitted e) {
+        log.warn("🛑 요청 제한 초과 (RateLimit): {}", e.getMessage());
+        ApiResponse<String> response = ApiResponse.fail(HttpStatus.TOO_MANY_REQUESTS,
+                "너무 많은 요청을 보내셨습니다. 잠시 후 다시 시도해주세요. 🛑");
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response);
     }
 
     @ExceptionHandler(Exception.class)
