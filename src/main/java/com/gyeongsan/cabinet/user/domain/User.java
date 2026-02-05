@@ -76,6 +76,7 @@ public class User {
         this.role = role;
         this.coin = 0L;
         this.penaltyDays = 0;
+        this.monthlyLogtime = 0;
     }
 
     public static User of(String name, String email, UserRole role) {
