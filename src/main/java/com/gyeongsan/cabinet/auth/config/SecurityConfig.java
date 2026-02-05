@@ -126,6 +126,7 @@ public class SecurityConfig {
                         origins.addAll(allowedOrigins);
                 }
                 origins.add("https://subak.site");
+                origins.add("https://subak-server-cterekgpe0e4dwhb.koreacentral-01.azurewebsites.net");
                 origins.add("http://localhost:5173");
 
                 configuration.setAllowedOriginPatterns(origins);
