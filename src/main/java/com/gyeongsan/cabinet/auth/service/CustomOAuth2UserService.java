@@ -103,20 +103,19 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private void giveWelcomeGift(User user) {
-        user.addCoin(10000L);
+        // Coin removed or reduced as requested
+        // user.addCoin(10000L);
 
         List<ItemType> promoItems = List.of(
-                ItemType.LENT,
-                ItemType.SWAP,
-                ItemType.EXTENSION,
-                ItemType.PENALTY_EXEMPTION);
+                ItemType.LENT);
 
         List<ItemHistory> tickets = new java.util.ArrayList<>();
 
         for (ItemType type : promoItems) {
             itemRepository.findByType(type)
                     .ifPresentOrElse(item -> {
-                        for (int i = 0; i < 10; i++) {
+                        // Changed from 10 to 1
+                        for (int i = 0; i < 1; i++) {
                             tickets.add(new ItemHistory(LocalDateTime.now(), null, user, item));
                         }
                     }, () -> log.warn("⚠️ [Beta] 지급 실패: DB에 {} 타입 아이템이 없습니다.", type));
