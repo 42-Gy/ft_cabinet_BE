@@ -6,7 +6,7 @@ on:
       - master
 
 env:
-  AZURE_WEBAPP_NAME: 'ft-cabinet-server'
+  AZURE_WEBAPP_NAME: 'subak-server'
   JAVA_VERSION: '17'
 
 permissions:
