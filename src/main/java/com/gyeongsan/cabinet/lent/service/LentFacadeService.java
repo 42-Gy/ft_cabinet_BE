@@ -175,7 +175,7 @@ public class LentFacadeService {
         lentHistory.endLent(LocalDateTime.now(), previousPassword);
         lentHistory.setPhotoUrl(photoUrl);
 
-        if (cabinet.getStatus() == CabinetStatus.FULL) {
+        if (cabinet.getStatus() == CabinetStatus.FULL || cabinet.getStatus() == CabinetStatus.OVERDUE) {
             cabinet.updateStatus(CabinetStatus.AVAILABLE);
         }
 
@@ -186,6 +186,9 @@ public class LentFacadeService {
     @Transactional
     public void useExtension(Long userId) {
         log.info("연장권 사용 시도 - User: {}", userId);
+
+        userRepository.findByIdWithLock(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
