@@ -323,6 +323,13 @@ erDiagram
         LocalDateTime createdAt "생성일"
         Long announcer_id FK "작성자(User)"
     }
+
+    BANNED_USER {
+        Long id PK
+        String intraId "차단된 유저 인트라 ID"
+        String reason "차단 사유"
+        LocalDateTime bannedAt "차단 일시"
+    }
 ```
 
 <br>
