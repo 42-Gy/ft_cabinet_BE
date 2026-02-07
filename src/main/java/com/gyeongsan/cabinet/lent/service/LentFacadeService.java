@@ -274,6 +274,10 @@ public class LentFacadeService {
             throw new ServiceException(ErrorCode.OVERDUE_USER_CANNOT_SWAP);
         }
 
+        if (user.getPenaltyDays() > 0) {
+            throw new ServiceException(ErrorCode.PENALTY_USER);
+        }
+
         if (oldLent.getCabinet().getVisibleNum().equals(newVisibleNum)) {
             throw new ServiceException(ErrorCode.SAME_CABINET_SWAP);
         }
