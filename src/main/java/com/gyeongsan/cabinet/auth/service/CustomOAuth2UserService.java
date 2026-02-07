@@ -31,6 +31,8 @@ import java.util.Map;
 @Log4j2
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
+    private static final String ALLOWED_EMAIL_DOMAIN = "42gyeongsan.kr";
+
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final ItemHistoryRepository itemHistoryRepository;
@@ -43,6 +45,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         String intraId = (String) attributes.get("login");
         String email = (String) attributes.get("email");
+
+        // 🔒 42경산 유저만 허용 (학생 + 직원)
+        if (email == null || !email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
+            log.warn("🚫 비경산 유저 로그인 시도 차단: {} ({})", intraId, email);
+            throw new OAuth2AuthenticationException("42경산 캠퍼스 유저만 사용할 수 있습니다.");
+        }
 
         LocalDateTime blackholedAt = extractBlackholedAt(attributes);
 
@@ -103,25 +111,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private void giveWelcomeGift(User user) {
-        // Coin removed or reduced as requested
-        // user.addCoin(10000L);
-
-        List<ItemType> promoItems = List.of(
-                ItemType.LENT);
-
+        List<ItemType> promoItems = List.of(ItemType.LENT);
         List<ItemHistory> tickets = new java.util.ArrayList<>();
 
         for (ItemType type : promoItems) {
             itemRepository.findByType(type)
                     .ifPresentOrElse(item -> {
-                        // Changed from 10 to 1
-                        for (int i = 0; i < 1; i++) {
-                            tickets.add(new ItemHistory(LocalDateTime.now(), null, user, item));
-                        }
+                        tickets.add(new ItemHistory(LocalDateTime.now(), null, user, item));
                     }, () -> log.warn("⚠️ [Beta] 지급 실패: DB에 {} 타입 아이템이 없습니다.", type));
         }
 
         itemHistoryRepository.saveAll(tickets);
-        log.info("🚀 [Beta Start] 유저 {}님께 10,000코인 + 아이템 {}개 지급 완료", user.getName(), tickets.size());
+        log.info("🎁 신규 유저 {}님께 웰컴 아이템 {}개 지급 완료", user.getName(), tickets.size());
     }
 }
