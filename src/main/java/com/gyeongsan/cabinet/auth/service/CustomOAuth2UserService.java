@@ -18,6 +18,7 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -32,7 +33,8 @@ import java.util.Map;
 @Log4j2
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
-    private static final String ALLOWED_EMAIL_DOMAIN = "42gyeongsan.kr";
+    @Value("${auth.allowed-email-domain}")
+    private String allowedEmailDomain;
 
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
@@ -48,7 +50,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String intraId = (String) attributes.get("login");
         String email = (String) attributes.get("email");
 
-        if (email == null || !email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
+        if (email == null || !email.endsWith(allowedEmailDomain)) {
             log.warn("🚫 비경산 유저 로그인 시도 차단: {} ({})", intraId, email);
             throw new OAuth2AuthenticationException("42경산 캠퍼스 유저만 사용할 수 있습니다.");
         }

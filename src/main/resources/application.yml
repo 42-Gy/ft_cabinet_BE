@@ -113,6 +113,11 @@ management:
 
 jwt:
   secret: ${JWT_SECRET}
+  access-token-validity: 1800000
+  refresh-token-validity: 1209600000
+
+auth:
+  allowed-email-domain: 42gyeongsan.kr
 
 slack:
   token: ${SLACK_BOT_TOKEN}
@@ -148,6 +153,14 @@ resilience4j:
         timeoutDuration: 5s
       userApi:
         limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0s
+      storeApi:
+        limitForPeriod: 3
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0s
+      lentApi:
+        limitForPeriod: 5
         limitRefreshPeriod: 1s
         timeoutDuration: 0s
 

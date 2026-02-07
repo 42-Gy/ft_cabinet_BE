@@ -31,14 +31,17 @@ public class JwtTokenProvider {
     private final UserRepository userRepository;
 
     private Key key;
-    private final long TOKEN_VALID_TIME = 30 * 60 * 1000L;
-    private final long REFRESH_TOKEN_VALID_TIME = 14 * 24 * 60 * 60 * 1000L;
+
+    @Value("${jwt.access-token-validity}")
+    private long tokenValidTime;
+
+    @Value("${jwt.refresh-token-validity}")
+    private long refreshTokenValidTime;
 
     @PostConstruct
     public void init() {
-        byte[] keyBytes =
-                Decoders.BASE64.decode(
-                        java.util.Base64.getEncoder().encodeToString(secretKey.getBytes()));
+        byte[] keyBytes = Decoders.BASE64.decode(
+                java.util.Base64.getEncoder().encodeToString(secretKey.getBytes()));
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -51,7 +54,7 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(now)
-                .setExpiration(new Date(now.getTime() + TOKEN_VALID_TIME))
+                .setExpiration(new Date(now.getTime() + tokenValidTime))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -63,7 +66,7 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(now)
-                .setExpiration(new Date(now.getTime() + REFRESH_TOKEN_VALID_TIME))
+                .setExpiration(new Date(now.getTime() + refreshTokenValidTime))
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }

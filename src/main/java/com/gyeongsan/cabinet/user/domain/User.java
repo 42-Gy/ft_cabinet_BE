@@ -97,7 +97,8 @@ public class User {
 
     public void useCoin(Long amount) {
         if (this.coin < amount) {
-            throw new IllegalArgumentException("씨앗이 부족합니다! (현재: " + this.coin + ")");
+            throw new IllegalArgumentException(
+                    String.format("씨앗이 부족합니다! 필요: %d개, 보유: %d개", amount, this.coin));
         }
         this.coin -= amount;
     }
