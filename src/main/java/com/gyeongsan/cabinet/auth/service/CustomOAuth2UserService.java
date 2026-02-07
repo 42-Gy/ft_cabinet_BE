@@ -56,8 +56,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         if (bannedUserRepository.existsByIntraId(intraId)) {
-            log.warn("🚫 블랙리스트 유저 로그인 시도 차단: {}", intraId);
-            throw new OAuth2AuthenticationException("서비스 이용이 제한된 유저입니다. 관리자에게 문의하세요.");
+            log.warn("🚫 벤 유저 로그인 시도 차단: {}", intraId);
+            throw new OAuth2AuthenticationException("벤 처리된 유저입니다. 관리자에게 문의하세요.");
         }
 
         LocalDateTime blackholedAt = extractBlackholedAt(attributes);
