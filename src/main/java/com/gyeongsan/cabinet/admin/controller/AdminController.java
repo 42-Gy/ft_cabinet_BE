@@ -225,6 +225,23 @@ public class AdminController {
         return ApiResponse.success("씨앗 회수 완료");
     }
 
+    @GetMapping("/banned-users")
+    public ApiResponse<List<BannedUserResponse>> getBannedUsers() {
+        return ApiResponse.success(adminService.getBannedUsers());
+    }
+
+    @PostMapping("/banned-users")
+    public ApiResponse<String> addBannedUser(@RequestBody BanUserRequest request) {
+        adminService.addBannedUser(request.intraId(), request.reason());
+        return ApiResponse.success("블랙리스트 등록 완료");
+    }
+
+    @DeleteMapping("/banned-users/{intraId}")
+    public ApiResponse<String> removeBannedUser(@PathVariable String intraId) {
+        adminService.removeBannedUser(intraId);
+        return ApiResponse.success("블랙리스트 해제 완료");
+    }
+
     public record UserLogtimeRequest(Integer monthlyLogtime) {
     }
 

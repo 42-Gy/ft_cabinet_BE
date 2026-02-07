@@ -671,6 +671,13 @@ sequenceDiagram
 | `POST` | `/v4/admin/calendar/events` | **[NEW]** 일정 등록 |
 | `PUT` | `/v4/admin/calendar/events/{id}` | **[NEW]** 일정 수정 |
 | `DELETE` | `/v4/admin/calendar/events/{id}` | **[NEW]** 일정 삭제 |
+| `GET` | `/v4/admin/banned-users` | **[NEW]** 블랙리스트 유저 목록 조회 |
+| `POST` | `/v4/admin/banned-users` | **[NEW]** 블랙리스트 유저 등록 (intraId로 차단) |
+| `DELETE` | `/v4/admin/banned-users/{intraId}` | **[NEW]** 블랙리스트 유저 해제 |
+
+> **블랙리스트 API:**
+> * **차단 방식:** `intraId` (42 로그인 이름)로 차단. 차단된 유저가 로그인 시도 시 OAuth 에러 발생.
+> * 요청 예시 (등록): `{ "intraId": "username", "reason": "차단 사유" }`
 
 <br>
 

@@ -19,8 +19,10 @@ import com.gyeongsan.cabinet.lent.domain.LentHistory;
 import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.domain.UserRole;
+import com.gyeongsan.cabinet.user.domain.BannedUser;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
 import com.gyeongsan.cabinet.user.repository.AttendanceRepository;
+import com.gyeongsan.cabinet.user.repository.BannedUserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.domain.Page;
@@ -50,6 +52,7 @@ public class AdminService {
         private final SlackBotService slackBotService;
         private final AttendanceRepository attendanceRepository;
         private final CoinHistoryRepository coinHistoryRepository;
+        private final BannedUserRepository bannedUserRepository;
 
         @Transactional(readOnly = true)
         public AdminDashboardResponse getDashboard() {
@@ -539,5 +542,31 @@ public class AdminService {
                                 LocalDateTime.now());
 
                 return new AdminItemUsageStatsResponse(itemStats, attendanceCount, watermelonCount);
+        }
+
+        @Transactional(readOnly = true)
+        public List<BannedUserResponse> getBannedUsers() {
+                return bannedUserRepository.findAll()
+                                .stream()
+                                .map(BannedUserResponse::from)
+                                .collect(Collectors.toList());
+        }
+
+        public void addBannedUser(String intraId, String reason) {
+                if (bannedUserRepository.existsByIntraId(intraId)) {
+                        throw new ServiceException(ErrorCode.USER_ALREADY_BANNED);
+                }
+
+                BannedUser bannedUser = BannedUser.of(intraId, reason);
+                bannedUserRepository.save(bannedUser);
+                log.info("[Admin] 유저({}) 블랙리스트 추가. 사유: {}", intraId, reason);
+        }
+
+        public void removeBannedUser(String intraId) {
+                BannedUser bannedUser = bannedUserRepository.findByIntraId(intraId)
+                                .orElseThrow(() -> new ServiceException(ErrorCode.BANNED_USER_NOT_FOUND));
+
+                bannedUserRepository.delete(bannedUser);
+                log.info("[Admin] 유저({}) 블랙리스트 해제", intraId);
         }
 }

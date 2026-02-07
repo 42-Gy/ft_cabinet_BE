@@ -37,7 +37,10 @@ public enum ErrorCode {
     INVALID_IMAGE(HttpStatus.BAD_REQUEST, "AI_003", "사물함 사진이 아닙니다. 올바른 사진을 촬영해주세요."),
 
     EXTENSION_ITEM_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "ITEM_007", "연장권 보유 개수 초과입니다."),
-    EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "ITEM_008", "연장권 월간 구매 한도 초과입니다.");
+    EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "ITEM_008", "연장권 월간 구매 한도 초과입니다."),
+
+    USER_ALREADY_BANNED(HttpStatus.BAD_REQUEST, "BAN_001", "이미 블랙리스트에 등록된 유저입니다."),
+    BANNED_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "BAN_002", "블랙리스트에 해당 유저가 없습니다.");
 
     private final HttpStatus status;
     private final String code;
