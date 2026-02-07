@@ -1,5 +1,5 @@
 
-# 🗄️ 42Cabi Gyeongsan Ver 5.1
+# 🗄️ 42Cabi Gyeongsan Ver 1.0
 
 > **42 경산 캠퍼스 지능형 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성, 공정한 이용, 게임화(Gamification), 그리고 **시스템의 안정성**을 모두 갖춘 REST API 서버입니다.
@@ -343,19 +343,16 @@ erDiagram
 
 | 버전 | 주요 변화 | 상세 내용 |
 | :--- | :--- | :--- |
-| **Ver 1.0** | **MVP** | 핵심 대여/반납 로직 구현, DB 비관적 락(Pessimistic Lock) 적용 |
-| **Ver 2.0** | **Security** | 민감 정보 분리(`.env`), 스케줄러 N+1 문제 해결, 로깅 시스템 구축 |
-| **Ver 3.0** | **Auth** | **Spring Security + JWT** 도입 (Stateless 전환), 42 OAuth2 연동 |
-| **Ver 4.0** | **Gamification** | **패널티($D*3$)**, **아이템 상점(이사/연장/감면)** 구현 |
-| **Ver 4.8** | **AI & Admin** | **AI 청결도 검사**, **Exif 보안**, 관리자 수동 승인 프로세스, 블랙홀 유저 보호 |
-| **Ver 5.0** | **Infra & DevOps** | **Docker Compose**, **Nginx**(Reverse Proxy), **Prometheus & Grafana**(Monitoring) 도입 |
-| **Ver 5.1** | **Stability & UX** | **반납/이사 사유 입력**, **코인 동시성 제어(낙관적 락)** 보안 패치 |
-| **Ver 5.2** | **Auto-Extension & Scheduler** | **자동 연장 시스템**, **스케줄러 고도화(D-7/D-1 알림)**, 관리자 모니터링 API 추가 |
-| **Ver 5.3** | **Logic Refinement** | **블랙홀 유예(D+7)**, **스케줄러 최적화(시간분산)**, **Intra ID 알림**, 블랙홀 대여제한 해제 |
-| **Ver 5.4** | **Camera & Security** | **인앱 카메라 전용 모드(In-App Only)**, **Exif 의존성 제거**, **익명 요청 정보 마스킹**, 배포 안정성 강화(DB Init Disable) |
-| **Ver 5.5** | **CoinHistory & Statistics** | **코인 거래 추적 시스템**, **주간 재화 흐름 통계 API**, **아이템 사용 현황 통계 API**, 모든 코인 거래를 타임스탬프와 함께 기록 |
-| **Ver 5.6** | **MyPage & Logtime** | **마이페이지 재화/아이템 사용 이력 추가**, **재화 사용 상세 사유(Description) 기록**, **로그타임 월말 세션 분리(Spanning Session) 버그 수정** |
-| **Ver 5.7** | **New Features & Audit** | **관리자 전체 유저 조회**, **캘린더 일정 관리 시스템**, **반납 사진 감사(Audit) 기능**, 관리자 기능 강화 |
+| **Ver 0.1** | **MVP** | 핵심 대여/반납 로직 구현, DB 비관적 락(Pessimistic Lock) 적용 |
+| **Ver 0.2** | **Security** | 민감 정보 분리(`.env`), 스케줄러 N+1 문제 해결, 로깅 시스템 구축 |
+| **Ver 0.3** | **Auth** | **Spring Security + JWT** 도입 (Stateless 전환), 42 OAuth2 연동 |
+| **Ver 0.4** | **Gamification** | **패널티($D*3$)**, **아이템 상점(이사/연장/감면)** 구현 |
+| **Ver 0.5** | **AI & Admin** | **AI 청결도 검사**, **Exif 보안**, 관리자 수동 승인 프로세스, 블랙홀 유저 보호 |
+| **Ver 0.6** | **Infra & DevOps** | **Docker Compose**, **Nginx**(Reverse Proxy), **Prometheus & Grafana**(Monitoring) 도입 |
+| **Ver 0.7** | **Stability & UX** | **반납/이사 사유 입력**, **코인 동시성 제어(낙관적 락)** 보안 패치 |
+| **Ver 0.8** | **Auto-Extension** | **자동 연장 시스템**, **스케줄러 고도화(D-7/D-1 알림)**, 관리자 모니터링 API 추가 |
+| **Ver 0.9** | **Logic Refinement** | **블랙홀 유예(D+7)**, **스케줄러 최적화(시간분산)**, **Intra ID 알림**, 블랙홀 대여제한 해제 |
+| **Ver 1.0** | **Production Release** | **인앱 카메라 전용 모드**, **코인 거래 추적 시스템**, **캘린더 일정 관리**, **블랙리스트 관리 API**, Rate Limiting, 하드코딩 값 외부화 등 프로덕션 안정화 완료 |
 
 <br>
 
