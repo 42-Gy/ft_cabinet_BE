@@ -1,3 +1,23 @@
+-- 블랙리스트 유저 (사물함 미정리)
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (1, 'hylim', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (2, 'jehbae', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (3, 'dong-hki', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (4, 'hugim', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (5, 'chakim', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (6, 'seoyokim', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (7, 'junkwak', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (8, 'jungeim', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (9, 'joonchoi', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (10, 'jakim', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (11, 'seunbaek', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (12, 'woohkim', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (13, 'jupyo', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (14, 'bjeong', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (15, 'hchin', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (16, 'cpyo', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (17, 'hekwon', '사물함 미정리', NOW());
+INSERT IGNORE INTO banned_user (id, intra_id, reason, banned_at) VALUES (18, 'seungele', '사물함 미정리', NOW());
+
 INSERT IGNORE INTO user (
         id,
         blackholed_at,

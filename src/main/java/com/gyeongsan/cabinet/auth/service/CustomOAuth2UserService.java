@@ -7,6 +7,7 @@ import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
 import com.gyeongsan.cabinet.item.repository.ItemRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.domain.UserRole;
+import com.gyeongsan.cabinet.user.repository.BannedUserRepository;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -36,6 +37,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final ItemHistoryRepository itemHistoryRepository;
+    private final BannedUserRepository bannedUserRepository;
 
     @Override
     @Transactional
@@ -46,10 +48,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String intraId = (String) attributes.get("login");
         String email = (String) attributes.get("email");
 
-        // 🔒 42경산 유저만 허용 (학생 + 직원)
         if (email == null || !email.endsWith(ALLOWED_EMAIL_DOMAIN)) {
             log.warn("🚫 비경산 유저 로그인 시도 차단: {} ({})", intraId, email);
             throw new OAuth2AuthenticationException("42경산 캠퍼스 유저만 사용할 수 있습니다.");
+        }
+
+        if (bannedUserRepository.existsByIntraId(intraId)) {
+            log.warn("🚫 블랙리스트 유저 로그인 시도 차단: {}", intraId);
+            throw new OAuth2AuthenticationException("서비스 이용이 제한된 유저입니다. 관리자에게 문의하세요.");
         }
 
         LocalDateTime blackholedAt = extractBlackholedAt(attributes);
