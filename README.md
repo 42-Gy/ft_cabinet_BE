@@ -250,9 +250,10 @@ erDiagram
 
     USER {
         Long id PK
-        String name "유니크 (인트라 ID)"
-        String email "유니크 (이메일)"
-        String role "권한 (USER, ADMIN, MASTER)"
+        Long version "낙관적 락 버전"
+        String name "유니크 - 인트라 ID"
+        String email "유니크 - 이메일"
+        String role "권한 - USER ADMIN MASTER"
         Long coin "보유 코인"
         Integer penaltyDays "패널티 일수"
         Integer monthlyLogtime "월간 접속 시간"
@@ -260,7 +261,7 @@ erDiagram
         LocalDateTime deletedAt "탈퇴 날짜"
         boolean slackAlarm "슬랙 알림 여부"
         boolean emailAlarm "이메일 알림 여부"
-        Long version "낙관적 락 버전"
+        boolean pushAlarm "푸시 알림 여부"
     }
 
     ATTENDANCE {
@@ -271,47 +272,51 @@ erDiagram
 
     LENT_HISTORY {
         Long id PK
-        Long user_id FK
-        Long cabinet_id FK
+        Long user_id FK "유저 ID"
+        Long cabinet_id FK "사물함 ID"
         LocalDateTime startedAt "대여 시작일"
         LocalDateTime expiredAt "대여 만료일"
-        LocalDateTime endedAt "반납일 (null이면 대여중)"
+        LocalDateTime endedAt "반납일 - null이면 대여중"
         String returnMemo "반납 시 메모"
+        boolean isAutoExtension "자동 연장 설정"
+        String photoUrl "반납 사진 URL"
     }
 
     CABINET {
         Long id PK
-        Integer visibleNum "사물함 번호 (보이는 번호)"
-        String status "상태 (AVAILABLE, FULL...)"
-        String lentType "타입 (PRIVATE, SHARE...)"
+        Integer visibleNum "사물함 번호"
+        String status "상태 - AVAILABLE FULL BROKEN PENDING DISABLED"
+        String lentType "타입 - PRIVATE SHARE"
         Integer maxUser "최대 수용 인원"
-        String statusNote "상태 비고 (고장 사유 등)"
+        String statusNote "상태 비고"
         Integer floor "층"
         String section "구역"
+        Integer row "그리드 행 위치"
+        Integer col "그리드 열 위치"
     }
 
     ITEM {
         Long id PK
         String name "아이템 이름"
-        String type "타입 (EXTENSION, SWAP...)"
+        String type "타입 - EXTENSION SWAP LENT EXEMPTION"
         Long price "가격"
         String description "설명"
     }
 
     ITEM_HISTORY {
         Long id PK
-        Long user_id FK
-        Long item_id FK
+        Long user_id FK "유저 ID"
+        Long item_id FK "아이템 ID"
         LocalDateTime purchaseAt "구매 일시"
-        LocalDateTime usedAt "사용 일시 (null이면 미사용)"
+        LocalDateTime usedAt "사용 일시 - null이면 미사용"
     }
 
     COIN_HISTORY {
         Long id PK
-        Long user_id FK
-        Long amount "거래량 (양수: 지급, 음수: 사용)"
-        String type "거래 타입 (ATTENDANCE, WATERMELON, ITEM_PURCHASE, ADMIN_GRANT, ADMIN_REVOKE)"
-        String description "상세 사유 (아이템명, 보상명 등)"
+        Long user_id FK "유저 ID"
+        Long amount "거래량 - 양수 지급 음수 사용"
+        String type "ATTENDANCE WATERMELON ITEM_PURCHASE ADMIN_GRANT ADMIN_REVOKE"
+        String description "상세 사유"
         LocalDateTime createdAt "거래 발생 시각"
     }
 
@@ -321,7 +326,7 @@ erDiagram
         String description "상세 설명"
         LocalDate eventDate "일정 날짜"
         LocalDateTime createdAt "생성일"
-        Long announcer_id FK "작성자(User)"
+        Long announcer_id FK "작성자 User"
     }
 
     BANNED_USER {
