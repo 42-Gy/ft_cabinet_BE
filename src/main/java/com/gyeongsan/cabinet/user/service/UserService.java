@@ -193,7 +193,7 @@ public class UserService {
                 if (currentLentCount < 1) {
                     ItemHistory reward = new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
                     itemHistoryRepository.save(reward);
-                    log.info("🎉 [Reward] {}님 지난달 50시간 달성! 대여권 지급 완료.", user.getName());
+                    log.info("🎉 [Reward] {}님 지난달 80시간 달성! 대여권 지급 완료.", user.getName());
                 } else {
                     log.info("⚠️ [Skip] {}님 대여권 이미 보유 중 (최대 1개). 지급 생략.", user.getName());
                 }
