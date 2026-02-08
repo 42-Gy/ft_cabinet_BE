@@ -119,7 +119,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     }
 
     private void giveWelcomeGift(User user) {
-        List<ItemType> promoItems = List.of(ItemType.LENT);
+        List<ItemType> promoItems = List.of(ItemType.LENT, ItemType.LENT);
         List<ItemHistory> tickets = new java.util.ArrayList<>();
 
         for (ItemType type : promoItems) {
