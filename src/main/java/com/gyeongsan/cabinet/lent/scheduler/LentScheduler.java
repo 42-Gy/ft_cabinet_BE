@@ -37,7 +37,7 @@ public class LentScheduler {
     @Value("${cabinet.policy.lent-term}")
     private Integer lentTerm;
 
-    @Scheduled(cron = "0 40 1 * * *")
+    @Scheduled(cron = "0 55 9 * * *")
     @Transactional
     public void autoExtension() {
         log.info("🔔 [Daily] 자동 연장 프로세스 시작...");
