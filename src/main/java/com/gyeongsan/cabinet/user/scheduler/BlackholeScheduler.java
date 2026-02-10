@@ -22,7 +22,7 @@ public class BlackholeScheduler {
     private final LentFacadeService lentFacadeService;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Scheduled(cron = "0 15 6 * * *")
+    // @Scheduled(cron = "0 15 6 * * *")
     public void processBlackholedUsers() {
         log.info("블랙홀 대상 유저 체크 시작");
         LocalDateTime now = LocalDateTime.now();
