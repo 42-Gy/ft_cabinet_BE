@@ -29,6 +29,13 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Inject Slack Users CSV
+        env:
+          CSV_DATA: ${{ secrets.SLACK_USERS_CSV }}
+        run: |
+          mkdir -p src/main/resources
+          echo "$CSV_DATA" > src/main/resources/slack_users.csv
+
       - name: Build with Gradle
         run: ./gradlew clean build -x test
 
