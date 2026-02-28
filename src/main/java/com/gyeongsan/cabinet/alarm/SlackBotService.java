@@ -11,8 +11,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import jakarta.annotation.PostConstruct;
+import org.springframework.core.io.ClassPathResource;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Log4j2
@@ -22,6 +28,37 @@ public class SlackBotService {
     private String botToken;
 
     private final RestTemplate restTemplate = new RestTemplate();
+    private final Map<String, String> slackUserIdMap = new ConcurrentHashMap<>();
+
+    @PostConstruct
+    public void init() {
+        try {
+            ClassPathResource resource = new ClassPathResource("slack_users.csv");
+            if (resource.exists()) {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
+                    String line;
+                    boolean isFirstLine = true;
+                    while ((line = br.readLine()) != null) {
+                        if (isFirstLine) {
+                            isFirstLine = false;
+                            continue;
+                        }
+                        String[] parts = line.split(",");
+                        if (parts.length >= 2) {
+                            String login = parts[0].trim();
+                            String slackId = parts[1].trim();
+                            slackUserIdMap.put(login, slackId);
+                        }
+                    }
+                }
+                log.info("✅ 내부 CSV 파일 내 슬랙 유저 매핑 완료: {}명", slackUserIdMap.size());
+            } else {
+                log.warn("⚠️ 'slack_users.csv' 파일이 없어 기존 API 탐색 방식으로 구동합니다.");
+            }
+        } catch (Exception e) {
+            log.error("❌ 슬랙 유저 매핑 파일 읽기 실패: {}", e.getMessage());
+        }
+    }
 
     public void sendDm(String intraId, String messageContent) {
         try {
@@ -40,6 +77,10 @@ public class SlackBotService {
     }
 
     private String findSlackIdByIntraId(String intraId) {
+        if (slackUserIdMap.containsKey(intraId)) {
+            return slackUserIdMap.get(intraId);
+        }
+
         String url = "https://slack.com/api/users.list";
 
         HttpHeaders headers = new HttpHeaders();

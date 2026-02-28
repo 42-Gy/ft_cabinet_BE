@@ -62,3 +62,4 @@ src/main/resources/data.sql
 
 # 5. Etc
 reset_script.sql
+src/main/resources/slack_users.csv
