@@ -93,11 +93,11 @@ public class FtApiManager {
                 return requestLocationStats(url, startDate, endDate);
             } catch (Exception ex) {
                 log.error("❌ 재시도 실패 ({}): {}", intraId, ex.getMessage());
-                return 0;
+                return -1;
             }
         } catch (Exception e) {
             log.error("❌ API 호출 실패 ({}): {}", intraId, e.getMessage());
-            return 0;
+            return -1;
         }
     }
 
