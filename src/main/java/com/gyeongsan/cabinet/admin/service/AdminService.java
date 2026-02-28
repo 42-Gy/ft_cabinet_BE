@@ -295,16 +295,6 @@ public class AdminService {
                 log.info("[Admin] 긴급 공지 전송 완료. 대상: {}명, 성공: {}명", activeLents.size(), successCount);
         }
 
-        public void sendTestDm(String intraId, String message) {
-                try {
-                        slackBotService.sendDm(intraId, "[Cabi 테스트 알림] " + message);
-                        log.info("[Admin] {}님에게 테스트 DM 1건 전송 시도 완료.", intraId);
-                } catch (Exception e) {
-                        log.error("Test DM send failed for user {}: {}", intraId, e.getMessage());
-                        throw new ServiceException(ErrorCode.ALARM_SEND_FAILED);
-                }
-        }
-
         @Transactional(readOnly = true)
         public AdminWeeklyStatsResponse getWeeklyStats() {
                 LocalDateTime now = LocalDateTime.now();

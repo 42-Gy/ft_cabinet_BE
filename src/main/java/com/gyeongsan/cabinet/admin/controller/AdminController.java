@@ -178,14 +178,6 @@ public class AdminController {
         return ApiResponse.success("긴급 공지 발송 완료 (현재 대여중인 유저 대상)");
     }
 
-    @PostMapping("/alarm/test/{intraId}")
-    public ApiResponse<String> sendTestDm(
-            @PathVariable String intraId,
-            @RequestBody EmergencyNoticeRequest request) { // 동일한 Request 재사용
-        adminService.sendTestDm(intraId, request.message());
-        return ApiResponse.success("테스트 DM 전송 시도 완료: " + intraId);
-    }
-
     @GetMapping("/cabinets/{visibleNum}/history")
     public ApiResponse<Page<CabinetHistoryResponse>> getCabinetHistory(
             @PathVariable Integer visibleNum,
