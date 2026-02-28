@@ -53,7 +53,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     defer-datasource-initialization: true
     properties:
       hibernate:
@@ -82,7 +82,7 @@ spring:
 
 cabinet:
   policy:
-    lent-term: 10
+    lent-term: 31
     extension-term: 3
   items:
     extension-price: 400
