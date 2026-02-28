@@ -42,6 +42,8 @@ public enum ErrorCode {
     USER_ALREADY_BANNED(HttpStatus.BAD_REQUEST, "BAN_001", "이미 블랙리스트에 등록된 유저입니다."),
     BANNED_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "BAN_002", "블랙리스트에 해당 유저가 없습니다."),
 
+    ALARM_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ALARM_001", "알림 전송에 실패했습니다."),
+
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "RATE_001", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
 
     private final HttpStatus status;
