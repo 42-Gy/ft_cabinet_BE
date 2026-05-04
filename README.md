@@ -1,5 +1,5 @@
 
-# 🗄️ 42Cabi Gyeongsan Ver 1.0
+# 🗄️ 42Cabi Gyeongsan Ver 1.1
 
 > **42 경산 캠퍼스 지능형 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성, 공정한 이용, 게임화(Gamification), 그리고 **시스템의 안정성**을 모두 갖춘 REST API 서버입니다.
@@ -265,8 +265,6 @@ graph LR
     EXT -.->|구현| PORT_OUT
     CACHE -.->|구현| PORT_OUT
 ```
-
-> **핵심 원칙:** 모든 화살표가 안쪽(Domain)을 향합니다. Domain 계층은 외부 기술에 대해 아무것도 모릅니다.
 
 <br>
 
