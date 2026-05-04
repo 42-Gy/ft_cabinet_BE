@@ -120,7 +120,7 @@ flowchart TD
 
 ## 📂 Project Structure (상세 프로젝트 구조)
 
-> **Core Architecture:** Hexagonal Architecture (Ports & Adapters)<br>
+> **Core Architecture:** Hexagonal Architecture<br>
 > 도메인 로직이 외부 인프라(DB, Redis, AI, Slack 등)에 의존하지 않도록 **Port 인터페이스**로 추상화하고,<br>
 > 각 인프라 기술을 **Adapter**로 분리하여 테스트 용이성과 교체 가능성을 확보했습니다.
 
