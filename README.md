@@ -120,106 +120,153 @@ flowchart TD
 
 ## 📂 Project Structure (상세 프로젝트 구조)
 
-> **Core Architecture:** Layered Architecture (Controller - Service - Repository)<br>
-> **Infra Updates:** `nginx`, `prometheus` 설정 및 보안 패치 완료.
+> **Core Architecture:** Hexagonal Architecture (Ports & Adapters)<br>
+> 도메인 로직이 외부 인프라(DB, Redis, AI, Slack 등)에 의존하지 않도록 **Port 인터페이스**로 추상화하고,<br>
+> 각 인프라 기술을 **Adapter**로 분리하여 테스트 용이성과 교체 가능성을 확보했습니다.
 
 ```text
 .
-├── .github
-│   └── workflows
-│       └── gradle.yml              # Github Actions CI/CD 파이프라인
-├── .env                            # [Secret] DB, TimeZone, Root Password
-├── build.gradle                    # 의존성: WebFlux, Actuator, Resilience4j, QueryDSL
-├── docker-compose.yaml             # [Infra] Full Stack Orchestration (App, DB, Nginx, Monitoring)
-├── nginx
-│   └── conf.d
-│       └── default.conf            # [Infra] Nginx Reverse Proxy Config
-├── prometheus
-│   └── prometheus.yml              # [Infra] Monitoring Config
+├── .github/workflows/gradle.yml        # Github Actions CI/CD 파이프라인
+├── .env                                # [Secret] DB, TimeZone, Root Password
+├── build.gradle                        # 의존성: WebFlux, Actuator, Resilience4j
+├── docker-compose.yaml                 # [Infra] Full Stack Orchestration
+├── nginx/conf.d/default.conf           # [Infra] Nginx Reverse Proxy Config
+├── prometheus/prometheus.yml           # [Infra] Monitoring Config
 ├── src
 │   ├── main
 │   │   ├── java/com/gyeongsan/cabinet
-│   │   │   ├── CabinetApplication.java  # 메인 실행 파일 (@EnableAsync)
+│   │   │   ├── CabinetApplication.java
 │   │   │   │
-│   │   │   ├── admin               # [Admin] 관리자 도메인
-│   │   │   │   ├── controller/AdminController.java   # 강제 반납, 가격 변경 API
+│   │   │   ├── domain                  # ═══ 도메인 계층 (핵심 비즈니스) ═══
+│   │   │   │   ├── cabinet
+│   │   │   │   │   ├── port/in/CabinetQueryUseCase.java      # Inbound Port
+│   │   │   │   │   ├── port/out/CabinetRepositoryPort.java   # Outbound Port
+│   │   │   │   │   └── service/CabinetDomainService.java     # 도메인 서비스
+│   │   │   │   ├── user
+│   │   │   │   │   ├── port/in/UserUseCase.java
+│   │   │   │   │   ├── port/out/UserRepositoryPort.java
+│   │   │   │   │   ├── port/out/AttendanceRepositoryPort.java
+│   │   │   │   │   ├── port/out/BannedUserRepositoryPort.java
+│   │   │   │   │   └── service/UserDomainService.java
+│   │   │   │   ├── lent
+│   │   │   │   │   ├── port/in/LentUseCase.java
+│   │   │   │   │   ├── port/out/LentRepositoryPort.java
+│   │   │   │   │   ├── port/out/ReservationPort.java         # Redis 추상화
+│   │   │   │   │   ├── port/out/ImageUploadPort.java         # Azure 추상화
+│   │   │   │   │   ├── port/out/AiCheckPort.java             # AI 서버 추상화
+│   │   │   │   │   └── port/out/FtApiPort.java               # 42 API 추상화
+│   │   │   │   ├── item
+│   │   │   │   │   ├── port/in/StoreUseCase.java
+│   │   │   │   │   ├── port/out/ItemRepositoryPort.java
+│   │   │   │   │   ├── port/out/ItemHistoryRepositoryPort.java
+│   │   │   │   │   └── service/StoreDomainService.java
+│   │   │   │   ├── coin
+│   │   │   │   │   └── port/out/CoinHistoryRepositoryPort.java
+│   │   │   │   ├── calendar
+│   │   │   │   │   ├── port/in/CalendarUseCase.java
+│   │   │   │   │   ├── port/out/CalendarEventRepositoryPort.java
+│   │   │   │   │   └── service/CalendarDomainService.java
+│   │   │   │   └── alarm
+│   │   │   │       └── port/out/AlarmPort.java                # 알림 추상화
+│   │   │   │
+│   │   │   ├── application             # ═══ 애플리케이션 계층 (유스케이스 조합) ═══
+│   │   │   │   └── lent
+│   │   │   │       └── LentApplicationService.java   # 대여 프로세스 오케스트레이션
+│   │   │   │
+│   │   │   ├── adapter                 # ═══ 어댑터 계층 (인프라 구현체) ═══
+│   │   │   │   ├── in/web              # --- Inbound Adapter (Controller) ---
+│   │   │   │   │   ├── CabinetController.java
+│   │   │   │   │   ├── UserController.java
+│   │   │   │   │   ├── LentController.java
+│   │   │   │   │   ├── StoreController.java
+│   │   │   │   │   ├── CalendarEventController.java
+│   │   │   │   │   └── AdminController.java
+│   │   │   │   ├── out/persistence     # --- Outbound Adapter (DB) ---
+│   │   │   │   │   ├── cabinet/CabinetPersistenceAdapter.java
+│   │   │   │   │   ├── user/UserPersistenceAdapter.java
+│   │   │   │   │   ├── user/AttendancePersistenceAdapter.java
+│   │   │   │   │   ├── user/BannedUserPersistenceAdapter.java
+│   │   │   │   │   ├── lent/LentPersistenceAdapter.java
+│   │   │   │   │   ├── item/ItemPersistenceAdapter.java
+│   │   │   │   │   ├── item/ItemHistoryPersistenceAdapter.java
+│   │   │   │   │   ├── coin/CoinHistoryPersistenceAdapter.java
+│   │   │   │   │   └── calendar/CalendarEventPersistenceAdapter.java
+│   │   │   │   ├── out/external        # --- Outbound Adapter (외부 서비스) ---
+│   │   │   │   │   ├── ai/AiServerAdapter.java       # AI 서버 통신
+│   │   │   │   │   ├── azure/AzureBlobAdapter.java    # Azure 이미지 업로드
+│   │   │   │   │   ├── slack/SlackAlarmAdapter.java    # Slack DM 전송
+│   │   │   │   │   └── ft/FtApiAdapter.java            # 42 API 통신
+│   │   │   │   └── out/cache           # --- Outbound Adapter (캐시) ---
+│   │   │   │       └── redis/ReservationRedisAdapter.java  # 사물함 예약
+│   │   │   │
+│   │   │   ├── admin                   # [Admin] 관리자 (기존 구조 유지)
+│   │   │   │   ├── controller/AdminController.java
 │   │   │   │   ├── dto/
-│   │   │   │   │   ├── AdminUserDetailResponseDto.java
-│   │   │   │   │   ├── CabinetPendingResponseDto.java # 수동 승인 대기 목록
-│   │   │   │   │   ├── CoinProvideRequestDto.java
-│   │   │   │   │   ├── OverdueUserResponse.java       # [New] 연체자 목록
-│   │   │   │   │   └── CabinetDetailResponse.java     # [New] 사물함 상세 정보
-│   │   │   │   └── service/AdminService.java         # 관리자 비즈니스 로직
-│   │   │   │   └── service/AdminService.java         # 관리자 비즈니스 로직
+│   │   │   │   └── service/AdminService.java          # Port 인터페이스 의존
 │   │   │   │
-│   │   │   ├── alarm               # [Alarm] 비동기 알림
+│   │   │   ├── alarm                   # [Alarm] 비동기 알림 이벤트
 │   │   │   │   ├── dto/AlarmEvent.java
-│   │   │   │   ├── AlarmEventHandler.java            # @Async 이벤트 리스너
-│   │   │   │   └── SlackBotService.java              # 슬랙 웹훅 연동
+│   │   │   │   ├── AlarmEventHandler.java
+│   │   │   │   └── SlackBotService.java
 │   │   │   │
-│   │   │   ├── auth                # [Auth] 인증 및 보안
-│   │   │   │   ├── config/SecurityConfig.java        # Security Filter, CORS, Actuator 제한
+│   │   │   ├── auth                    # [Auth] 인증 및 보안
+│   │   │   │   ├── config/SecurityConfig.java
 │   │   │   │   ├── controller/AuthController.java
 │   │   │   │   ├── domain/UserPrincipal.java
 │   │   │   │   ├── jwt/JwtTokenProvider.java
 │   │   │   │   └── oauth/CustomOAuth2UserService.java
 │   │   │   │
-│   │   │   ├── cabinet             # [Cabinet] 사물함 도메인
-│   │   │   │   ├── controller/CabinetController.java
-│   │   │   │   ├── domain/Cabinet.java
-│   │   │   │   ├── domain/CabinetStatus.java         # AVAILABLE, FULL, BROKEN, PENDING
-│   │   │   │   ├── repository/CabinetRepository.java
-│   │   │   │   └── service/CabinetService.java
-│   │   │   │
-│   │   │   ├── global              # [Global] 전역 설정
-│   │   │   │   ├── config/
-│   │   │   │   │   ├── WebConfig.java                # WebClient Timeout (3s)
-│   │   │   │   │   ├── RedisConfig.java
-│   │   │   │   │   └── SwaggerConfig.java
-│   │   │   │   ├── exception/
-│   │   │   │   │   ├── ErrorCode.java
-│   │   │   │   │   └── GlobalExceptionHandler.java
-│   │   │   │   └── response/ApiResponse.java         # 공통 응답 래퍼
-│   │   │   │
-│   │   │   ├── item                # [Item] 상점 및 아이템
-│   │   │   │   ├── controller/StoreController.java
-│   │   │   │   ├── domain/Item.java                  # 아이템 엔티티 (가격 필드 포함)
-│   │   │   │   ├── repository/ItemRepository.java
-│   │   │   │   └── service/StoreService.java
-│   │   │   │
-│   │   │   ├── lent                # [Lent] 대여/반납 (Core)
-│   │   │   │   ├── controller/LentController.java    # 대여, 반납(Manual포함), 이사, 연장
-│   │   │   │   ├── dto/
-│   │   │   │   │   └── LentExtensionRequest.java     # [New] 자동 연장 요청
-│   │   │   │   ├── domain/LentHistory.java
-│   │   │   │   ├── repository/LentRepository.java
-│   │   │   │   └── service/
-│   │   │   │       ├── ItemCheckService.java         # [AI] Exif 검증 & Python 통신
-│   │   │   │       └── LentFacadeService.java        # 대여 프로세스 통합 관리
-│   │   │   │
-│   │   │   ├── user                # [User] 사용자 및 스케줄러
-│   │   │   │   ├── controller/UserController.java    # 수동 출석 API
-│   │   │   │   ├── domain/User.java
-│   │   │   │   ├── repository/
-│   │   │   │   │   ├── UserRepository.java
-│   │   │   │   │   └── AttendanceRepository.java     # 출석 기록 관리
-│   │   │   │   ├── scheduler/
-│   │   │   │   │   ├── LogtimeScheduler.java         # 42 API 로그타임 집계
-│   │   │   │   │   └── LentScheduler.java            # 자동 연장, 연체 처리, 반납 임박 알림
-│   │   │   │   └── service/UserService.java          # 황금수박 이벤트 로직
-│   │   │   │
-│   │   │   └── utils               # [Utils] 유틸리티
-│   │   │       └── FtApiManager.java                 # 42 API 통신 모듈
+│   │   │   ├── cabinet/                # [Entity] 사물함 엔티티 & JPA Repository
+│   │   │   ├── user/                   # [Entity] 유저 엔티티 & Scheduler
+│   │   │   ├── lent/                   # [Entity] 대여 기록 엔티티
+│   │   │   ├── item/                   # [Entity] 아이템 엔티티
+│   │   │   ├── coin/                   # [Entity] 코인 이력 엔티티
+│   │   │   ├── calendar/               # [Entity] 캘린더 엔티티
+│   │   │   ├── global/                 # [Global] 전역 설정, 예외 처리
+│   │   │   └── utils/FtApiManager.java # 42 API 통신 모듈
 │   │   │
 │   │   └── resources
-│   │       ├── application.yml     # CORS, Timeout, Actuator 외부 설정
-│   │       ├── logback-spring.xml  # Rolling Policy (10MB/3GB)
-│   │       ├── secret.properties   # [Secret] API Keys (Git 제외됨)
+│   │       ├── application.yml
+│   │       ├── logback-spring.xml
+│   │       ├── secret.properties       # [Secret] Git 제외
 │   │       └── static/index.html
 │   │
-│   └── test                        # JUnit5 Tests
+│   └── test
 │       └── java/com/gyeongsan/cabinet/CabinetApplicationTests.java
 ```
+
+### 🔀 의존성 방향 (Dependency Rule)
+
+```mermaid
+graph LR
+    subgraph "Adapter 계층"
+        WEB["🌐 Web Adapter<br>(Controller)"]
+        DB["🗄️ Persistence Adapter<br>(JPA)"]
+        EXT["🔌 External Adapter<br>(AI, Slack, Azure, 42API)"]
+        CACHE["🔴 Cache Adapter<br>(Redis)"]
+    end
+
+    subgraph "Application 계층"
+        APP["⚙️ Application Service<br>(UseCase 조합)"]
+    end
+
+    subgraph "Domain 계층"
+        PORT_IN["📥 Inbound Port<br>(UseCase Interface)"]
+        DOMAIN["💎 Domain Service<br>(비즈니스 로직)"]
+        PORT_OUT["📤 Outbound Port<br>(SPI Interface)"]
+    end
+
+    WEB -->|의존| PORT_IN
+    PORT_IN -.->|구현| DOMAIN
+    PORT_IN -.->|구현| APP
+    DOMAIN -->|의존| PORT_OUT
+    APP -->|의존| PORT_OUT
+    DB -.->|구현| PORT_OUT
+    EXT -.->|구현| PORT_OUT
+    CACHE -.->|구현| PORT_OUT
+```
+
+> **핵심 원칙:** 모든 화살표가 안쪽(Domain)을 향합니다. Domain 계층은 외부 기술에 대해 아무것도 모릅니다.
 
 <br>
 
@@ -353,6 +400,7 @@ erDiagram
 | **Ver 0.8** | **Auto-Extension** | **자동 연장 시스템**, **스케줄러 고도화(D-7/D-1 알림)**, 관리자 모니터링 API 추가 |
 | **Ver 0.9** | **Logic Refinement** | **블랙홀 유예(D+7)**, **스케줄러 최적화(시간분산)**, **Intra ID 알림**, 블랙홀 대여제한 해제 |
 | **Ver 1.0** | **Production Release** | **인앱 카메라 전용 모드**, **코인 거래 추적 시스템**, **캘린더 일정 관리**, **블랙리스트 관리 API**, Rate Limiting, 하드코딩 값 외부화 등 프로덕션 안정화 완료 |
+| **Ver 1.1** | **Hexagonal Architecture** | 레이어드 → **헥사고날(Ports & Adapters)** 아키텍처 전환. **18개 Port 인터페이스**, **14개 Adapter**, **5개 Domain Service** 구축. 도메인 로직의 인프라 독립성 확보 및 테스트 용이성 강화. API 계약 변경 없음 |
 
 <br>
 
@@ -433,12 +481,13 @@ sequenceDiagram
     autonumber
     actor User as 👤 사용자
     participant Controller as 🎮 LentController
-    participant Service as ⚙️ LentService
+    participant UseCase as 📥 LentUseCase
+    participant Service as ⚙️ LentApplicationService
     participant DB as 🗄️ Database
 
     User->>Controller: "대여하기" 클릭 (POST /lent)
     activate Controller
-    Controller->>Service: startLentCabinet()
+    Controller->>UseCase: startLent()
     activate Service
     
     Note right of DB: "🔒 비관적 락 (Pessimistic Lock)<br/>동시 요청 방지"
@@ -463,7 +512,7 @@ sequenceDiagram
     autonumber
     actor User as 👤 사용자
     participant Controller as 🎮 LentController
-    participant Service as ⚙️ LentService
+    participant Service as ⚙️ LentApplicationService
     participant AI as 🤖 AI Server (Python)
     participant Azure as ☁️ Azure Blob
 
@@ -500,7 +549,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor User as 👤 사용자
-    participant Service as ⚙️ StoreService
+    participant Service as ⚙️ StoreDomainService
     participant DB as 🗄️ Database
 
     User->>Service: "연장권 구매 요청 (buyItem)"
@@ -524,7 +573,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
     actor User as 👤 사용자
-    participant Service as ⚙️ LentFacadeService
+    participant Service as ⚙️ LentApplicationService
     participant AI as 🤖 AI Server
     participant Azure as ☁️ Azure Blob
     participant DB as 🗄️ Database
@@ -576,7 +625,7 @@ sequenceDiagram
     actor Admin as 👮‍♂️ 관리자
     actor User as 👤 사용자
     participant Controller as 🎮 CalendarController
-    participant Service as ⚙️ CalendarService
+    participant Service as ⚙️ CalendarDomainService
     participant DB as 🗄️ Database
 
     %% 관리자 일정 등록

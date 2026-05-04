@@ -1,19 +1,20 @@
-package com.gyeongsan.cabinet.user.service;
+package com.gyeongsan.cabinet.domain.user.service;
 
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.coin.domain.CoinHistory;
 import com.gyeongsan.cabinet.coin.domain.CoinLogType;
-import com.gyeongsan.cabinet.coin.repository.CoinHistoryRepository;
+import com.gyeongsan.cabinet.domain.coin.port.out.CoinHistoryRepositoryPort;
+import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
+import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
+import com.gyeongsan.cabinet.domain.user.port.in.UserUseCase;
+import com.gyeongsan.cabinet.domain.user.port.out.AttendanceRepositoryPort;
+import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
 import com.gyeongsan.cabinet.item.domain.Item;
 import com.gyeongsan.cabinet.item.domain.ItemHistory;
-import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
 import com.gyeongsan.cabinet.lent.domain.LentHistory;
-import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.Attendance;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.dto.MyProfileResponseDto;
-import com.gyeongsan.cabinet.user.repository.AttendanceRepository;
-import com.gyeongsan.cabinet.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
@@ -31,16 +32,17 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 @Log4j2
-public class UserService {
+public class UserDomainService implements UserUseCase {
 
-    private final UserRepository userRepository;
-    private final LentRepository lentRepository;
-    private final ItemHistoryRepository itemHistoryRepository;
-    private final AttendanceRepository attendanceRepository;
-    private final CoinHistoryRepository coinHistoryRepository;
+    private final UserRepositoryPort userRepository;
+    private final LentRepositoryPort lentRepository;
+    private final ItemHistoryRepositoryPort itemHistoryRepository;
+    private final AttendanceRepositoryPort attendanceRepository;
+    private final CoinHistoryRepositoryPort coinHistoryRepository;
 
     private static final int MONTHLY_TARGET_MINUTES = 4800;
 
+    @Override
     public MyProfileResponseDto getMyProfile(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
@@ -94,8 +96,7 @@ public class UserService {
         }
 
         Integer penaltyDays = user.getPenaltyDays();
-        if (penaltyDays == null)
-            penaltyDays = 0;
+        if (penaltyDays == null) penaltyDays = 0;
 
         Boolean autoExtensionEnabled = false;
         if (activeLent != null) {
@@ -138,6 +139,7 @@ public class UserService {
                 .build();
     }
 
+    @Override
     @Transactional
     public void doAttendance(Long userId) {
         User user = userRepository.findById(userId)
@@ -163,19 +165,20 @@ public class UserService {
             user.addCoin(2000L);
             CoinHistory watermelonReward = CoinHistory.of(user, 2000L, CoinLogType.WATERMELON, "월간 만근 보상 (황금 수박씨)");
             coinHistoryRepository.save(watermelonReward);
-            log.info("🍉 [Golden Watermelon] {}님 이번 달 20번째 출석 달성! 2000 씨앗 추가 지급! (총 출석: {}일)", user.getName(),
-                    attendanceCount);
+            log.info("[Golden Watermelon] {}님 이번 달 20번째 출석 달성! 2000 씨앗 추가 지급! (총 출석: {}일)", user.getName(), attendanceCount);
         } else {
             log.info("{}님 오늘 출석 완료. (이번 달 {}일째)", user.getName(), attendanceCount);
         }
     }
 
+    @Override
     public List<LocalDate> getMyAttendanceDates(Long userId) {
         return attendanceRepository.findAllByUserId(userId).stream()
                 .map(Attendance::getAttendanceDate)
                 .collect(Collectors.toList());
     }
 
+    @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processLogtimeTransaction(Long userId, Item lentTicketItem, int totalMinutes, boolean isPayDay) {
         User user = userRepository.findById(userId)
@@ -188,14 +191,14 @@ public class UserService {
 
         if (isPayDay) {
             if (lentTicketItem != null && user.getMonthlyLogtime() >= MONTHLY_TARGET_MINUTES) {
-                int currentLentCount = itemHistoryRepository.countByUserIdAndItem_TypeAndUsedAtIsNull(
+                int currentLentCount = itemHistoryRepository.countByUserIdAndItemTypeAndUsedAtIsNull(
                         userId, lentTicketItem.getType());
                 if (currentLentCount < 1) {
                     ItemHistory reward = new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
                     itemHistoryRepository.save(reward);
-                    log.info("🎉 [Reward] {}님 지난달 80시간 달성! 대여권 지급 완료.", user.getName());
+                    log.info("[Reward] {}님 지난달 80시간 달성! 대여권 지급 완료.", user.getName());
                 } else {
-                    log.info("⚠️ [Skip] {}님 대여권 이미 보유 중 (최대 1개). 지급 생략.", user.getName());
+                    log.info("[Skip] {}님 대여권 이미 보유 중 (최대 1개). 지급 생략.", user.getName());
                 }
             }
             user.resetMonthlyLogtime();

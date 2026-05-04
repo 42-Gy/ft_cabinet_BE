@@ -1,9 +1,9 @@
 package com.gyeongsan.cabinet.user.scheduler;
 
 import com.gyeongsan.cabinet.alarm.dto.AlarmEvent;
-import com.gyeongsan.cabinet.lent.service.LentFacadeService;
+import com.gyeongsan.cabinet.domain.lent.port.in.LentUseCase;
+import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
 import com.gyeongsan.cabinet.user.domain.User;
-import com.gyeongsan.cabinet.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.context.ApplicationEventPublisher;
@@ -18,11 +18,10 @@ import java.util.List;
 @Log4j2
 public class BlackholeScheduler {
 
-    private final UserRepository userRepository;
-    private final LentFacadeService lentFacadeService;
+    private final UserRepositoryPort userRepository;
+    private final LentUseCase lentUseCase;
     private final ApplicationEventPublisher eventPublisher;
 
-    // @Scheduled(cron = "0 15 6 * * *")
     public void processBlackholedUsers() {
         log.info("블랙홀 대상 유저 체크 시작");
         LocalDateTime now = LocalDateTime.now();
@@ -36,7 +35,7 @@ public class BlackholeScheduler {
 
         for (User user : blackholedUsers) {
             try {
-                lentFacadeService.processBlackholeReturn(user.getId());
+                lentUseCase.processBlackholeReturn(user.getId());
 
                 String message = String.format(
                         "[반납 보류] %s님은 블랙홀 진입으로 인해 사물함 사용 권한이 소멸되었습니다. " +

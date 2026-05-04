@@ -1,12 +1,14 @@
-package com.gyeongsan.cabinet.calendar.service;
+package com.gyeongsan.cabinet.domain.calendar.service;
 
 import com.gyeongsan.cabinet.calendar.domain.CalendarEvent;
-import com.gyeongsan.cabinet.calendar.dto.*;
-import com.gyeongsan.cabinet.calendar.repository.CalendarEventRepository;
+import com.gyeongsan.cabinet.calendar.dto.CalendarEventRequestDto;
+import com.gyeongsan.cabinet.calendar.dto.CalendarEventResponseDto;
+import com.gyeongsan.cabinet.domain.calendar.port.in.CalendarUseCase;
+import com.gyeongsan.cabinet.domain.calendar.port.out.CalendarEventRepositoryPort;
+import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
 import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
 import com.gyeongsan.cabinet.user.domain.User;
-import com.gyeongsan.cabinet.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,11 +20,12 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class CalendarEventService {
+public class CalendarDomainService implements CalendarUseCase {
 
-    private final CalendarEventRepository calendarEventRepository;
-    private final UserRepository userRepository;
+    private final CalendarEventRepositoryPort calendarEventRepository;
+    private final UserRepositoryPort userRepository;
 
+    @Override
     @Transactional(readOnly = true)
     public List<CalendarEventResponseDto> getEvents(LocalDate start, LocalDate end) {
         return calendarEventRepository.findAllByEventDateBetween(start, end)
@@ -36,6 +39,7 @@ public class CalendarEventService {
                 .collect(Collectors.toList());
     }
 
+    @Override
     public void createEvent(Long adminId, CalendarEventRequestDto request) {
         User admin = userRepository.findById(adminId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
@@ -48,12 +52,14 @@ public class CalendarEventService {
         calendarEventRepository.save(event);
     }
 
+    @Override
     public void updateEvent(Long eventId, CalendarEventRequestDto request) {
         CalendarEvent event = calendarEventRepository.findById(eventId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND));
         event.update(request.title(), request.description(), request.eventDate());
     }
 
+    @Override
     public void deleteEvent(Long eventId) {
         if (!calendarEventRepository.existsById(eventId)) {
             throw new ServiceException(ErrorCode.ITEM_NOT_FOUND);
