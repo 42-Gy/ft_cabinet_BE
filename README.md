@@ -172,11 +172,16 @@ flowchart TD
 │   │   │   │   │   └── service/CalendarDomainService.java
 │   │   │   │   ├── alarm
 │   │   │   │   │   └── port/out/AlarmPort.java                # 알림 추상화
-│   │   │   │   └── auth
-│   │   │   │       ├── port/in/LinkAccountUseCase.java        # Inbound Port
-│   │   │   │       ├── port/out/OauthLinkRepositoryPort.java  # Outbound Port
-│   │   │   │       ├── port/out/OAuthApiClientPort.java       # Outbound Port
-│   │   │   │       └── service/OauthLinkService.java          # 도메인 서비스
+│   │   │   │   ├── auth
+│   │   │   │   │   ├── port/in/LinkAccountUseCase.java        # Inbound Port
+│   │   │   │   │   ├── port/out/OauthLinkRepositoryPort.java  # Outbound Port
+│   │   │   │   │   ├── port/out/OAuthApiClientPort.java       # Outbound Port
+│   │   │   │   │   └── service/OauthLinkService.java          # 도메인 서비스
+│   │   │   │   └── watermelon
+│   │   │   │       ├── port/in/GetWatermelonStatusUseCase.java # Inbound Port
+│   │   │   │       ├── port/out/WatermelonRepositoryPort.java  # Outbound Port
+│   │   │   │       ├── service/WatermelonEventService.java     # 도메인 서비스
+│   │   │   │       └── domain/                                 # 도메인 모델 & Config
 │   │   │   │
 │   │   │   ├── application             # ═══ 애플리케이션 계층 (유스케이스 조합) ═══
 │   │   │   │   └── lent
@@ -190,7 +195,8 @@ flowchart TD
 │   │   │   │   │   ├── StoreController.java
 │   │   │   │   │   ├── CalendarEventController.java
 │   │   │   │   │   ├── AdminController.java
-│   │   │   │   │   └── auth/AuthController.java
+│   │   │   │   │   ├── auth/AuthController.java
+│   │   │   │   │   └── watermelon/WatermelonEventController.java
 │   │   │   │   ├── out/persistence     # --- Outbound Adapter (DB) ---
 │   │   │   │   │   ├── cabinet/CabinetPersistenceAdapter.java
 │   │   │   │   │   ├── user/UserPersistenceAdapter.java
@@ -201,7 +207,8 @@ flowchart TD
 │   │   │   │   │   ├── item/ItemHistoryPersistenceAdapter.java
 │   │   │   │   │   ├── coin/CoinHistoryPersistenceAdapter.java
 │   │   │   │   │   ├── calendar/CalendarEventPersistenceAdapter.java
-│   │   │   │   │   └── auth/OauthLinkPersistenceAdapter.java
+│   │   │   │   │   ├── auth/OauthLinkPersistenceAdapter.java
+│   │   │   │   │   └── watermelon/WatermelonPersistenceAdapter.java
 │   │   │   │   ├── out/external        # --- Outbound Adapter (외부 서비스) ---
 │   │   │   │   │   ├── ai/AiServerAdapter.java       # AI 서버 통신
 │   │   │   │   │   ├── azure/AzureBlobAdapter.java    # Azure 이미지 업로드
@@ -490,6 +497,12 @@ erDiagram
 * **15분 선점(Ticketing):** 사용자가 이사하고 싶은 사물함을 발견하면, **이사 전용 예약**을 통해 **15분간** 해당 사물함을 선점할 수 있습니다.
 * **Redis TTL:** Redis를 활용한 만료 시간 관리로, 예약 후 15분 내에 이사를 완료하지 않으면 예약이 자동 취소되어 다른 사용자가 이용 가능해집니다.
 
+### 10. 🍉 수박씨 강화 이벤트 & 독립 상점 (Watermelon Event) [New]
+* **강화 시도 및 확률 매트릭스:** 레벨별 기본 확률에 따라 0강~최대 10강까지 강화 성공/유지/하락/파괴를 롤링합니다.
+* **비료 및 방지권 기능:** 프리미엄 비료(성공확률 보정) 및 위험한 비료(성공률 대폭 상승, 단 7강 이상 사용 불가) 사용이 가능하며, 실패 페널티를 막아줄 하락 방지권 및 파괴 방지권(파괴 무효화 대신 현재 레벨에서 -2강)을 제공합니다.
+* **코인 연동 및 전용 상점:** 유저의 기존 코인 재화와 완벽히 연동되어 작동하며, 전용 상점 API(`POST /v4/watermelon-event/shop/buy`)를 통해 코인을 지급하여 아이템을 구매할 수 있습니다.
+* **3중 정렬 리더보드 최적화:** `highest_level`, `highest_level_achieved_at`, `total_attempts` 3중 정렬이 적용된 동적 리더보드 랭킹을 성능 최적화 복합 인덱스 하에 고속으로 조회합니다.
+
 <br>
 
 ## 🔄 System Logic & Sequence Diagrams
@@ -672,6 +685,49 @@ sequenceDiagram
     deactivate Controller
 ```
 
+### 6. 수박씨 강화 및 방지권 보정 (Watermelon Enhancement)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 👤 사용자
+    participant Controller as 🎮 WatermelonEventController
+    participant Service as ⚙️ WatermelonEventService
+    participant Watermelon as 🍉 Watermelon (Domain)
+    participant UserEntity as 👤 User (Domain)
+    participant DB as 🗄️ Database
+
+    User->>Controller: 강화 시도 (POST /enhance)
+    activate Controller
+    Controller->>Service: enhance(userId, options)
+    activate Service
+
+    Service->>DB: User & Watermelon 조회 (Pessimistic Lock 적용)
+    DB-->>Service: User & Watermelon 반환
+
+    Service->>UserEntity: useCoin(enhancementCost)
+    UserEntity-->>Service: 코인 선차감 완료
+
+    Service->>Watermelon: useFertilizer(fertilizerType)
+    Watermelon-->>Service: 비료 선차감 완료 (인벤토리 -1)
+
+    Service->>Service: 주사위 롤링 (rawOutcome 도출)
+
+    alt 결과가 하락(DROP) 혹은 파괴(DESTROY) 이고 방지권 사용 활성화된 경우
+        Service->>Watermelon: applyEnhancement(rawResult, useDropProj, useDestroyProj)
+        Note over Watermelon: 방지권 보유량 확인 후<br/>결과 보정 (유지 혹은 -2강)<br/>및 방지권 차감 (-1)
+    else 그 외 (성공/유지 혹은 방지권 미사용/부족)
+        Service->>Watermelon: applyEnhancement(rawResult, false, false)
+    end
+
+    Service->>DB: User & Watermelon 상태 영속화 (Save)
+    Service->>DB: WatermelonEventLog 적재
+
+    Service-->>Controller: 결과 반환 (WatermelonEnhanceResult)
+    deactivate Service
+    Controller-->>User: ApiResponse<EnhanceResponse>
+    deactivate Controller
+```
+
 <br>
 
 ## 🧪 API Specification (전체 API 목록)
@@ -725,7 +781,17 @@ sequenceDiagram
 | :--- | :--- | :--- |
 | `GET` | `/v4/calendar/events` | 월별 일정 목록 조회 |
 
-### 7. 🛡️ 관리자 (Admin)
+### 7. 🍉 수박씨 강화 이벤트 (Watermelon Event) [New]
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `GET` | `/v4/watermelon-event/me` | 내 강화 상태, 인벤토리, 랭킹 정보 조회 |
+| `POST` | `/v4/watermelon-event/enhance` | 수박씨앗 강화 시도 |
+| `POST` | `/v4/watermelon-event/shop/buy` | 이벤트 전용 상점 아이템 구매 |
+| `GET` | `/v4/watermelon-event/rankings` | 전역 리더보드 랭킹 페이징 조회 |
+| `GET` | `/v4/watermelon-event/logs` | 내 강화 히스토리 로그 목록 조회 |
+| `GET` | `/v4/watermelon-event/config` | 이벤트 설정 정보 (비용, 확률, 아이템 가격) 조회 |
+
+### 8. 🛡️ 관리자 (Admin)
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
 | `GET` | `/v4/admin/dashboard` | 전체 통계 대시보드 |
