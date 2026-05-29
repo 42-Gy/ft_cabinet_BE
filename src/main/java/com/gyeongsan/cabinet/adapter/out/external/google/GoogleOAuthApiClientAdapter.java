@@ -9,6 +9,10 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import io.netty.channel.ChannelOption;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import reactor.netty.http.client.HttpClient;
+import java.time.Duration;
 import java.util.Map;
 
 @Component
@@ -27,7 +31,13 @@ public class GoogleOAuthApiClientAdapter implements OAuthApiClientPort {
     private String redirectUri;
 
     public GoogleOAuthApiClientAdapter() {
-        this.webClient = WebClient.builder().build();
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000)
+                .responseTimeout(Duration.ofSeconds(3));
+
+        this.webClient = WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .build();
     }
 
     @Override
@@ -71,7 +81,7 @@ public class GoogleOAuthApiClientAdapter implements OAuthApiClientPort {
                 .bodyToMono(Map.class)
                 .block();
 
-        if (response == null || !response.containsKey("sub")) {
+        if (response == null || response.get("sub") == null) {
             throw new IllegalArgumentException("구글 유저 정보 조회에 실패했습니다.");
         }
 

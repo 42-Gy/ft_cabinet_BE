@@ -97,6 +97,24 @@ class OauthLinkServiceTest {
     }
 
     @Test
+    @DisplayName("소셜 플랫폼에서 이메일이 null로 반환되어도 연동 정보가 정상적으로 저장된다")
+    void linkAccount_nullEmail_success() {
+        Long userId = 1L;
+        String authCode = "auth-code";
+        OAuthUserInfo oauthInfo = new OAuthUserInfo("12345678", null);
+        User user = mock(User.class);
+
+        given(kakaoApiClient.getOAuthUserInfo(authCode)).willReturn(oauthInfo);
+        given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678")).willReturn(false);
+        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(oauthLinkRepository.existsByUserAndProvider(user, "kakao")).willReturn(false);
+
+        oauthLinkService.linkAccount(userId, "kakao", authCode);
+
+        then(oauthLinkRepository).should(times(1)).save(any(OauthLink.class));
+    }
+
+    @Test
     @DisplayName("이미 다른 42 계정에 연동된 소셜 ID인 경우 예외를 던진다")
     void linkAccount_alreadyLinkedToOther() {
         // given

@@ -29,12 +29,26 @@ public class OauthLinkService implements LinkAccountUseCase {
     @Override
     @Transactional
     public void linkAccount(Long userId, String provider, String authorizationCode) {
+        if (userId == null) {
+            throw new IllegalArgumentException("유저 ID는 필수입니다.");
+        }
+        if (provider == null || provider.trim().isEmpty()) {
+            throw new IllegalArgumentException("소셜 로그인 공급자명은 필수입니다.");
+        }
+        if (authorizationCode == null || authorizationCode.trim().isEmpty()) {
+            throw new IllegalArgumentException("인증 코드는 필수입니다.");
+        }
+
         OAuthApiClientPort apiClient = apiClients.stream()
                 .filter(client -> client.supports(provider))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 소셜 로그인 공급자입니다: " + provider));
 
         OAuthUserInfo oauthInfo = apiClient.getOAuthUserInfo(authorizationCode);
+
+        if (oauthInfo == null || oauthInfo.getProviderId() == null || oauthInfo.getProviderId().trim().isEmpty()) {
+            throw new IllegalArgumentException("소셜 로그인 사용자 정보가 올바르지 않습니다.");
+        }
 
         if (oauthLinkRepository.existsByProviderAndProviderId(provider.toLowerCase(), oauthInfo.getProviderId())) {
             throw new ServiceException(ErrorCode.OAUTH_ALREADY_LINKED);

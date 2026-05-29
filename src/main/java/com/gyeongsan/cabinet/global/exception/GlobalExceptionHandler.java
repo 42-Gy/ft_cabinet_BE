@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -43,6 +44,13 @@ public class GlobalExceptionHandler {
         ApiResponse<String> response = ApiResponse.fail(HttpStatus.TOO_MANY_REQUESTS,
                 "너무 많은 요청을 보내셨습니다. 잠시 후 다시 시도해주세요. 🛑");
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiResponse<String>> handleDataIntegrityViolationException(DataIntegrityViolationException e) {
+        log.warn("⚠️ 데이터 무결성 예외 발생: {}", e.getMessage());
+        ApiResponse<String> response = ApiResponse.fail(HttpStatus.CONFLICT, "이미 연동 처리 중이거나 사용 중인 소셜 계정입니다.");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(Exception.class)
