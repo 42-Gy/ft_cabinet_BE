@@ -1,6 +1,9 @@
-package com.gyeongsan.cabinet.auth.controller;
+package com.gyeongsan.cabinet.adapter.in.web.auth;
 
+import com.gyeongsan.cabinet.adapter.in.web.auth.dto.OAuthLinkRequest;
+import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
 import com.gyeongsan.cabinet.auth.jwt.JwtTokenProvider;
+import com.gyeongsan.cabinet.domain.auth.port.in.LinkAccountUseCase;
 import com.gyeongsan.cabinet.common.ApiResponse;
 import com.gyeongsan.cabinet.user.domain.User;
 import com.gyeongsan.cabinet.user.repository.UserRepository;
@@ -8,10 +11,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.web.bind.annotation.CookieValue;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -30,6 +31,7 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final StringRedisTemplate redisTemplate;
     private final UserRepository userRepository;
+    private final LinkAccountUseCase linkAccountUseCase;
 
     @Value("${app.auth.cookie-secure:false}")
     private boolean isCookieSecure;
@@ -72,5 +74,15 @@ public class AuthController {
         log.info("🎫 새 Access Token 발급 완료: {}", user.getName());
 
         return ApiResponse.success(new HashMap<>());
+    }
+
+    @PostMapping("/link/{provider}")
+    public ApiResponse<String> linkSocialAccount(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable("provider") String provider,
+            @RequestBody OAuthLinkRequest request) {
+        log.info("🔗 소셜 연동 요청: userId={}, provider={}", userPrincipal.getUserId(), provider);
+        linkAccountUseCase.linkAccount(userPrincipal.getUserId(), provider, request.getAuthorizationCode());
+        return ApiResponse.success(provider + " 계정 연동이 완료되었습니다! 🎉");
     }
 }

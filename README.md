@@ -42,6 +42,8 @@ graph TD
     subgraph "External Services"
         AI_Server["🤖 AI Server<br>Python FastAPI"]
         Intra_API["42 Intra API<br>OAuth2"]
+        Kakao_API["💬 Kakao API<br>OAuth2"]
+        Google_API["🔍 Google API<br>OAuth2"]
         Slack["Slack Bot<br>Web API"]
         Azure_Blob["☁️ Azure Blob<br>Image Storage"]
     end
@@ -52,6 +54,8 @@ graph TD
     SpringBoot -->|"WebClient<br>Async Request"| AI_Server
     AI_Server -->|"Analysis Result"| SpringBoot
     SpringBoot -->|"OAuth2 Auth"| Intra_API
+    SpringBoot -->|"OAuth2 Link/Auth"| Kakao_API
+    SpringBoot -->|"OAuth2 Link/Auth"| Google_API
     SpringBoot -->|API Call| Slack
     SpringBoot -->|"Image Upload"| Azure_Blob
 ```
@@ -166,8 +170,13 @@ flowchart TD
 │   │   │   │   │   ├── port/in/CalendarUseCase.java
 │   │   │   │   │   ├── port/out/CalendarEventRepositoryPort.java
 │   │   │   │   │   └── service/CalendarDomainService.java
-│   │   │   │   └── alarm
-│   │   │   │       └── port/out/AlarmPort.java                # 알림 추상화
+│   │   │   │   ├── alarm
+│   │   │   │   │   └── port/out/AlarmPort.java                # 알림 추상화
+│   │   │   │   └── auth
+│   │   │   │       ├── port/in/LinkAccountUseCase.java        # Inbound Port
+│   │   │   │       ├── port/out/OauthLinkRepositoryPort.java  # Outbound Port
+│   │   │   │       ├── port/out/OAuthApiClientPort.java       # Outbound Port
+│   │   │   │       └── service/OauthLinkService.java          # 도메인 서비스
 │   │   │   │
 │   │   │   ├── application             # ═══ 애플리케이션 계층 (유스케이스 조합) ═══
 │   │   │   │   └── lent
@@ -180,7 +189,8 @@ flowchart TD
 │   │   │   │   │   ├── LentController.java
 │   │   │   │   │   ├── StoreController.java
 │   │   │   │   │   ├── CalendarEventController.java
-│   │   │   │   │   └── AdminController.java
+│   │   │   │   │   ├── AdminController.java
+│   │   │   │   │   └── auth/AuthController.java
 │   │   │   │   ├── out/persistence     # --- Outbound Adapter (DB) ---
 │   │   │   │   │   ├── cabinet/CabinetPersistenceAdapter.java
 │   │   │   │   │   ├── user/UserPersistenceAdapter.java
@@ -190,12 +200,15 @@ flowchart TD
 │   │   │   │   │   ├── item/ItemPersistenceAdapter.java
 │   │   │   │   │   ├── item/ItemHistoryPersistenceAdapter.java
 │   │   │   │   │   ├── coin/CoinHistoryPersistenceAdapter.java
-│   │   │   │   │   └── calendar/CalendarEventPersistenceAdapter.java
+│   │   │   │   │   ├── calendar/CalendarEventPersistenceAdapter.java
+│   │   │   │   │   └── auth/OauthLinkPersistenceAdapter.java
 │   │   │   │   ├── out/external        # --- Outbound Adapter (외부 서비스) ---
 │   │   │   │   │   ├── ai/AiServerAdapter.java       # AI 서버 통신
 │   │   │   │   │   ├── azure/AzureBlobAdapter.java    # Azure 이미지 업로드
 │   │   │   │   │   ├── slack/SlackAlarmAdapter.java    # Slack DM 전송
-│   │   │   │   │   └── ft/FtApiAdapter.java            # 42 API 통신
+│   │   │   │   │   ├── ft/FtApiAdapter.java            # 42 API 통신
+│   │   │   │   │   ├── kakao/KakaoOAuthApiClientAdapter.java
+│   │   │   │   │   └── google/GoogleOAuthApiClientAdapter.java
 │   │   │   │   └── out/cache           # --- Outbound Adapter (캐시) ---
 │   │   │   │       └── redis/ReservationRedisAdapter.java  # 사물함 예약
 │   │   │   │
@@ -209,12 +222,11 @@ flowchart TD
 │   │   │   │   ├── AlarmEventHandler.java
 │   │   │   │   └── SlackBotService.java
 │   │   │   │
-│   │   │   ├── auth                    # [Auth] 인증 및 보안
+│   │   │   ├── auth                    # [Auth] 스프링 시큐리티 및 JWT 필터링 설정
 │   │   │   │   ├── config/SecurityConfig.java
-│   │   │   │   ├── controller/AuthController.java
 │   │   │   │   ├── domain/UserPrincipal.java
 │   │   │   │   ├── jwt/JwtTokenProvider.java
-│   │   │   │   └── oauth/CustomOAuth2UserService.java
+│   │   │   │   └── service/CustomOAuth2UserService.java
 │   │   │   │
 │   │   │   ├── cabinet/                # [Entity] 사물함 엔티티 & JPA Repository
 │   │   │   ├── user/                   # [Entity] 유저 엔티티 & Scheduler
@@ -284,6 +296,7 @@ erDiagram
     USER ||--o{ ITEM_HISTORY : "아이템 구매/사용 이력"
     USER ||--o{ COIN_HISTORY : "코인 거래 이력"
     USER ||--o{ CALENDAR_EVENT : "일정 등록"
+    USER ||--o{ OAUTH_LINK : "소셜 연동 정보 보유"
     
     CABINET ||--o{ LENT_HISTORY : "대여 이력 포함"
     
@@ -380,6 +393,15 @@ erDiagram
         String reason "차단 사유"
         LocalDateTime bannedAt "차단 일시"
     }
+
+    OAUTH_LINK {
+        Long id PK
+        Long user_id FK "유저 ID"
+        String provider "소셜 공급사 - kakao, google"
+        String providerId "소셜 고유 ID"
+        String providerEmail "소셜 이메일"
+        LocalDateTime linkedAt "연동 일시"
+    }
 ```
 
 <br>
@@ -399,6 +421,7 @@ erDiagram
 | **Ver 0.9** | **Logic Refinement** | **블랙홀 유예(D+7)**, **스케줄러 최적화(시간분산)**, **Intra ID 알림**, 블랙홀 대여제한 해제 |
 | **Ver 1.0** | **Production Release** | **인앱 카메라 전용 모드**, **코인 거래 추적 시스템**, **캘린더 일정 관리**, **블랙리스트 관리 API**, Rate Limiting, 하드코딩 값 외부화 등 프로덕션 안정화 완료 |
 | **Ver 1.1** | **Hexagonal Architecture** | 레이어드 → **헥사고날(Ports & Adapters)** 아키텍처 전환. **18개 Port 인터페이스**, **14개 Adapter**, **5개 Domain Service** 구축. 도메인 로직의 인프라 독립성 확보 및 테스트 용이성 강화. API 계약 변경 없음 |
+| **Ver 1.2** | **Social Login & Extension** | 카카오 및 구글 소셜 로그인 연동 모듈 추가. 헥사고날(Ports & Adapters) 아키텍처에 부합하도록 인증 및 연동 구조 리팩토링 및 다형성(Strategy Pattern) 적용. 연동용 API 엔드포인트 공통화 (`/v4/auth/link/{provider}`) 및 예외 복구 흐름 개선 |
 
 <br>
 

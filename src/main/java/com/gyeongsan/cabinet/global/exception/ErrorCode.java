@@ -44,7 +44,10 @@ public enum ErrorCode {
 
     ALARM_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "ALARM_001", "알림 전송에 실패했습니다."),
 
-    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "RATE_001", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "RATE_001", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
+
+    OAUTH_ALREADY_LINKED(HttpStatus.CONFLICT, "OAUTH_001", "이 카카오 계정은 이미 다른 42 계정에 연동되어 있습니다."),
+    OAUTH_ALREADY_LINKED_BY_USER(HttpStatus.CONFLICT, "OAUTH_002", "이미 카카오 계정이 연동되어 있습니다.");
 
     private final HttpStatus status;
     private final String code;

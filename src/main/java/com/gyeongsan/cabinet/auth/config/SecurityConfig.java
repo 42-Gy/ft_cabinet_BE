@@ -22,6 +22,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.ArrayList;
 import org.springframework.http.ResponseCookie;
@@ -42,6 +43,9 @@ public class SecurityConfig {
 
         @Value("${app.cors.allowed-origins}")
         private List<String> allowedOrigins;
+
+        @Value("${app.frontend.url}")
+        private String frontendUrl;
 
         @Bean
         public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -78,12 +82,14 @@ public class SecurityConfig {
                                                                 .userService(customOAuth2UserService))
                                                 .successHandler(oAuth2SuccessHandler)
                                                 .failureHandler((request, response, exception) -> {
-                                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                                                        response.setContentType("application/json;charset=UTF-8");
-                                                        response.getWriter().write(
-                                                                        "{\"error\": \"Login Failed\", \"message\": \""
-                                                                                        + exception.getMessage()
-                                                                                        + "\"}");
+                                                        String errorMessage = java.net.URLEncoder.encode(
+                                                                exception.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
+                                                        String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
+                                                                .path("/auth/callback")
+                                                                .queryParam("error", errorMessage)
+                                                                .build()
+                                                                .toUriString();
+                                                        response.sendRedirect(targetUrl);
                                                 }))
                                 .logout(logout -> logout
                                                 .logoutUrl("/v4/auth/logout")

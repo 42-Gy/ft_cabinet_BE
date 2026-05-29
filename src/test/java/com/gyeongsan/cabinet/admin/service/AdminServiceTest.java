@@ -4,9 +4,9 @@ import com.gyeongsan.cabinet.admin.dto.BulkStatusUpdateRequest;
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
 import com.gyeongsan.cabinet.cabinet.domain.LentType;
-import com.gyeongsan.cabinet.cabinet.repository.CabinetRepository;
+import com.gyeongsan.cabinet.domain.cabinet.port.out.CabinetRepositoryPort;
+import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
 import com.gyeongsan.cabinet.lent.domain.LentHistory;
-import com.gyeongsan.cabinet.lent.repository.LentRepository;
 import com.gyeongsan.cabinet.user.domain.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,10 +30,10 @@ import static org.mockito.Mockito.times;
 class AdminServiceTest {
 
     @Mock
-    private CabinetRepository cabinetRepository;
+    private CabinetRepositoryPort cabinetRepository;
 
     @Mock
-    private LentRepository lentRepository;
+    private LentRepositoryPort lentRepository;
 
     @InjectMocks
     private AdminService adminService;
