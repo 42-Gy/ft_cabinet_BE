@@ -134,7 +134,7 @@ public class WatermelonEventService implements
         double destroyRate = WatermelonConfig.getDestroyRate(level);
 
         if (usePremium) {
-            successRate += 0.15;
+            successRate += 0.05;
             double sum = maintainRate + dropRate + destroyRate;
             if (sum > 0) {
                 double newFailureProb = 1.0 - successRate;
@@ -143,7 +143,7 @@ public class WatermelonEventService implements
                 destroyRate = (destroyRate * newFailureProb) / sum;
             }
         } else if (useDangerous) {
-            successRate += 0.30;
+            successRate += 0.10;
             destroyRate += 0.10;
             double sum = maintainRate + dropRate;
             double newRemain = 1.0 - successRate - destroyRate;

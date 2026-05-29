@@ -8,23 +8,23 @@ public class WatermelonConfig {
     public static final int MAX_LEVEL = 10;
 
     private static final int[] ENHANCE_COSTS = {
-        100, 150, 200, 300, 400, 500, 600, 800, 1000, 1500
+        10, 20, 30, 40, 50, 80, 100, 200, 300, 500
     };
 
     private static final double[] SUCCESS_RATES = {
-        0.90, 0.80, 0.70, 0.60, 0.50, 0.45, 0.40, 0.30, 0.20, 0.10
+        0.95, 0.88, 0.78, 0.65, 0.54, 0.44, 0.35, 0.27, 0.20, 0.15
     };
 
     private static final double[] MAINTAIN_RATES = {
-        0.10, 0.20, 0.15, 0.20, 0.25, 0.25, 0.25, 0.25, 0.30, 0.40
+        0.05, 0.10, 0.15, 0.20, 0.22, 0.23, 0.24, 0.25, 0.25, 0.25
     };
 
     private static final double[] DROP_RATES = {
-        0.00, 0.00, 0.15, 0.20, 0.20, 0.25, 0.25, 0.30, 0.35, 0.35
+        0.00, 0.02, 0.05, 0.10, 0.17, 0.24, 0.29, 0.32, 0.34, 0.38
     };
 
     private static final double[] DESTROY_RATES = {
-        0.00, 0.00, 0.00, 0.00, 0.05, 0.05, 0.10, 0.15, 0.15, 0.15
+        0.00, 0.00, 0.02, 0.05, 0.07, 0.09, 0.12, 0.16, 0.21, 0.22
     };
 
     public static int getCost(int level) {
