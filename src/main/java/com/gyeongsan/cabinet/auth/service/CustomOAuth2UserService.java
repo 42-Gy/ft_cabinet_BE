@@ -18,6 +18,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
@@ -62,12 +63,14 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         if (email == null || !email.endsWith(allowedEmailDomain)) {
             log.warn("🚫 비경산 유저 로그인 시도 차단: {} ({})", intraId, email);
-            throw new OAuth2AuthenticationException("42경산 캠퍼스 유저만 사용할 수 있습니다.");
+            String msg = "42경산 캠퍼스 유저만 사용할 수 있습니다.";
+            throw new OAuth2AuthenticationException(new OAuth2Error(msg), msg);
         }
 
         if (bannedUserRepository.existsByIntraId(intraId)) {
             log.warn("🚫 벤 유저 로그인 시도 차단: {}", intraId);
-            throw new OAuth2AuthenticationException("서비스 이용이 제한된 유저입니다. 관리자에게 문의하세요.");
+            String msg = "서비스 이용이 제한된 유저입니다. 관리자에게 문의하세요.";
+            throw new OAuth2AuthenticationException(new OAuth2Error(msg), msg);
         }
 
         LocalDateTime blackholedAt = extractBlackholedAt(attributes);
@@ -88,22 +91,25 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     OAuth2User handleSocialLogin(OAuth2UserRequest userRequest,
                                  Map<String, Object> attributes,
                                  String provider) {
-        String providerId;
-        if ("google".equals(provider)) {
-            providerId = String.valueOf(attributes.get("sub"));
-        } else {
-            providerId = String.valueOf(attributes.get("id"));
+        Object attrValue = "google".equals(provider) ? attributes.get("sub") : attributes.get("id");
+        if (attrValue == null) {
+            String msg = provider + " 고유 식별자를 가져올 수 없습니다.";
+            throw new OAuth2AuthenticationException(new OAuth2Error(msg), msg);
         }
+        String providerId = String.valueOf(attrValue);
 
         OauthLink link = oauthLinkRepository.findByProviderAndProviderId(provider, providerId)
-                .orElseThrow(() -> new OAuth2AuthenticationException(
-                        "먼저 42 인트라로 로그인하여 " + provider + " 계정을 연동해 주세요."));
+                .orElseThrow(() -> {
+                    String msg = "먼저 42 인트라로 로그인하여 " + provider + " 계정을 연동해 주세요.";
+                    return new OAuth2AuthenticationException(new OAuth2Error(msg), msg);
+                });
 
         User user = link.getUser();
 
         if (bannedUserRepository.existsByIntraId(user.getName())) {
             log.warn("🚫 벤 유저 {} 로그인 시도 차단: {}", provider, user.getName());
-            throw new OAuth2AuthenticationException("서비스 이용이 제한된 유저입니다. 관리자에게 문의하세요.");
+            String msg = "서비스 이용이 제한된 유저입니다. 관리자에게 문의하세요.";
+            throw new OAuth2AuthenticationException(new OAuth2Error(msg), msg);
         }
 
         Map<String, Object> modifiedAttributes = new HashMap<>(attributes);

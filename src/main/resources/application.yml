@@ -79,7 +79,7 @@ spring:
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
             redirect-uri: "https://subak.site/login/oauth2/code/kakao"
-            scope: profile_nickname,account_email
+            scope: account_email
             client-name: Kakao
           google:
             client-id: ${GOOGLE_CLIENT_ID}

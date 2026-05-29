@@ -82,8 +82,9 @@ public class SecurityConfig {
                                                                 .userService(customOAuth2UserService))
                                                 .successHandler(oAuth2SuccessHandler)
                                                 .failureHandler((request, response, exception) -> {
+                                                        String rawMessage = exception.getMessage() != null ? exception.getMessage() : "OAuth_Authentication_Failed";
                                                         String errorMessage = java.net.URLEncoder.encode(
-                                                                exception.getMessage(), java.nio.charset.StandardCharsets.UTF_8);
+                                                                rawMessage, java.nio.charset.StandardCharsets.UTF_8);
                                                         String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
                                                                 .path("/auth/callback")
                                                                 .queryParam("error", errorMessage)

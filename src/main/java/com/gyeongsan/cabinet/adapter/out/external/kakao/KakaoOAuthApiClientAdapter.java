@@ -93,7 +93,18 @@ public class KakaoOAuthApiClientAdapter implements OAuthApiClientPort {
             email = (String) kakaoAccount.get("email");
         }
 
-        log.info("🔍 카카오 유저 정보 조회 완료: id={}, email={}", kakaoId, email);
+        String nickname = "KakaoUser";
+        Map<String, Object> properties = (Map<String, Object>) response.get("properties");
+        if (properties != null && properties.get("nickname") != null) {
+            nickname = String.valueOf(properties.get("nickname"));
+        } else if (kakaoAccount != null) {
+            Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
+            if (profile != null && profile.get("nickname") != null) {
+                nickname = String.valueOf(profile.get("nickname"));
+            }
+        }
+
+        log.info("🔍 카카오 유저 정보 조회 완료: id={}, email={}, nickname={}", kakaoId, email, nickname);
         return new OAuthUserInfo(kakaoId, email);
     }
 }
