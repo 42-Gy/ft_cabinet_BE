@@ -8,6 +8,7 @@ import com.gyeongsan.cabinet.domain.watermelon.domain.Watermelon;
 import com.gyeongsan.cabinet.domain.watermelon.domain.WatermelonConfig;
 import com.gyeongsan.cabinet.domain.watermelon.domain.WatermelonEnhanceResult;
 import com.gyeongsan.cabinet.domain.watermelon.domain.WatermelonItem;
+import com.gyeongsan.cabinet.domain.watermelon.domain.WatermelonEventLog;
 import com.gyeongsan.cabinet.domain.watermelon.port.in.BuyWatermelonItemUseCase;
 import com.gyeongsan.cabinet.domain.watermelon.port.in.EnhanceWatermelonUseCase;
 import com.gyeongsan.cabinet.domain.watermelon.port.in.GetWatermelonLeaderboardUseCase;
@@ -152,17 +153,18 @@ public class WatermelonEventController {
     }
 
     @GetMapping("/logs")
-    public ApiResponse<List<EnhancementLogResponse>> getLogs(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        Long userId = userPrincipal.getUserId();
-        String userName = userRepository.findById(userId)
-                .map(User::getName)
-                .orElse("Unknown");
+    public ApiResponse<List<EnhancementLogResponse>> getLogs() {
+        List<WatermelonEventLog> logs = logRepository.findAllRecentLogs();
 
-        List<EnhancementLogResponse> response = logRepository.findAllByUserId(userId).stream()
+        List<User> allUsers = userRepository.findAll();
+        Map<Long, String> userIdToNameMap = allUsers.stream()
+                .collect(Collectors.toMap(User::getId, User::getName, (existing, replacement) -> existing));
+
+        List<EnhancementLogResponse> response = logs.stream()
                 .map(log -> EnhancementLogResponse.builder()
                         .id(log.getId())
                         .userId(log.getUserId())
-                        .userName(userName)
+                        .userName(userIdToNameMap.getOrDefault(log.getUserId(), "Unknown"))
                         .beforeLevel(log.getBeforeLevel())
                         .afterLevel(log.getAfterLevel())
                         .usedPremiumFertilizer(log.isUsedPremiumFertilizer())

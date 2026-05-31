@@ -63,6 +63,13 @@ public class WatermelonPersistenceAdapter implements WatermelonRepositoryPort, W
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public List<WatermelonEventLog> findAllRecentLogs() {
+        return logJpaRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::toDomain)
+                .collect(Collectors.toList());
+    }
+
     private WatermelonEntity toEntity(Watermelon domain) {
         WatermelonEntity entity = jpaRepository.findByUserId(domain.getUserId())
                 .orElseGet(() -> {

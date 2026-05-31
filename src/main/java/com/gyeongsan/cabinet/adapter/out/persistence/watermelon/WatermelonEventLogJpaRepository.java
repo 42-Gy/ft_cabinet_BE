@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface WatermelonEventLogJpaRepository extends JpaRepository<WatermelonEventLogEntity, Long> {
     List<WatermelonEventLogEntity> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+    List<WatermelonEventLogEntity> findAllByOrderByCreatedAtDesc();
 }

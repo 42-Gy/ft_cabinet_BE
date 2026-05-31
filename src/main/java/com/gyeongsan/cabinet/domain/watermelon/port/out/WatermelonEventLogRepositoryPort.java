@@ -7,4 +7,5 @@ import java.util.List;
 public interface WatermelonEventLogRepositoryPort {
     WatermelonEventLog save(WatermelonEventLog log);
     List<WatermelonEventLog> findAllByUserId(Long userId);
+    List<WatermelonEventLog> findAllRecentLogs();
 }
