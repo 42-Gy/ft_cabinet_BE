@@ -41,8 +41,8 @@ public class GoogleOAuthApiClientAdapter implements OAuthApiClientPort {
     }
 
     @Override
-    public OAuthUserInfo getOAuthUserInfo(String authorizationCode) {
-        String accessToken = getAccessToken(authorizationCode);
+    public OAuthUserInfo getOAuthUserInfo(String authorizationCode, String redirectUri) {
+        String accessToken = getAccessToken(authorizationCode, redirectUri);
         return getUserProfile(accessToken);
     }
 
@@ -52,14 +52,18 @@ public class GoogleOAuthApiClientAdapter implements OAuthApiClientPort {
     }
 
     @SuppressWarnings("unchecked")
-    private String getAccessToken(String code) {
+    private String getAccessToken(String code, String customRedirectUri) {
+        String targetRedirectUri = (customRedirectUri != null && !customRedirectUri.trim().isEmpty())
+                ? customRedirectUri
+                : redirectUri;
+
         Map<String, Object> response = webClient.post()
                 .uri("https://oauth2.googleapis.com/token")
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
                 .bodyValue("grant_type=authorization_code"
                         + "&client_id=" + clientId
                         + "&client_secret=" + clientSecret
-                        + "&redirect_uri=" + redirectUri
+                        + "&redirect_uri=" + targetRedirectUri
                         + "&code=" + code)
                 .retrieve()
                 .bodyToMono(Map.class)

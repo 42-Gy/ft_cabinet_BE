@@ -63,7 +63,7 @@ class OauthLinkServiceTest {
         OAuthUserInfo oauthInfo = new OAuthUserInfo("12345678", "kakao@example.com");
         User user = mock(User.class);
 
-        given(kakaoApiClient.getOAuthUserInfo(authCode)).willReturn(oauthInfo);
+        given(kakaoApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
         given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678")).willReturn(false);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(oauthLinkRepository.existsByUserAndProvider(user, "kakao")).willReturn(false);
@@ -84,7 +84,7 @@ class OauthLinkServiceTest {
         OAuthUserInfo oauthInfo = new OAuthUserInfo("google-sub-id", "google@example.com");
         User user = mock(User.class);
 
-        given(googleApiClient.getOAuthUserInfo(authCode)).willReturn(oauthInfo);
+        given(googleApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
         given(oauthLinkRepository.existsByProviderAndProviderId("google", "google-sub-id")).willReturn(false);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(oauthLinkRepository.existsByUserAndProvider(user, "google")).willReturn(false);
@@ -104,7 +104,7 @@ class OauthLinkServiceTest {
         OAuthUserInfo oauthInfo = new OAuthUserInfo("12345678", null);
         User user = mock(User.class);
 
-        given(kakaoApiClient.getOAuthUserInfo(authCode)).willReturn(oauthInfo);
+        given(kakaoApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
         given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678")).willReturn(false);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(oauthLinkRepository.existsByUserAndProvider(user, "kakao")).willReturn(false);
@@ -122,7 +122,7 @@ class OauthLinkServiceTest {
         String authCode = "auth-code";
         OAuthUserInfo oauthInfo = new OAuthUserInfo("12345678", "kakao@example.com");
 
-        given(kakaoApiClient.getOAuthUserInfo(authCode)).willReturn(oauthInfo);
+        given(kakaoApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
         given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678")).willReturn(true);
 
         // when & then
@@ -143,7 +143,7 @@ class OauthLinkServiceTest {
         OAuthUserInfo oauthInfo = new OAuthUserInfo("12345678", "kakao@example.com");
         User user = mock(User.class);
 
-        given(kakaoApiClient.getOAuthUserInfo(authCode)).willReturn(oauthInfo);
+        given(kakaoApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
         given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678")).willReturn(false);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(oauthLinkRepository.existsByUserAndProvider(user, "kakao")).willReturn(true);

@@ -44,7 +44,14 @@ public class OauthLinkService implements LinkAccountUseCase {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 소셜 로그인 공급자입니다: " + provider));
 
-        OAuthUserInfo oauthInfo = apiClient.getOAuthUserInfo(authorizationCode);
+        String customRedirectUri = null;
+        if ("kakao".equalsIgnoreCase(provider)) {
+            customRedirectUri = "https://subak.site/auth/link/callback/kakao";
+        } else if ("google".equalsIgnoreCase(provider)) {
+            customRedirectUri = "https://subak.site/auth/link/callback/google";
+        }
+
+        OAuthUserInfo oauthInfo = apiClient.getOAuthUserInfo(authorizationCode, customRedirectUri);
 
         if (oauthInfo == null || oauthInfo.getProviderId() == null || oauthInfo.getProviderId().trim().isEmpty()) {
             throw new IllegalArgumentException("소셜 로그인 사용자 정보가 올바르지 않습니다.");
