@@ -145,8 +145,8 @@ class WatermelonEventServiceTest {
     }
 
     @Test
-    @DisplayName("성공 결과가 나오더라도 방지권을 사용 설정했다면 방지권 수량이 소모된다")
-    void applyEnhancement_alwaysConsumeTicketsOnSuccess() {
+    @DisplayName("성공 결과가 나올 경우 방지권을 사용 설정했더라도 방지권 수량이 소모되지 않는다")
+    void applyEnhancement_noTicketConsumptionOnSuccess() {
         Watermelon wm = Watermelon.builder()
                 .userId(1L)
                 .currentLevel(5)
@@ -157,7 +157,7 @@ class WatermelonEventServiceTest {
         wm.applyEnhancement(EnhancementResult.SUCCESS, true, true);
 
         assertEquals(6, wm.getCurrentLevel());
-        assertEquals(1, wm.getDropProtectionCount());
-        assertEquals(1, wm.getDestroyProtectionCount());
+        assertEquals(2, wm.getDropProtectionCount());
+        assertEquals(2, wm.getDestroyProtectionCount());
     }
 }

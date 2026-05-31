@@ -87,26 +87,22 @@ public class Watermelon {
         boolean consumedDropTicket = false;
         boolean consumedDestroyTicket = false;
 
-        if (useDropProj) {
-            if (this.dropProtectionCount < 1) {
-                throw new IllegalArgumentException("하락 방지권이 부족합니다.");
-            }
+        if (useDropProj && this.dropProtectionCount < 1) {
+            throw new IllegalArgumentException("하락 방지권이 부족합니다.");
+        }
+
+        if (useDestroyProj && this.destroyProtectionCount < 1) {
+            throw new IllegalArgumentException("파괴 방지권이 부족합니다.");
+        }
+
+        if (rawResult == EnhancementResult.DROP && useDropProj) {
+            finalResult = EnhancementResult.MAINTAIN;
             this.dropProtectionCount--;
             consumedDropTicket = true;
-        }
-
-        if (useDestroyProj) {
-            if (this.destroyProtectionCount < 1) {
-                throw new IllegalArgumentException("파괴 방지권이 부족합니다.");
-            }
+        } else if (rawResult == EnhancementResult.DESTROY && useDestroyProj) {
+            finalResult = EnhancementResult.MAINTAIN;
             this.destroyProtectionCount--;
             consumedDestroyTicket = true;
-        }
-
-        if (rawResult == EnhancementResult.DROP && consumedDropTicket) {
-            finalResult = EnhancementResult.MAINTAIN;
-        } else if (rawResult == EnhancementResult.DESTROY && consumedDestroyTicket) {
-            finalResult = EnhancementResult.MAINTAIN;
         }
 
         this.totalAttempts++;
