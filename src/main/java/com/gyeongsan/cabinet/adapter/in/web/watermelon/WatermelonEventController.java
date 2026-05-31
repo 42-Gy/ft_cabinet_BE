@@ -154,11 +154,15 @@ public class WatermelonEventController {
     @GetMapping("/logs")
     public ApiResponse<List<EnhancementLogResponse>> getLogs(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         Long userId = userPrincipal.getUserId();
+        String userName = userRepository.findById(userId)
+                .map(User::getName)
+                .orElse("Unknown");
+
         List<EnhancementLogResponse> response = logRepository.findAllByUserId(userId).stream()
                 .map(log -> EnhancementLogResponse.builder()
                         .id(log.getId())
                         .userId(log.getUserId())
-                        .userName(log.getUserName())
+                        .userName(userName)
                         .beforeLevel(log.getBeforeLevel())
                         .afterLevel(log.getAfterLevel())
                         .usedPremiumFertilizer(log.isUsedPremiumFertilizer())

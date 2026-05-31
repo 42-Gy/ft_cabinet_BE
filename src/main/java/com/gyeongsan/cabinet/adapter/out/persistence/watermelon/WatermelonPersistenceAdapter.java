@@ -106,7 +106,6 @@ public class WatermelonPersistenceAdapter implements WatermelonRepositoryPort, W
     private WatermelonEventLogEntity toEntity(WatermelonEventLog domain) {
         WatermelonEventLogEntity entity = new WatermelonEventLogEntity();
         entity.setUserId(domain.getUserId());
-        entity.setUserName(domain.getUserName());
         entity.setBeforeLevel(domain.getBeforeLevel());
         entity.setAfterLevel(domain.getAfterLevel());
         entity.setUsedPremiumFertilizer(domain.isUsedPremiumFertilizer());
@@ -124,7 +123,6 @@ public class WatermelonPersistenceAdapter implements WatermelonRepositoryPort, W
         return WatermelonEventLog.builder()
                 .id(entity.getId())
                 .userId(entity.getUserId())
-                .userName(entity.getUserName())
                 .beforeLevel(entity.getBeforeLevel())
                 .afterLevel(entity.getAfterLevel())
                 .usedPremiumFertilizer(entity.isUsedPremiumFertilizer())
