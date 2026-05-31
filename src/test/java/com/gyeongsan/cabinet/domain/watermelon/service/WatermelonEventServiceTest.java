@@ -130,7 +130,7 @@ class WatermelonEventServiceTest {
     }
 
     @Test
-    @DisplayName("방지권을 사용 설정하였으나 보유량이 없으면 원래의 실패 결과가 적용된다")
+    @DisplayName("방지권을 사용 설정하였으나 보유량이 없으면 예외가 발생한다")
     void applyEnhancement_noTicketNoProtection() {
         Watermelon wm = Watermelon.builder()
                 .userId(1L)
@@ -139,11 +139,25 @@ class WatermelonEventServiceTest {
                 .destroyProtectionCount(0)
                 .build();
 
-        wm.applyEnhancement(EnhancementResult.DROP, true, false);
+        assertThrows(IllegalArgumentException.class, () ->
+                wm.applyEnhancement(EnhancementResult.DROP, true, false)
+        );
+    }
 
-        assertEquals(4, wm.getCurrentLevel());
-        assertEquals(0, wm.getDropProtectionCount());
-        assertEquals(1, wm.getTotalAttempts());
-        assertEquals(1, wm.getTotalDrops());
+    @Test
+    @DisplayName("성공 결과가 나오더라도 방지권을 사용 설정했다면 방지권 수량이 소모된다")
+    void applyEnhancement_alwaysConsumeTicketsOnSuccess() {
+        Watermelon wm = Watermelon.builder()
+                .userId(1L)
+                .currentLevel(5)
+                .dropProtectionCount(2)
+                .destroyProtectionCount(2)
+                .build();
+
+        wm.applyEnhancement(EnhancementResult.SUCCESS, true, true);
+
+        assertEquals(6, wm.getCurrentLevel());
+        assertEquals(1, wm.getDropProtectionCount());
+        assertEquals(1, wm.getDestroyProtectionCount());
     }
 }

@@ -105,6 +105,7 @@ public class WatermelonEventService implements
 
         WatermelonEventLog eventLog = WatermelonEventLog.builder()
                 .userId(userId)
+                .userName(user.getName())
                 .beforeLevel(beforeLevel)
                 .afterLevel(savedWatermelon.getCurrentLevel())
                 .usedPremiumFertilizer(usePremium)

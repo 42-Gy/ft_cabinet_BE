@@ -158,6 +158,7 @@ public class WatermelonEventController {
                 .map(log -> EnhancementLogResponse.builder()
                         .id(log.getId())
                         .userId(log.getUserId())
+                        .userName(log.getUserName())
                         .beforeLevel(log.getBeforeLevel())
                         .afterLevel(log.getAfterLevel())
                         .usedPremiumFertilizer(log.isUsedPremiumFertilizer())

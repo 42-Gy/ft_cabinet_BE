@@ -23,6 +23,9 @@ public class WatermelonEventLogEntity {
     @Column(name = "USER_ID", nullable = false)
     private Long userId;
 
+    @Column(name = "USER_NAME", nullable = true, length = 32)
+    private String userName;
+
     @Column(name = "BEFORE_LEVEL", nullable = false)
     private int beforeLevel;
 

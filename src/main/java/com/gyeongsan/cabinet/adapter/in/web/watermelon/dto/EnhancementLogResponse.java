@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class EnhancementLogResponse {
     private final Long id;
     private final Long userId;
+    private final String userName;
     private final int beforeLevel;
     private final int afterLevel;
     private final boolean usedPremiumFertilizer;
