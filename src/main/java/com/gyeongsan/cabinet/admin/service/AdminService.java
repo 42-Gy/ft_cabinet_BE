@@ -259,7 +259,7 @@ public class AdminService {
         for (LentHistory lent : activeLents) {
             try {
                 String intraId = lent.getUser().getName();
-                alarmPort.sendDm(intraId, "[Cabi 긴급공지] " + message);
+                alarmPort.sendDm(intraId, "[SUBAK 긴급공지] " + message);
                 successCount++;
             } catch (Exception e) {
                 log.error("Emergency DM send failed for user: {}", lent.getUser().getName());
