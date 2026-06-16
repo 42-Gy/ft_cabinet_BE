@@ -438,7 +438,7 @@ erDiagram
 | :--- | :--- |
 | **Backend** | Java 17, **Spring Boot 3.5.8**, Spring Security, Spring Data JPA |
 | **Database** | MariaDB 10.6, **Redis** (Token Storage & Caching) |
-| **Infra** | **Docker Compose**, AWS EC2, **Nginx** (Reverse Proxy) |
+| **Infra** | **Docker Compose**, Azure App Service, **Nginx** (Reverse Proxy) |
 | **Monitoring** | **Prometheus** (Metrics), **Grafana** (Visualization), **Actuator** |
 | **Stability** | **Graceful Shutdown**, **DB Indexing**, **Resilience4j**, **Logback (Rolling)** |
 | **Tools** | Gradle, **Slack Bot (Web API)**, **Spring Actuator** |
