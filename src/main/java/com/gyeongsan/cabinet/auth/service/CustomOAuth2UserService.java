@@ -74,8 +74,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
 
         LocalDateTime blackholedAt = extractBlackholedAt(attributes);
+        boolean pisciner = isPisciner(attributes);
 
-        saveOrUpdateUser(intraId, email, blackholedAt);
+        saveOrUpdateUser(intraId, email, blackholedAt, pisciner);
 
         String userNameAttributeName = userRequest.getClientRegistration()
                 .getProviderDetails()
@@ -155,20 +156,26 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return null;
     }
 
-    private void saveOrUpdateUser(String intraId, String email, LocalDateTime blackholedAt) {
+    private void saveOrUpdateUser(String intraId, String email,
+                                  LocalDateTime blackholedAt, boolean isPisciner) {
         User user = userRepository.findByName(intraId).orElse(null);
 
         if (user == null) {
-            log.info("🎉 신규 유저 발견! 회원가입: {}", intraId);
-            user = User.of(intraId, email, UserRole.USER);
+            log.info("🎉 신규 유저 발견! 회원가입: {} (피시너: {})", intraId, isPisciner);
+            user = User.of(intraId, email, UserRole.USER, isPisciner);
             user = userRepository.save(user);
             giveWelcomeGift(user);
+        } else {
+            if (user.isPisciner() && !isPisciner) {
+                log.info("🎓 피시너 → 본과정 전환 감지: {}", intraId);
+            }
+            user.updatePiscinerStatus(isPisciner);
         }
 
         user.updateBlackholedAt(blackholedAt);
         userRepository.save(user);
 
-        log.info("✅ 유저 로그인 처리 완료: {} (블랙홀: {})", intraId, blackholedAt);
+        log.info("✅ 유저 로그인 처리 완료: {} (블랙홀: {}, 피시너: {})", intraId, blackholedAt, isPisciner);
     }
 
     private void giveWelcomeGift(User user) {
@@ -184,5 +191,32 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         itemHistoryRepository.saveAll(tickets);
         log.info("🎁 신규 유저 {}님께 웰컴 아이템 {}개 지급 완료", user.getName(), tickets.size());
+    }
+
+    private boolean isPisciner(Map<String, Object> attributes) {
+        try {
+            List<Map<String, Object>> cursusUsers =
+                    (List<Map<String, Object>>) attributes.get("cursus_users");
+            if (cursusUsers == null || cursusUsers.isEmpty()) return false;
+
+            boolean has42Cursus = cursusUsers.stream()
+                    .anyMatch(cu -> {
+                        Map<String, Object> cursus = (Map<String, Object>) cu.get("cursus");
+                        Integer id = (Integer) cursus.get("id");
+                        return id != null && id == 21;
+                    });
+
+            boolean hasPiscine = cursusUsers.stream()
+                    .anyMatch(cu -> {
+                        Map<String, Object> cursus = (Map<String, Object>) cu.get("cursus");
+                        Integer id = (Integer) cursus.get("id");
+                        return id != null && id == 9;
+                    });
+
+            return !has42Cursus && hasPiscine;
+        } catch (Exception e) {
+            log.warn("⚠️ 피시너 여부 판별 중 오류: {}", e.getMessage());
+            return false;
+        }
     }
 }

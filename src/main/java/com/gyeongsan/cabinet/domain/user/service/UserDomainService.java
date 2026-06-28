@@ -109,6 +109,7 @@ public class UserDomainService implements UserUseCase {
                 .email(user.getEmail())
                 .coin(user.getCoin())
                 .role(user.getRole())
+                .isPisciner(user.isPisciner())
                 .penaltyDays(penaltyDays)
                 .monthlyLogtime(user.getMonthlyLogtime())
                 .lentCabinetId(cabinetId)

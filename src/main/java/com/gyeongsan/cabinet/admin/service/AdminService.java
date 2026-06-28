@@ -3,6 +3,7 @@ package com.gyeongsan.cabinet.admin.service;
 import com.gyeongsan.cabinet.admin.dto.*;
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
+import com.gyeongsan.cabinet.cabinet.domain.LentType;
 import com.gyeongsan.cabinet.cabinet.repository.CabinetRepository;
 import com.gyeongsan.cabinet.coin.domain.CoinHistory;
 import com.gyeongsan.cabinet.coin.domain.CoinLogType;
@@ -447,10 +448,10 @@ public class AdminService {
         }
 
         for (Cabinet cabinet : cabinets) {
-            cabinet.updateStatus(targetStatus);
-            if (statusNote != null && !statusNote.isBlank()) {
-                cabinet.updateStatusNote(statusNote);
-            }
+            CabinetStatus newStatus = targetStatus != null ? targetStatus : cabinet.getStatus();
+            LentType newLentType = request.lentType() != null ? request.lentType() : cabinet.getLentType();
+            String newNote = (statusNote != null && !statusNote.isBlank()) ? statusNote : cabinet.getStatusNote();
+            cabinet.updateStatus(newStatus, newLentType, newNote);
         }
 
         log.info("[Admin] 사물함 상태 일괄 변경 완료: {} -> {} (사유: {}, 대상: {}개)",

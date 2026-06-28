@@ -22,6 +22,8 @@ public class MyProfileResponseDto {
 
     private UserRole role;
 
+    private boolean isPisciner;
+
     private Integer penaltyDays;
     private Integer monthlyLogtime;
 

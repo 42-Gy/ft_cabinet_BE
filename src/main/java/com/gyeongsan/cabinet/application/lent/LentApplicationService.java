@@ -2,6 +2,7 @@ package com.gyeongsan.cabinet.application.lent;
 
 import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
 import com.gyeongsan.cabinet.cabinet.domain.CabinetStatus;
+import com.gyeongsan.cabinet.cabinet.domain.LentType;
 import com.gyeongsan.cabinet.domain.cabinet.port.out.CabinetRepositoryPort;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.port.in.LentUseCase;
@@ -72,6 +73,8 @@ public class LentApplicationService implements LentUseCase {
         if (cabinet.getStatus() != CabinetStatus.AVAILABLE) {
             throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
         }
+
+        validateLentTypePermission(user, cabinet);
 
         List<ItemHistory> lentTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.LENT);
 
@@ -191,6 +194,12 @@ public class LentApplicationService implements LentUseCase {
             throw new ServiceException(ErrorCode.EXTENSION_TICKET_NOT_FOUND);
         }
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+        if (user.isPisciner()) {
+            throw new ServiceException(ErrorCode.PISCINER_EXTENSION_RESTRICTED);
+        }
+
         ItemHistory ticket = extensionTickets.get(0);
         ticket.use();
 
@@ -209,6 +218,10 @@ public class LentApplicationService implements LentUseCase {
 
         if (user.getPenaltyDays() > 0) {
             throw new ServiceException(ErrorCode.PENALTY_USER);
+        }
+
+        if (user.isPisciner()) {
+            throw new ServiceException(ErrorCode.PISCINER_EXTENSION_RESTRICTED);
         }
 
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
@@ -283,6 +296,8 @@ public class LentApplicationService implements LentUseCase {
         if (newCabinet.getStatus() != CabinetStatus.AVAILABLE) {
             throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
         }
+
+        validateLentTypePermission(user, newCabinet);
 
         List<ItemHistory> swapTickets = itemHistoryRepository.findUnusedItems(userId, ItemType.SWAP);
 
@@ -395,6 +410,10 @@ public class LentApplicationService implements LentUseCase {
             throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
         }
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+        validateLentTypePermission(user, cabinet);
+
         var reservedUserId = reservationPort.getReservedUserId(visibleNum);
         if (reservedUserId.isPresent() && !reservedUserId.get().equals(userId)) {
             throw new ServiceException(ErrorCode.CABINET_ALREADY_RESERVED);
@@ -434,5 +453,17 @@ public class LentApplicationService implements LentUseCase {
 
         log.info("연체 패널티 부여: User={}, 연체일={}일, 추가 패널티={}일, 총 패널티={}일",
                 user.getName(), overdueDays, newPenalty, totalPenalty);
+    }
+
+    private void validateLentTypePermission(User user, Cabinet cabinet) {
+        if (user.isPisciner()) {
+            if (cabinet.getLentType() != LentType.LAPISCINE) {
+                throw new ServiceException(ErrorCode.PISCINER_CABINET_RESTRICTED);
+            }
+        } else {
+            if (cabinet.getLentType() == LentType.LAPISCINE) {
+                throw new ServiceException(ErrorCode.NON_PISCINER_LAPISCINE_RESTRICTED);
+            }
+        }
     }
 }

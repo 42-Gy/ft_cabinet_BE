@@ -69,22 +69,31 @@ public class User {
     @Column(name = "PUSH_ALARM")
     private boolean pushAlarm = false;
 
-    protected User(String name, String email, LocalDateTime blackholedAt, UserRole role) {
+    @Builder.Default
+    @Column(name = "IS_PISCINER", nullable = false)
+    private boolean isPisciner = false;
+
+    protected User(String name, String email, LocalDateTime blackholedAt, UserRole role, boolean isPisciner) {
         this.name = name;
         this.email = email;
         this.blackholedAt = blackholedAt;
         this.role = role;
+        this.isPisciner = isPisciner;
         this.coin = 0L;
         this.penaltyDays = 0;
         this.monthlyLogtime = 0;
     }
 
     public static User of(String name, String email, UserRole role) {
-        return new User(name, email, null, role);
+        return new User(name, email, null, role, false);
+    }
+
+    public static User of(String name, String email, UserRole role, boolean isPisciner) {
+        return new User(name, email, null, role, isPisciner);
     }
 
     public static User of(String name, String email, LocalDateTime blackholedAt, UserRole role) {
-        return new User(name, email, blackholedAt, role);
+        return new User(name, email, blackholedAt, role, false);
     }
 
     public void updateBlackholedAt(LocalDateTime blackholedAt) {
@@ -133,5 +142,9 @@ public class User {
 
     public void updateRole(UserRole role) {
         this.role = role;
+    }
+
+    public void updatePiscinerStatus(boolean isPisciner) {
+        this.isPisciner = isPisciner;
     }
 }

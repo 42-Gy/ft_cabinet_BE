@@ -327,6 +327,7 @@ erDiagram
         boolean slackAlarm "슬랙 알림 여부"
         boolean emailAlarm "이메일 알림 여부"
         boolean pushAlarm "푸시 알림 여부"
+        boolean isPisciner "피시너 여부"
     }
 
     ATTENDANCE {
@@ -351,7 +352,7 @@ erDiagram
         Long id PK
         Integer visibleNum "사물함 번호"
         String status "상태 - AVAILABLE FULL BROKEN PENDING DISABLED"
-        String lentType "타입 - PRIVATE SHARE"
+        String lentType "타입 - PRIVATE LAPISCINE"
         Integer maxUser "최대 수용 인원"
         String statusNote "상태 비고"
         Integer floor "층"
@@ -429,6 +430,7 @@ erDiagram
 | **Ver 1.0** | **Production Release** | **인앱 카메라 전용 모드**, **코인 거래 추적 시스템**, **캘린더 일정 관리**, **블랙리스트 관리 API**, Rate Limiting, 하드코딩 값 외부화 등 프로덕션 안정화 완료 |
 | **Ver 1.1** | **Hexagonal Architecture** | 레이어드 → **헥사고날(Ports & Adapters)** 아키텍처 전환. **18개 Port 인터페이스**, **14개 Adapter**, **5개 Domain Service** 구축. 도메인 로직의 인프라 독립성 확보 및 테스트 용이성 강화. API 계약 변경 없음 |
 | **Ver 1.2** | **Social Login & Extension** | 카카오 및 구글 소셜 로그인 연동 모듈 추가. 헥사고날(Ports & Adapters) 아키텍처에 부합하도록 인증 및 연동 구조 리팩토링 및 다형성(Strategy Pattern) 적용. 연동용 API 엔드포인트 공통화 (`/v4/auth/link/{provider}`) 및 예외 복구 흐름 개선 |
+| **Ver 1.3** | **Pisciner Identification & Cabinet Restriction** | 42 API `cursus_users`를 활용한 피시너 자동 식별(`cursus_id=9` 판별). 피시너 전용 사물함(`LAPISCINE` 타입) 대여 제한 적용. 관리자 LentType 일괄 변경 API 추가. 피시너 연장 차단. 본과정 합류 시 자동 전환 |
 
 <br>
 
@@ -502,6 +504,13 @@ erDiagram
 * **비료 및 방지권 기능:** 프리미엄 비료(성공확률 보정) 및 위험한 비료(성공률 대폭 상승, 단 7강 이상 사용 불가) 사용이 가능하며, 실패 페널티를 막아줄 하락 방지권 및 파괴 방지권(파괴 무효화 대신 현재 레벨에서 -2강)을 제공합니다.
 * **코인 연동 및 전용 상점:** 유저의 기존 코인 재화와 완벽히 연동되어 작동하며, 전용 상점 API(`POST /v4/watermelon-event/shop/buy`)를 통해 코인을 지급하여 아이템을 구매할 수 있습니다.
 * **3중 정렬 리더보드 최적화:** `highest_level`, `highest_level_achieved_at`, `total_attempts` 3중 정렬이 적용된 동적 리더보드 랭킹을 성능 최적화 복합 인덱스 하에 고속으로 조회합니다.
+
+### 11. 🏊 피시너 식별 & 사물함 제한 (Pisciner Identification) [New]
+* **42 API 연동 자동 식별:** OAuth 로그인 시 42 API의 `cursus_users` 배열을 분석하여 피시너 여부를 자동 판별합니다. (`cursus_id=9`만 존재하고 `cursus_id=21`이 없으면 피시너)
+* **전용 사물함 제한:** 피시너는 관리자가 `LAPISCINE` 타입으로 지정한 사물함만 대여/예약/이사 가능합니다. 일반 유저는 `LAPISCINE` 사물함을 사용할 수 없습니다.
+* **연장 차단:** 피시너는 대여 기간이 고정되어 연장권/대여권 사용이 차단됩니다.
+* **자동 전환:** 피시너가 본과정(42cursus)에 합류하면 재로그인 시 자동으로 일반 유저로 전환됩니다.
+* **관리자 일괄 변경:** 관리자가 관리 페이지에서 사물함을 선택하여 `LentType`을 `LAPISCINE`으로 일괄 변경 가능합니다. 재배포 없이 실시간으로 피시너 전용 구역을 관리합니다.
 
 <br>
 
@@ -803,6 +812,7 @@ sequenceDiagram
 | `DELETE` | `/v4/admin/users/{name}/penalty` | 유저 패널티 해제 (감면) |
 | `POST` | `/v4/admin/users/{name}/items` | 유저에게 아이템 수동 지급 |
 | `PATCH` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상태(고장 등) 변경 |
+| `PATCH` | `/v4/admin/cabinets/bundle/status` | **[NEW]** 사물함 상태/LentType 일괄 변경 (피시너 전용 구역 설정) |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/force-return` | 관리자 권한 강제 반납 |
 | `GET` | `/v4/admin/cabinets/pending` | 수동 반납 승인 대기 목록 조회 |
 | `GET` | `/v4/admin/returns/photos` | **[NEW]** 반납 완료된 사물함 사진 조회 (Audit) |
