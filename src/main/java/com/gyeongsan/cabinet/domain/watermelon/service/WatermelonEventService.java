@@ -85,20 +85,7 @@ public class WatermelonEventService implements
 
         EnhancementResult rawOutcome = rollEnhancement(beforeLevel, usePremium, useDangerous);
 
-        watermelon.applyEnhancement(rawOutcome, useDropProj, useDestroyProj);
-
-        EnhancementResult finalOutcome;
-        if (watermelon.getCurrentLevel() > beforeLevel) {
-            finalOutcome = EnhancementResult.SUCCESS;
-        } else if (watermelon.getCurrentLevel() < beforeLevel) {
-            finalOutcome = EnhancementResult.DROP;
-        } else {
-            if (rawOutcome == EnhancementResult.DESTROY) {
-                finalOutcome = EnhancementResult.MAINTAIN;
-            } else {
-                finalOutcome = rawOutcome;
-            }
-        }
+        EnhancementResult finalOutcome = watermelon.applyEnhancement(rawOutcome, useDropProj, useDestroyProj);
 
         userRepository.save(user);
         Watermelon savedWatermelon = watermelonRepository.save(watermelon);

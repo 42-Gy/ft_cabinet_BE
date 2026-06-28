@@ -45,7 +45,7 @@ class AdminServiceTest {
         Long cabinetId = 1L;
         List<Long> cabinetIds = List.of(cabinetId);
         CabinetStatus targetStatus = CabinetStatus.AVAILABLE;
-        BulkStatusUpdateRequest request = new BulkStatusUpdateRequest(cabinetIds, targetStatus, null);
+        BulkStatusUpdateRequest request = new BulkStatusUpdateRequest(cabinetIds, targetStatus, null, null);
 
         Cabinet cabinet = mock(Cabinet.class);
         given(cabinetRepository.findAllById(cabinetIds)).willReturn(List.of(cabinet));
@@ -57,7 +57,7 @@ class AdminServiceTest {
         adminService.bulkUpdateCabinetStatus(request);
 
         then(activeLent).should(times(1)).endLent(any(LocalDateTime.class));
-        then(cabinet).should(times(1)).updateStatus(targetStatus);
+        then(cabinet).should(times(1)).updateStatus(targetStatus, null, null);
     }
 
     @Test
@@ -68,7 +68,7 @@ class AdminServiceTest {
         List<Long> cabinetIds = List.of(cabinetId);
         CabinetStatus targetStatus = CabinetStatus.BROKEN;
         String statusNote = "Broken";
-        BulkStatusUpdateRequest request = new BulkStatusUpdateRequest(cabinetIds, targetStatus, statusNote);
+        BulkStatusUpdateRequest request = new BulkStatusUpdateRequest(cabinetIds, targetStatus, null, statusNote);
 
         Cabinet cabinet = mock(Cabinet.class);
         given(cabinetRepository.findAllById(cabinetIds)).willReturn(List.of(cabinet));
@@ -77,7 +77,6 @@ class AdminServiceTest {
 
         adminService.bulkUpdateCabinetStatus(request);
 
-        then(cabinet).should(times(1)).updateStatus(targetStatus);
-        then(cabinet).should(times(1)).updateStatusNote(statusNote);
+        then(cabinet).should(times(1)).updateStatus(targetStatus, null, statusNote);
     }
 }

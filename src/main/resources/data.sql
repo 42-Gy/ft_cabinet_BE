@@ -31,7 +31,8 @@ INSERT IGNORE INTO user (
         slack_alarm,
         penalty_days,
         monthly_logtime,
-        version
+        version,
+        is_pisciner
     )
 VALUES (
         1,
@@ -46,7 +47,8 @@ VALUES (
         true,
         0,
         5000,
-        0
+        0,
+        false
     );
 INSERT IGNORE INTO user (
         id,
@@ -61,7 +63,8 @@ INSERT IGNORE INTO user (
         slack_alarm,
         penalty_days,
         monthly_logtime,
-        version
+        version,
+        is_pisciner
     )
 VALUES (
         2,
@@ -76,7 +79,8 @@ VALUES (
         true,
         0,
         12341234,
-        0
+        0,
+        false
     );
 INSERT IGNORE INTO item (id, description, name, price, type)
 VALUES (

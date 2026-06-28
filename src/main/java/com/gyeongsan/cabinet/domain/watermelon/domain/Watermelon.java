@@ -78,7 +78,7 @@ public class Watermelon {
         }
     }
 
-    public void applyEnhancement(EnhancementResult rawResult, boolean useDropProj, boolean useDestroyProj) {
+    public EnhancementResult applyEnhancement(EnhancementResult rawResult, boolean useDropProj, boolean useDestroyProj) {
         if (this.currentLevel >= WatermelonConfig.MAX_LEVEL) {
             throw new IllegalArgumentException("이미 최대 강화 단계에 도달했습니다.");
         }
@@ -131,5 +131,6 @@ public class Watermelon {
                 this.totalDestroys++;
             }
         }
+        return finalResult;
     }
 }
