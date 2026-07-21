@@ -67,35 +67,32 @@ public class LogtimeScheduler {
 
         for (User user : allUsers) {
             try {
-                processUserLogtime(user, startOfMonth, endOfYesterday, finalRewardItem, isPayDay);
-                Thread.sleep(600);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error("스케줄러 인터럽트 발생");
-                break;
+                // 기존 동기 처리 및 Thread.sleep(600) 제거
+                // 대신 Redis Stream 에 이벤트를 던지고 백그라운드 워커가 처리하도록 위임
+                java.util.Map<String, String> streamData = new java.util.HashMap<>();
+                streamData.put("userId", String.valueOf(user.getId()));
+                streamData.put("intraId", user.getName());
+                streamData.put("start", startOfMonth.toString());
+                streamData.put("end", endOfYesterday.toString());
+                streamData.put("isPayDay", String.valueOf(isPayDay));
+                if (finalRewardItem != null) {
+                    streamData.put("rewardItemId", String.valueOf(finalRewardItem.getId()));
+                }
+
+                org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate = 
+                    com.gyeongsan.cabinet.global.utils.SpringContext.getBean("redisTemplate", org.springframework.data.redis.core.RedisTemplate.class);
+                
+                redisTemplate.opsForStream().add(com.gyeongsan.cabinet.config.RedisStreamConfig.LOGTIME_STREAM_KEY, streamData);
+                
             } catch (Exception e) {
-                log.error("{} 로그타임 처리 중 에러: {}", user.getName(), e.getMessage());
+                log.error("{} 로그타임 처리 발행 중 에러: {}", user.getName(), e.getMessage());
             }
         }
 
         if (isPayDay) {
-            log.info("[Monthly] 월간 보상 지급 및 초기화 완료");
+            log.info("[Monthly] 월간 보상 지급 및 초기화 (이벤트 발행 완료)");
         } else {
-            log.info("[Daily] 일일 집계(동기화) 완료");
+            log.info("[Daily] 일일 집계 동기화 (이벤트 발행 완료)");
         }
-    }
-
-    private void processUserLogtime(User user, LocalDateTime start, LocalDateTime end, Item rewardItem,
-            boolean isPayDay) {
-        int totalMinutes = ftApiPort.getLogtimeBetween(
-                user.getName(),
-                start,
-                end);
-
-        userUseCase.processLogtimeTransaction(
-                user.getId(),
-                rewardItem,
-                totalMinutes,
-                isPayDay);
     }
 }

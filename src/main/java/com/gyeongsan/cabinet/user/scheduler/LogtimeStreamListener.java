@@ -1,0 +1,65 @@
+package com.gyeongsan.cabinet.user.scheduler;
+
+import com.gyeongsan.cabinet.config.RedisStreamConfig;
+import com.gyeongsan.cabinet.domain.item.port.out.ItemRepositoryPort;
+import com.gyeongsan.cabinet.domain.lent.port.out.FtApiPort;
+import com.gyeongsan.cabinet.domain.user.port.in.UserUseCase;
+import com.gyeongsan.cabinet.item.domain.Item;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.data.redis.connection.stream.MapRecord;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.stream.StreamListener;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+
+@Component
+@RequiredArgsConstructor
+@Log4j2
+public class LogtimeStreamListener implements StreamListener<String, MapRecord<String, String, String>> {
+
+    private final FtApiPort ftApiPort;
+    private final UserUseCase userUseCase;
+    private final ItemRepositoryPort itemRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    @Override
+    public void onMessage(MapRecord<String, String, String> message) {
+        try {
+            Map<String, String> value = message.getValue();
+            Long userId = Long.parseLong(value.get("userId"));
+            String intraId = value.get("intraId");
+            LocalDateTime start = LocalDateTime.parse(value.get("start"));
+            LocalDateTime end = LocalDateTime.parse(value.get("end"));
+            boolean isPayDay = Boolean.parseBoolean(value.get("isPayDay"));
+            
+            Item rewardItem = null;
+            if (value.containsKey("rewardItemId")) {
+                Long itemId = Long.parseLong(value.get("rewardItemId"));
+                rewardItem = itemRepository.findById(itemId).orElse(null);
+            }
+
+            log.info("📥 [Consumer] Redis Stream에서 로그타임 동기화 이벤트 수신: {}", intraId);
+
+            int totalMinutes = ftApiPort.getLogtimeBetween(intraId, start, end);
+
+            userUseCase.processLogtimeTransaction(userId, rewardItem, totalMinutes, isPayDay);
+
+            // 42 API 호출 Rate Limit 보호를 위해 스트림 소비 시 딜레이 적용
+            Thread.sleep(600);
+
+            // 처리 완료(ACK) 보고 및 메시지 삭제
+            redisTemplate.opsForStream().acknowledge(
+                    RedisStreamConfig.CONSUMER_GROUP_NAME, message);
+            redisTemplate.opsForStream().delete(message);
+            
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("🚨 [Consumer] 로그타임 동기화 중 인터럽트 발생: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("🚨 [Consumer] 로그타임 동기화 중 에러 발생: {}", e.getMessage());
+        }
+    }
+}
