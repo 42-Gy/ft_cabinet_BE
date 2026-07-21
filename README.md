@@ -1,5 +1,5 @@
 
-# 🗄️ 42Cabi Gyeongsan Ver 1.1
+# 🗄️ 42Cabi Gyeongsan Ver 1.5
 
 > **42 경산 캠퍼스 지능형 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성, 공정한 이용, 게임화(Gamification), 그리고 **시스템의 안정성**을 모두 갖춘 REST API 서버입니다.
@@ -438,6 +438,7 @@ erDiagram
 | **Ver 1.2** | **Social Login & Extension** | 카카오 및 구글 소셜 로그인 연동 모듈 추가. 헥사고날(Ports & Adapters) 아키텍처에 부합하도록 인증 및 연동 구조 리팩토링 및 다형성(Strategy Pattern) 적용. 연동용 API 엔드포인트 공통화 (`/v4/auth/link/{provider}`) 및 예외 복구 흐름 개선 |
 | **Ver 1.3** | **Pisciner Identification & Cabinet Restriction** | 42 API `cursus_users`를 활용한 피시너 자동 식별(`cursus_id=9` 판별). 피시너 전용 사물함(`LAPISCINE` 타입) 대여 제한 적용. 관리자 LentType 일괄 변경 API 추가. 피시너 연장 차단. 본과정 합류 시 자동 전환 |
 | **Ver 1.4** | **Azure Redis & Stability** | **Azure Managed Redis** 연동 및 내장 레디스 완전 제거. **ShedLock**을 통한 분산 서버 스케줄러 동시성 제어 적용. JWT Access Token 검증 시 DB 조회 병목 제거(Claims 기반 인증). 12-Factor App 보안 구성을 통한 환경 변수 분리 및 SSL/TLS 강제 적용 |
+| **Ver 1.5** | **Redis Streams Async Queue** | 대규모 트래픽 확장에 대비하여 **Redis Streams** 기반 비동기 이벤트 큐 시스템 구축. 외부 통신(Slack 알림 발송, 42 API 로그타임 집계)에 의한 메인 서버 블로킹 방지 및 분산 워커 처리 적용 |
 
 <br>
 
@@ -446,7 +447,7 @@ erDiagram
 | 분류 | 기술 |
 | :--- | :--- |
 | **Backend** | Java 17, **Spring Boot 3.5.8**, Spring Security, Spring Data JPA |
-| **Database** | MariaDB 10.6, **Azure Managed Redis** (Token/Cache/ShedLock) |
+| **Database** | MariaDB 10.6, **Azure Managed Redis** (Token/Cache/ShedLock/Streams) |
 | **Infra** | **Docker Compose**, Azure App Service, **Nginx** (Reverse Proxy) |
 | **Monitoring** | **Prometheus** (Metrics), **Grafana** (Visualization), **Actuator** |
 | **Stability** | **Graceful Shutdown**, **DB Indexing**, **Resilience4j**, **Logback (Rolling)** |
@@ -474,6 +475,7 @@ erDiagram
     * **Golden Watermelon:** 매월 **20회차** 출석 달성 시 **2,000 코인** 보너스 지급.
 
 ### 4. 🛡️ 시스템 안정성 및 성능 (Robustness & Performance)
+* **비동기 이벤트 큐 (Redis Streams):** 무거운 외부 API 통신(슬랙 알림 전송, 3,000명 단위의 42 API 로그타임 집계)을 메인 스레드에서 분리하여 Redis 큐로 위임. 사용자 응답 지연을 방지하고 분산 워커 환경을 완벽하게 지원합니다.
 * **동시성 제어(Concurrency):** `User` 엔티티에 **낙관적 락(`@Version`)**을 적용하여 코인 중복 사용(Double Spending)을 원천 차단했습니다.
 * **Graceful Shutdown:** 배포나 서버 재시작 시, 진행 중인 대여/반납 요청을 강제로 끊지 않고 **안전하게 완료한 뒤 종료**되도록 설정하여 데이터 유실을 방지합니다.
 * **DB 인덱싱(Indexing):** 대여 기록(`LentHistory`)의 핵심 컬럼(`user_id`, `cabinet_id`, `ended_at`)에 인덱스를 적용하여, 데이터가 수십만 건 쌓여도 **조회 속도가 저하되지 않도록 최적화**했습니다.
