@@ -20,7 +20,7 @@ graph TD
     subgraph "Backend Container"
         Nginx -->|"Proxy Pass<br>Port 8080"| SpringBoot["☕ Core API Server<br>Spring Boot 3.5"]
         Security["Spring Security<br>JWT Filter"]
-        Scheduler["Schedulers<br>Lent/Logtime"]
+        Scheduler["Schedulers<br>Lent/Logtime (ShedLock)"]
     end
 
     %% 모니터링 영역 (New)
@@ -35,7 +35,11 @@ graph TD
     %% 데이터 영역
     subgraph "Data Persistence"
         MariaDB[("🐬 MariaDB 10.6<br>Main DB")]
-        Redis[("🔴 Redis<br>Token/Cache")]
+    end
+
+    %% 클라우드 관리형 서비스
+    subgraph "Cloud Managed Services"
+        Redis[("☁️ Azure Managed Redis<br>Token/Cache/ShedLock")]
     end
 
     %% 외부 서비스
@@ -58,6 +62,8 @@ graph TD
     SpringBoot -->|"OAuth2 Link/Auth"| Google_API
     SpringBoot -->|API Call| Slack
     SpringBoot -->|"Image Upload"| Azure_Blob
+    Scheduler -.->|"Distributed Lock"| Redis
+    Security -.->|"Verify RT"| Redis
 ```
 
 <br>
@@ -431,6 +437,7 @@ erDiagram
 | **Ver 1.1** | **Hexagonal Architecture** | 레이어드 → **헥사고날(Ports & Adapters)** 아키텍처 전환. **18개 Port 인터페이스**, **14개 Adapter**, **5개 Domain Service** 구축. 도메인 로직의 인프라 독립성 확보 및 테스트 용이성 강화. API 계약 변경 없음 |
 | **Ver 1.2** | **Social Login & Extension** | 카카오 및 구글 소셜 로그인 연동 모듈 추가. 헥사고날(Ports & Adapters) 아키텍처에 부합하도록 인증 및 연동 구조 리팩토링 및 다형성(Strategy Pattern) 적용. 연동용 API 엔드포인트 공통화 (`/v4/auth/link/{provider}`) 및 예외 복구 흐름 개선 |
 | **Ver 1.3** | **Pisciner Identification & Cabinet Restriction** | 42 API `cursus_users`를 활용한 피시너 자동 식별(`cursus_id=9` 판별). 피시너 전용 사물함(`LAPISCINE` 타입) 대여 제한 적용. 관리자 LentType 일괄 변경 API 추가. 피시너 연장 차단. 본과정 합류 시 자동 전환 |
+| **Ver 1.4** | **Azure Redis & Stability** | **Azure Managed Redis** 연동 및 내장 레디스 완전 제거. **ShedLock**을 통한 분산 서버 스케줄러 동시성 제어 적용. JWT Access Token 검증 시 DB 조회 병목 제거(Claims 기반 인증). 12-Factor App 보안 구성을 통한 환경 변수 분리 및 SSL/TLS 강제 적용 |
 
 <br>
 
@@ -439,7 +446,7 @@ erDiagram
 | 분류 | 기술 |
 | :--- | :--- |
 | **Backend** | Java 17, **Spring Boot 3.5.8**, Spring Security, Spring Data JPA |
-| **Database** | MariaDB 10.6, **Redis** (Token Storage & Caching) |
+| **Database** | MariaDB 10.6, **Azure Managed Redis** (Token/Cache/ShedLock) |
 | **Infra** | **Docker Compose**, Azure App Service, **Nginx** (Reverse Proxy) |
 | **Monitoring** | **Prometheus** (Metrics), **Grafana** (Visualization), **Actuator** |
 | **Stability** | **Graceful Shutdown**, **DB Indexing**, **Resilience4j**, **Logback (Rolling)** |
@@ -472,6 +479,8 @@ erDiagram
 * **DB 인덱싱(Indexing):** 대여 기록(`LentHistory`)의 핵심 컬럼(`user_id`, `cabinet_id`, `ended_at`)에 인덱스를 적용하여, 데이터가 수십만 건 쌓여도 **조회 속도가 저하되지 않도록 최적화**했습니다.
 * **Timezone 동기화:** Docker 컨테이너 레벨에서 `Asia/Seoul` 타임존을 강제하여, 서버 환경에 상관없이 **출석 체크와 연체료 계산**이 정확한 시간에 수행됩니다.
 * **WebClient Timeout:** AI 서버 통신 시 3초 타임아웃을 강제 적용하여 외부 장애 전파를 차단합니다.
+* **분산 스케줄러 락 (ShedLock):** Azure Managed Redis 기반의 분산 락을 도입하여 다중 서버(Scale-out) 환경이나 무중단 배포 시 스케줄러가 중복 실행되어 데이터 정합성이 깨지는 문제를 원천 차단했습니다.
+* **JWT 인증 최적화:** Access Token 검증 시 DB 조회를 제거하고 Claims 데이터를 활용하여 병목을 개선했으며, Refresh Token은 Redis로 안전하게 관리합니다.
 * **Logback Rolling Policy:** 로그 파일 용량(10MB/3GB) 제한으로 디스크 장애 예방.
 
 ### 5. 🎮 게임화 및 상점 (Gamification)
