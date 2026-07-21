@@ -1,0 +1,8 @@
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:10000}
+      password: ${REDIS_PASSWORD}
+      ssl:
+        enabled: true

@@ -10,6 +10,7 @@ import com.gyeongsan.cabinet.user.domain.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -27,6 +28,7 @@ public class LogtimeScheduler {
     private final UserUseCase userUseCase;
 
     @Scheduled(cron = "0 0 1 * * *")
+    @SchedulerLock(name = "processDailyLogtimeTask", lockAtMostFor = "60m", lockAtLeastFor = "5m")
     public void processDailyLogtime() {
         log.info("[Daily] 로그타임 집계 시작 (병렬 처리 모드)");
 

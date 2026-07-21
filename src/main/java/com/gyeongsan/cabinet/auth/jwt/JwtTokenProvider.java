@@ -93,8 +93,14 @@ public class JwtTokenProvider {
         Claims claims = parseClaims(token);
         Long userId = Long.valueOf(claims.getSubject());
 
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 토큰입니다 (유저 없음)."));
+        String name = claims.get("name", String.class);
+        String roleStr = claims.get("role", String.class);
+
+        User user = User.builder()
+                .id(userId)
+                .name(name)
+                .role(com.gyeongsan.cabinet.user.domain.UserRole.valueOf(roleStr))
+                .build();
 
         UserPrincipal userPrincipal = new UserPrincipal(user, Collections.emptyMap());
 

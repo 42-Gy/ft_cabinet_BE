@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +39,7 @@ public class LentScheduler {
     private Integer lentTerm;
 
     @Scheduled(cron = "0 40 1 * * *")
+    @SchedulerLock(name = "autoExtensionTask", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void autoExtension() {
         log.info("[Daily] 자동 연장 프로세스 시작...");
@@ -69,6 +71,7 @@ public class LentScheduler {
     }
 
     @Scheduled(cron = "0 30 1 1 * *")
+    @SchedulerLock(name = "monthlyAutoExtensionRetryTask", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void monthlyAutoExtensionRetry() {
         log.info("[Monthly] 월초 자동 연장 재시도 시작...");
@@ -115,6 +118,7 @@ public class LentScheduler {
     }
 
     @Scheduled(cron = "0 0 9 * * *")
+    @SchedulerLock(name = "checkOverdueTask", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void checkOverdue() {
         LocalDateTime now = LocalDateTime.now();
@@ -163,6 +167,7 @@ public class LentScheduler {
     }
 
     @Scheduled(cron = "0 15 9 * * *")
+    @SchedulerLock(name = "checkExpirationImminentTask", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional(readOnly = true)
     public void checkExpirationImminent() {
         log.info("[D-7, D-1] 반납 임박 알림 체크 시작");
@@ -211,6 +216,7 @@ public class LentScheduler {
     }
 
     @Scheduled(cron = "0 0 0 * * *")
+    @SchedulerLock(name = "penaltyDecayTask", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void penaltyDecay() {
         log.info("패널티 감소 프로세스 시작...");

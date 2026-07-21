@@ -141,7 +141,6 @@ public class LentApplicationService implements LentUseCase {
         });
     }
 
-    @Transactional
     public void endLentManual(Long userId, String previousPassword, String reason, String photoUrl) {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
@@ -157,7 +156,6 @@ public class LentApplicationService implements LentUseCase {
         cabinet.updateStatusNote(reason);
     }
 
-    @Transactional
     protected void processReturnTransaction(Long userId, String previousPassword, String photoUrl) {
         LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId)
                 .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
