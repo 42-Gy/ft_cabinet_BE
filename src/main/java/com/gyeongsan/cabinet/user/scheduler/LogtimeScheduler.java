@@ -26,6 +26,7 @@ public class LogtimeScheduler {
     private final ItemRepositoryPort itemRepository;
     private final FtApiPort ftApiPort;
     private final UserUseCase userUseCase;
+    private final org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
 
     @Scheduled(cron = "0 0 1 * * *")
     @SchedulerLock(name = "processDailyLogtimeTask", lockAtMostFor = "60m", lockAtLeastFor = "5m")
@@ -78,9 +79,6 @@ public class LogtimeScheduler {
                 if (finalRewardItem != null) {
                     streamData.put("rewardItemId", String.valueOf(finalRewardItem.getId()));
                 }
-
-                org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate = 
-                    com.gyeongsan.cabinet.global.utils.SpringContext.getBean("redisTemplate", org.springframework.data.redis.core.RedisTemplate.class);
                 
                 redisTemplate.opsForStream().add(com.gyeongsan.cabinet.config.RedisStreamConfig.LOGTIME_STREAM_KEY, streamData);
                 
