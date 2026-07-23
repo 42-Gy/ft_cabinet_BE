@@ -61,7 +61,15 @@ public class LogtimeStreamListener implements StreamListener<String, MapRecord<S
             Thread.currentThread().interrupt();
             log.error("🚨 [Consumer] 로그타임 동기화 중 인터럽트 발생: {}", e.getMessage());
         } catch (Exception e) {
-            log.error("🚨 [Consumer] 로그타임 동기화 중 에러 발생: {}", e.getMessage());
+            log.error("🚨 [Consumer] 로그타임 동기화 중 에러 발생 (ACK 처리 후 무시): {}", e.getMessage(), e);
+            try {
+                // 예외 발생 시에도 Pending에 계속 남지 않도록 ACK 처리 (일종의 자동 버리기)
+                redisTemplate.opsForStream().acknowledge(
+                        RedisStreamConfig.CONSUMER_GROUP_NAME, message);
+                redisTemplate.opsForStream().delete(message);
+            } catch (Exception ackEx) {
+                log.error("🚨 [Consumer] ACK 처리 중 추가 에러 발생: {}", ackEx.getMessage());
+            }
         }
     }
 }
