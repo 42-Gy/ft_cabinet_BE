@@ -9,7 +9,8 @@ import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.ReadOffset;
 import org.springframework.data.redis.connection.stream.StreamOffset;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer.StreamMessageListenerContainerOptions;
 import org.springframework.data.redis.stream.StreamListener;
@@ -24,7 +25,7 @@ import java.util.UUID;
 public class RedisStreamConfig {
 
     private final RedisConnectionFactory redisConnectionFactory;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
     public static final String SLACK_STREAM_KEY = "slack-alarm-stream";
     public static final String LOGTIME_STREAM_KEY = "logtime-sync-stream";
@@ -36,9 +37,13 @@ public class RedisStreamConfig {
             StreamListener<String, MapRecord<String, String, String>> slackAlarmStreamListener,
             StreamListener<String, MapRecord<String, String, String>> logtimeStreamListener
     ) {
+        StringRedisSerializer stringSerializer = new StringRedisSerializer();
+
+        @SuppressWarnings("unchecked")
         StreamMessageListenerContainerOptions<String, MapRecord<String, String, String>> options =
                 StreamMessageListenerContainerOptions.builder()
                         .pollTimeout(Duration.ofSeconds(1))
+                        .serializer(stringSerializer)
                         .build();
 
         StreamMessageListenerContainer<String, MapRecord<String, String, String>> container =
@@ -65,14 +70,14 @@ public class RedisStreamConfig {
 
     private void createStreamGroup(String streamKey) {
         try {
-            if (Boolean.FALSE.equals(redisTemplate.hasKey(streamKey))) {
-                redisTemplate.opsForStream().add(streamKey, Collections.singletonMap("init", "init"));
-                redisTemplate.opsForStream().createGroup(streamKey, CONSUMER_GROUP_NAME);
+            if (Boolean.FALSE.equals(stringRedisTemplate.hasKey(streamKey))) {
+                stringRedisTemplate.opsForStream().add(streamKey, Collections.singletonMap("init", "init"));
+                stringRedisTemplate.opsForStream().createGroup(streamKey, CONSUMER_GROUP_NAME);
             } else {
-                boolean groupExists = redisTemplate.opsForStream().groups(streamKey).stream()
+                boolean groupExists = stringRedisTemplate.opsForStream().groups(streamKey).stream()
                         .anyMatch(group -> group.groupName().equals(CONSUMER_GROUP_NAME));
                 if (!groupExists) {
-                    redisTemplate.opsForStream().createGroup(streamKey, CONSUMER_GROUP_NAME);
+                    stringRedisTemplate.opsForStream().createGroup(streamKey, CONSUMER_GROUP_NAME);
                 }
             }
         } catch (Exception e) {
