@@ -45,12 +45,14 @@ public class LogtimeStreamListener implements StreamListener<String, MapRecord<S
 
             int totalMinutes = ftApiPort.getLogtimeBetween(intraId, start, end);
 
-            userUseCase.processLogtimeTransaction(userId, rewardItem, totalMinutes, isPayDay);
+            if (totalMinutes < 0) {
+                log.warn("⚠️ [Consumer] {} 로그타임 API 호출 실패. 기존 학습시간을 유지하고 건너뜁니다.", intraId);
+            } else {
+                userUseCase.processLogtimeTransaction(userId, rewardItem, totalMinutes, isPayDay);
+            }
 
-            // 42 API 호출 Rate Limit 보호를 위해 스트림 소비 시 딜레이 적용
             Thread.sleep(600);
 
-            // 처리 완료(ACK) 보고 및 메시지 삭제
             redisTemplate.opsForStream().acknowledge(
                     RedisStreamConfig.CONSUMER_GROUP_NAME, message);
             redisTemplate.opsForStream().delete(message);
