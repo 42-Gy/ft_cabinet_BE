@@ -2,6 +2,8 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.8'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
+	id 'com.diffplug.spotless' version '6.25.0'
 }
 
 group = 'com.42gyeongsan'
@@ -76,4 +78,59 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	finalizedBy 'jacocoTestReport'
+}
+
+spotless {
+	java {
+		target '**/*.java'
+		googleJavaFormat().aosp()
+		removeUnusedImports()
+		trimTrailingWhitespace()
+		endWithNewline()
+	}
+}
+
+jacoco {
+	toolVersion = "0.8.12"
+}
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		html.required = true
+		xml.required = true
+	}
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: [
+				'**/dto/**',
+				'**/config/**',
+				'**/global/**',
+				'**/exception/**',
+				'**/adapter/in/web/**',
+				'**/*Application*',
+			])
+		}))
+	}
+	finalizedBy 'jacocoTestCoverageVerification'
+}
+
+jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			element = 'CLASS'
+			includes = [
+				'com.gyeongsan.cabinet.domain.user.model.User',
+				'com.gyeongsan.cabinet.domain.cabinet.model.Cabinet',
+				'com.gyeongsan.cabinet.domain.admin.service.AdminUserService',
+				'com.gyeongsan.cabinet.domain.admin.service.AdminCabinetService'
+			]
+			limit {
+				counter = 'INSTRUCTION'
+				value = 'COVEREDRATIO'
+				minimum = 0.20
+			}
+		}
+	}
 }

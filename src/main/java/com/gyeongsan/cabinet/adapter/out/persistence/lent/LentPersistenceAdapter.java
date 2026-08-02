@@ -1,16 +1,14 @@
 package com.gyeongsan.cabinet.adapter.out.persistence.lent;
 
+import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
 import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
-import com.gyeongsan.cabinet.lent.domain.LentHistory;
-import com.gyeongsan.cabinet.lent.repository.LentRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -29,7 +27,8 @@ public class LentPersistenceAdapter implements LentRepositoryPort {
     }
 
     @Override
-    public Optional<LentHistory> findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(Long cabinetId) {
+    public Optional<LentHistory> findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(
+            Long cabinetId) {
         return lentRepository.findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(cabinetId);
     }
 
@@ -49,7 +48,13 @@ public class LentPersistenceAdapter implements LentRepositoryPort {
     }
 
     @Override
-    public List<LentHistory> findAllActiveLentsByExpiredAtBetween(LocalDateTime start, LocalDateTime end) {
+    public List<LentHistory> findAllActiveLentByUserIds(List<Long> userIds) {
+        return lentRepository.findAllActiveLentByUserIds(userIds);
+    }
+
+    @Override
+    public List<LentHistory> findAllActiveLentsByExpiredAtBetween(
+            LocalDateTime start, LocalDateTime end) {
         return lentRepository.findAllActiveLentsByExpiredAtBetween(start, end);
     }
 

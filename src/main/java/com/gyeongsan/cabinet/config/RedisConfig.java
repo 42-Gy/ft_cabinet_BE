@@ -33,7 +33,8 @@ public class RedisConfig {
             configuration.setPassword(password);
         }
 
-        LettuceClientConfiguration.LettuceClientConfigurationBuilder builder = LettuceClientConfiguration.builder();
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder builder =
+                LettuceClientConfiguration.builder();
         if (sslEnabled) {
             builder.useSsl();
         }

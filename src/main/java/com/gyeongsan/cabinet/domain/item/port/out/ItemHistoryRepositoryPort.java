@@ -1,8 +1,7 @@
 package com.gyeongsan.cabinet.domain.item.port.out;
 
-import com.gyeongsan.cabinet.item.domain.ItemHistory;
-import com.gyeongsan.cabinet.item.domain.ItemType;
-
+import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
+import com.gyeongsan.cabinet.domain.item.model.ItemType;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -16,7 +15,8 @@ public interface ItemHistoryRepositoryPort {
 
     int countByUserIdAndItemTypeAndUsedAtIsNull(Long userId, ItemType itemType);
 
-    int countByUserIdAndItemTypeAndPurchaseAtBetween(Long userId, ItemType itemType, LocalDateTime start, LocalDateTime end);
+    int countByUserIdAndItemTypeAndPurchaseAtBetween(
+            Long userId, ItemType itemType, LocalDateTime start, LocalDateTime end);
 
     Long sumUsedItemPrice();
 

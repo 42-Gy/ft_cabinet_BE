@@ -2,18 +2,17 @@ package com.gyeongsan.cabinet.adapter.out.external.google;
 
 import com.gyeongsan.cabinet.domain.auth.dto.OAuthUserInfo;
 import com.gyeongsan.cabinet.domain.auth.port.out.OAuthApiClientPort;
+import io.netty.channel.ChannelOption;
+import java.time.Duration;
+import java.util.Map;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import io.netty.channel.ChannelOption;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import reactor.netty.http.client.HttpClient;
-import java.time.Duration;
-import java.util.Map;
 
 @Component
 @Log4j2
@@ -31,13 +30,15 @@ public class GoogleOAuthApiClientAdapter implements OAuthApiClientPort {
     private String redirectUri;
 
     public GoogleOAuthApiClientAdapter() {
-        HttpClient httpClient = HttpClient.create()
-                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000)
-                .responseTimeout(Duration.ofSeconds(3));
+        HttpClient httpClient =
+                HttpClient.create()
+                        .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000)
+                        .responseTimeout(Duration.ofSeconds(3));
 
-        this.webClient = WebClient.builder()
-                .clientConnector(new ReactorClientHttpConnector(httpClient))
-                .build();
+        this.webClient =
+                WebClient.builder()
+                        .clientConnector(new ReactorClientHttpConnector(httpClient))
+                        .build();
     }
 
     @Override
@@ -53,21 +54,31 @@ public class GoogleOAuthApiClientAdapter implements OAuthApiClientPort {
 
     @SuppressWarnings("unchecked")
     private String getAccessToken(String code, String customRedirectUri) {
-        String targetRedirectUri = (customRedirectUri != null && !customRedirectUri.trim().isEmpty())
-                ? customRedirectUri
-                : redirectUri;
+        String targetRedirectUri =
+                (customRedirectUri != null && !customRedirectUri.trim().isEmpty())
+                        ? customRedirectUri
+                        : redirectUri;
 
-        Map<String, Object> response = webClient.post()
-                .uri("https://oauth2.googleapis.com/token")
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                .bodyValue("grant_type=authorization_code"
-                        + "&client_id=" + clientId
-                        + "&client_secret=" + clientSecret
-                        + "&redirect_uri=" + targetRedirectUri
-                        + "&code=" + code)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
+        Map<String, Object> response =
+                webClient
+                        .post()
+                        .uri("https://oauth2.googleapis.com/token")
+                        .header(
+                                HttpHeaders.CONTENT_TYPE,
+                                MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                        .bodyValue(
+                                "grant_type=authorization_code"
+                                        + "&client_id="
+                                        + clientId
+                                        + "&client_secret="
+                                        + clientSecret
+                                        + "&redirect_uri="
+                                        + targetRedirectUri
+                                        + "&code="
+                                        + code)
+                        .retrieve()
+                        .bodyToMono(Map.class)
+                        .block();
 
         if (response == null || !response.containsKey("access_token")) {
             throw new IllegalArgumentException("구글 Access Token 발급에 실패했습니다.");
@@ -78,12 +89,14 @@ public class GoogleOAuthApiClientAdapter implements OAuthApiClientPort {
 
     @SuppressWarnings("unchecked")
     private OAuthUserInfo getUserProfile(String accessToken) {
-        Map<String, Object> response = webClient.get()
-                .uri("https://www.googleapis.com/oauth2/v3/userinfo")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
-                .retrieve()
-                .bodyToMono(Map.class)
-                .block();
+        Map<String, Object> response =
+                webClient
+                        .get()
+                        .uri("https://www.googleapis.com/oauth2/v3/userinfo")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .retrieve()
+                        .bodyToMono(Map.class)
+                        .block();
 
         if (response == null || response.get("sub") == null) {
             throw new IllegalArgumentException("구글 유저 정보 조회에 실패했습니다.");

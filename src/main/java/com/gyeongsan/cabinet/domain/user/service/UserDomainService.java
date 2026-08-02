@@ -1,32 +1,31 @@
 package com.gyeongsan.cabinet.domain.user.service;
 
-import com.gyeongsan.cabinet.cabinet.domain.Cabinet;
-import com.gyeongsan.cabinet.coin.domain.CoinHistory;
-import com.gyeongsan.cabinet.coin.domain.CoinLogType;
+import com.gyeongsan.cabinet.adapter.in.web.user.dto.MyProfileResponseDto;
+import com.gyeongsan.cabinet.domain.cabinet.model.Cabinet;
+import com.gyeongsan.cabinet.domain.coin.model.CoinHistory;
+import com.gyeongsan.cabinet.domain.coin.model.CoinLogType;
 import com.gyeongsan.cabinet.domain.coin.port.out.CoinHistoryRepositoryPort;
+import com.gyeongsan.cabinet.domain.item.model.Item;
+import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
+import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
 import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
+import com.gyeongsan.cabinet.domain.user.model.Attendance;
+import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.port.in.UserUseCase;
 import com.gyeongsan.cabinet.domain.user.port.out.AttendanceRepositoryPort;
 import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
-import com.gyeongsan.cabinet.item.domain.Item;
-import com.gyeongsan.cabinet.item.domain.ItemHistory;
-import com.gyeongsan.cabinet.lent.domain.LentHistory;
-import com.gyeongsan.cabinet.user.domain.Attendance;
-import com.gyeongsan.cabinet.user.domain.User;
-import com.gyeongsan.cabinet.user.dto.MyProfileResponseDto;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -44,8 +43,10 @@ public class UserDomainService implements UserUseCase {
 
     @Override
     public MyProfileResponseDto getMyProfile(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new IllegalArgumentException("유저를 찾을 수 없습니다."));
 
         LentHistory activeLent = lentRepository.findByUserIdAndEndedAtIsNull(userId).orElse(null);
         List<ItemHistory> myItems = itemHistoryRepository.findAllByUserIdAndUsedAtIsNull(userId);
@@ -54,20 +55,27 @@ public class UserDomainService implements UserUseCase {
             myItems = Collections.emptyList();
         }
 
-        List<MyProfileResponseDto.MyItemDto> itemDtos = myItems.stream()
-                .map(item -> {
-                    String typeStr = (item.getItem() != null && item.getItem().getType() != null)
-                            ? item.getItem().getType().name()
-                            : "UNKNOWN";
+        List<MyProfileResponseDto.MyItemDto> itemDtos =
+                myItems.stream()
+                        .map(
+                                item -> {
+                                    String typeStr =
+                                            (item.getItem() != null
+                                                            && item.getItem().getType() != null)
+                                                    ? item.getItem().getType().name()
+                                                    : "UNKNOWN";
 
-                    return MyProfileResponseDto.MyItemDto.builder()
-                            .itemHistoryId(item.getId())
-                            .itemName(item.getItem() != null ? item.getItem().getName() : "알 수 없음")
-                            .itemType(typeStr)
-                            .purchaseAt(item.getPurchaseAt())
-                            .build();
-                })
-                .collect(Collectors.toList());
+                                    return MyProfileResponseDto.MyItemDto.builder()
+                                            .itemHistoryId(item.getId())
+                                            .itemName(
+                                                    item.getItem() != null
+                                                            ? item.getItem().getName()
+                                                            : "알 수 없음")
+                                            .itemType(typeStr)
+                                            .purchaseAt(item.getPurchaseAt())
+                                            .build();
+                                })
+                        .collect(Collectors.toList());
 
         Long cabinetId = null;
         Integer visibleNum = null;
@@ -86,9 +94,11 @@ public class UserDomainService implements UserUseCase {
             lentStartedAt = activeLent.getStartedAt().format(formatter);
             expiredAt = activeLent.getExpiredAt().format(formatter);
 
-            LentHistory prevHistory = lentRepository
-                    .findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(cabinet.getId())
-                    .orElse(null);
+            LentHistory prevHistory =
+                    lentRepository
+                            .findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(
+                                    cabinet.getId())
+                            .orElse(null);
 
             if (prevHistory != null) {
                 previousPassword = prevHistory.getReturnMemo();
@@ -120,31 +130,56 @@ public class UserDomainService implements UserUseCase {
                 .expiredAt(expiredAt)
                 .previousPassword(previousPassword)
                 .myItems(itemDtos)
-                .coinHistories(coinHistoryRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
-                        .map(ch -> MyProfileResponseDto.CoinHistoryDto.builder()
-                                .date(ch.getCreatedAt().toLocalDate().toString())
-                                .amount(ch.getAmount())
-                                .type(ch.getAmount() > 0 ? "EARN" : "SPEND")
-                                .reason(ch.getDescription() != null ? ch.getDescription() : ch.getType().name())
-                                .build())
-                        .collect(Collectors.toList()))
-                .itemHistories(itemHistoryRepository.findAllByUserIdOrderByPurchaseAtDesc(userId).stream()
-                        .map(ih -> MyProfileResponseDto.ItemHistoryDto.builder()
-                                .date(ih.getPurchaseAt().toLocalDate().toString())
-                                .itemName(ih.getItem().getName())
-                                .itemType(ih.getItem().getType().name())
-                                .status(ih.getUsedAt() != null ? "USED" : "UNUSED")
-                                .usedAt(ih.getUsedAt() != null ? ih.getUsedAt().toLocalDate().toString() : null)
-                                .build())
-                        .collect(Collectors.toList()))
+                .coinHistories(
+                        coinHistoryRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
+                                .map(
+                                        ch ->
+                                                MyProfileResponseDto.CoinHistoryDto.builder()
+                                                        .date(
+                                                                ch.getCreatedAt()
+                                                                        .toLocalDate()
+                                                                        .toString())
+                                                        .amount(ch.getAmount())
+                                                        .type(ch.getAmount() > 0 ? "EARN" : "SPEND")
+                                                        .reason(
+                                                                ch.getDescription() != null
+                                                                        ? ch.getDescription()
+                                                                        : ch.getType().name())
+                                                        .build())
+                                .collect(Collectors.toList()))
+                .itemHistories(
+                        itemHistoryRepository.findAllByUserIdOrderByPurchaseAtDesc(userId).stream()
+                                .map(
+                                        ih ->
+                                                MyProfileResponseDto.ItemHistoryDto.builder()
+                                                        .date(
+                                                                ih.getPurchaseAt()
+                                                                        .toLocalDate()
+                                                                        .toString())
+                                                        .itemName(ih.getItem().getName())
+                                                        .itemType(ih.getItem().getType().name())
+                                                        .status(
+                                                                ih.getUsedAt() != null
+                                                                        ? "USED"
+                                                                        : "UNUSED")
+                                                        .usedAt(
+                                                                ih.getUsedAt() != null
+                                                                        ? ih.getUsedAt()
+                                                                                .toLocalDate()
+                                                                                .toString()
+                                                                        : null)
+                                                        .build())
+                                .collect(Collectors.toList()))
                 .build();
     }
 
     @Override
     @Transactional
     public void doAttendance(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
 
         LocalDate today = LocalDate.now();
 
@@ -160,13 +195,18 @@ public class UserDomainService implements UserUseCase {
         coinHistoryRepository.save(attendanceReward);
 
         LocalDate startOfMonth = today.withDayOfMonth(1);
-        long attendanceCount = attendanceRepository.countLoginDaysByUserId(userId, startOfMonth, today);
+        long attendanceCount =
+                attendanceRepository.countLoginDaysByUserId(userId, startOfMonth, today);
 
         if (attendanceCount == 20) {
             user.addCoin(2000L);
-            CoinHistory watermelonReward = CoinHistory.of(user, 2000L, CoinLogType.WATERMELON, "월간 만근 보상 (황금 수박씨)");
+            CoinHistory watermelonReward =
+                    CoinHistory.of(user, 2000L, CoinLogType.WATERMELON, "월간 만근 보상 (황금 수박씨)");
             coinHistoryRepository.save(watermelonReward);
-            log.info("[Golden Watermelon] {}님 이번 달 20번째 출석 달성! 2000 씨앗 추가 지급! (총 출석: {}일)", user.getName(), attendanceCount);
+            log.info(
+                    "[Golden Watermelon] {}님 이번 달 20번째 출석 달성! 2000 씨앗 추가 지급! (총 출석: {}일)",
+                    user.getName(),
+                    attendanceCount);
         } else {
             log.info("{}님 오늘 출석 완료. (이번 달 {}일째)", user.getName(), attendanceCount);
         }
@@ -181,9 +221,12 @@ public class UserDomainService implements UserUseCase {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void processLogtimeTransaction(Long userId, Item lentTicketItem, int totalMinutes, boolean isPayDay) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+    public void processLogtimeTransaction(
+            Long userId, Item lentTicketItem, int totalMinutes, boolean isPayDay) {
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
 
         if (totalMinutes >= 0) {
             user.updateMonthlyLogtime(totalMinutes);
@@ -192,10 +235,12 @@ public class UserDomainService implements UserUseCase {
 
         if (isPayDay) {
             if (lentTicketItem != null && user.getMonthlyLogtime() >= MONTHLY_TARGET_MINUTES) {
-                int currentLentCount = itemHistoryRepository.countByUserIdAndItemTypeAndUsedAtIsNull(
-                        userId, lentTicketItem.getType());
+                int currentLentCount =
+                        itemHistoryRepository.countByUserIdAndItemTypeAndUsedAtIsNull(
+                                userId, lentTicketItem.getType());
                 if (currentLentCount < 1) {
-                    ItemHistory reward = new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
+                    ItemHistory reward =
+                            new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
                     itemHistoryRepository.save(reward);
                     log.info("[Reward] {}님 지난달 80시간 달성! 대여권 지급 완료.", user.getName());
                 } else {

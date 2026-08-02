@@ -3,6 +3,7 @@ package com.gyeongsan.cabinet.adapter.out.external.ai;
 import com.gyeongsan.cabinet.domain.lent.port.out.AiCheckPort;
 import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,8 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -36,13 +35,15 @@ public class AiServerAdapter implements AiCheckPort {
             MultipartBodyBuilder builder = new MultipartBodyBuilder();
             builder.part("file", file.getResource());
 
-            Map response = webClient.post()
-                    .uri(aiServerUrl + "/predict")
-                    .contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(BodyInserters.fromMultipartData(builder.build()))
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
+            Map response =
+                    webClient
+                            .post()
+                            .uri(aiServerUrl + "/predict")
+                            .contentType(MediaType.MULTIPART_FORM_DATA)
+                            .body(BodyInserters.fromMultipartData(builder.build()))
+                            .retrieve()
+                            .bodyToMono(Map.class)
+                            .block();
 
             log.info("AI Server Response: {}", response);
 

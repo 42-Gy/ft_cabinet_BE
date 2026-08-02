@@ -1,5 +1,6 @@
 package com.gyeongsan.cabinet.domain.watermelon.service;
 
+import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
 import com.gyeongsan.cabinet.domain.watermelon.domain.*;
 import com.gyeongsan.cabinet.domain.watermelon.port.in.BuyWatermelonItemUseCase;
@@ -8,24 +9,21 @@ import com.gyeongsan.cabinet.domain.watermelon.port.in.GetWatermelonLeaderboardU
 import com.gyeongsan.cabinet.domain.watermelon.port.in.GetWatermelonStatusUseCase;
 import com.gyeongsan.cabinet.domain.watermelon.port.out.WatermelonEventLogRepositoryPort;
 import com.gyeongsan.cabinet.domain.watermelon.port.out.WatermelonRepositoryPort;
-import com.gyeongsan.cabinet.user.domain.User;
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
-public class WatermelonEventService implements
-        GetWatermelonStatusUseCase,
-        EnhanceWatermelonUseCase,
-        GetWatermelonLeaderboardUseCase,
-        BuyWatermelonItemUseCase {
+public class WatermelonEventService
+        implements GetWatermelonStatusUseCase,
+                EnhanceWatermelonUseCase,
+                GetWatermelonLeaderboardUseCase,
+                BuyWatermelonItemUseCase {
 
     private final WatermelonRepositoryPort watermelonRepository;
     private final WatermelonEventLogRepositoryPort logRepository;
@@ -35,10 +33,12 @@ public class WatermelonEventService implements
     @Override
     @Transactional
     public Watermelon getStatus(Long userId) {
-        userRepository.findById(userId)
+        userRepository
+                .findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
 
-        return watermelonRepository.findByUserId(userId)
+        return watermelonRepository
+                .findByUserId(userId)
                 .orElseGet(() -> watermelonRepository.save(Watermelon.createNew(userId)));
     }
 
@@ -49,11 +49,15 @@ public class WatermelonEventService implements
             throw new IllegalArgumentException("구매 수량은 1개 이상이어야 합니다.");
         }
 
-        User user = userRepository.findByIdWithLock(userId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
+        User user =
+                userRepository
+                        .findByIdWithLock(userId)
+                        .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
 
-        Watermelon watermelon = watermelonRepository.findByUserId(userId)
-                .orElseGet(() -> Watermelon.createNew(userId));
+        Watermelon watermelon =
+                watermelonRepository
+                        .findByUserId(userId)
+                        .orElseGet(() -> Watermelon.createNew(userId));
 
         long totalPrice = (long) item.getPrice() * quantity;
         user.useCoin(totalPrice);
@@ -66,12 +70,21 @@ public class WatermelonEventService implements
 
     @Override
     @Transactional
-    public WatermelonEnhanceResult enhance(Long userId, boolean usePremium, boolean useDangerous, boolean useDropProj, boolean useDestroyProj) {
-        User user = userRepository.findByIdWithLock(userId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
+    public WatermelonEnhanceResult enhance(
+            Long userId,
+            boolean usePremium,
+            boolean useDangerous,
+            boolean useDropProj,
+            boolean useDestroyProj) {
+        User user =
+                userRepository
+                        .findByIdWithLock(userId)
+                        .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다."));
 
-        Watermelon watermelon = watermelonRepository.findByUserId(userId)
-                .orElseGet(() -> Watermelon.createNew(userId));
+        Watermelon watermelon =
+                watermelonRepository
+                        .findByUserId(userId)
+                        .orElseGet(() -> Watermelon.createNew(userId));
 
         int beforeLevel = watermelon.getCurrentLevel();
         if (beforeLevel >= WatermelonConfig.MAX_LEVEL) {
@@ -85,27 +98,34 @@ public class WatermelonEventService implements
 
         EnhancementResult rawOutcome = rollEnhancement(beforeLevel, usePremium, useDangerous);
 
-        EnhancementResult finalOutcome = watermelon.applyEnhancement(rawOutcome, useDropProj, useDestroyProj);
+        EnhancementResult finalOutcome =
+                watermelon.applyEnhancement(rawOutcome, useDropProj, useDestroyProj);
 
         userRepository.save(user);
         Watermelon savedWatermelon = watermelonRepository.save(watermelon);
 
-        WatermelonEventLog eventLog = WatermelonEventLog.builder()
-                .userId(userId)
-                .beforeLevel(beforeLevel)
-                .afterLevel(savedWatermelon.getCurrentLevel())
-                .usedPremiumFertilizer(usePremium)
-                .usedDangerousFertilizer(useDangerous)
-                .usedDropProtection(useDropProj)
-                .usedDestroyProtection(useDestroyProj)
-                .rawOutcome(rawOutcome)
-                .finalOutcome(finalOutcome)
-                .costSeeds(cost)
-                .createdAt(LocalDateTime.now())
-                .build();
+        WatermelonEventLog eventLog =
+                WatermelonEventLog.builder()
+                        .userId(userId)
+                        .beforeLevel(beforeLevel)
+                        .afterLevel(savedWatermelon.getCurrentLevel())
+                        .usedPremiumFertilizer(usePremium)
+                        .usedDangerousFertilizer(useDangerous)
+                        .usedDropProtection(useDropProj)
+                        .usedDestroyProtection(useDestroyProj)
+                        .rawOutcome(rawOutcome)
+                        .finalOutcome(finalOutcome)
+                        .costSeeds(cost)
+                        .createdAt(LocalDateTime.now())
+                        .build();
         logRepository.save(eventLog);
 
-        return new WatermelonEnhanceResult(beforeLevel, savedWatermelon.getCurrentLevel(), rawOutcome, finalOutcome, savedWatermelon);
+        return new WatermelonEnhanceResult(
+                beforeLevel,
+                savedWatermelon.getCurrentLevel(),
+                rawOutcome,
+                finalOutcome,
+                savedWatermelon);
     }
 
     @Override

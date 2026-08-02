@@ -1,25 +1,24 @@
 package com.gyeongsan.cabinet.adapter.in.web.auth;
 
 import com.gyeongsan.cabinet.adapter.in.web.auth.dto.OAuthLinkRequest;
+import com.gyeongsan.cabinet.adapter.out.persistence.user.UserRepository;
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
 import com.gyeongsan.cabinet.auth.jwt.JwtTokenProvider;
-import com.gyeongsan.cabinet.domain.auth.port.in.LinkAccountUseCase;
 import com.gyeongsan.cabinet.common.ApiResponse;
-import com.gyeongsan.cabinet.user.domain.User;
-import com.gyeongsan.cabinet.user.repository.UserRepository;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
-
+import com.gyeongsan.cabinet.domain.auth.port.in.LinkAccountUseCase;
+import com.gyeongsan.cabinet.domain.user.model.User;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/v4/auth")
@@ -58,17 +57,21 @@ public class AuthController {
             throw new IllegalArgumentException("토큰 정보가 일치하지 않습니다.");
         }
 
-        User user = userRepository.findById(Long.valueOf(userId))
-                .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
+        User user =
+                userRepository
+                        .findById(Long.valueOf(userId))
+                        .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
 
-        String newAccessToken = jwtTokenProvider.createToken(user.getId(), user.getName(), user.getRole().name());
+        String newAccessToken =
+                jwtTokenProvider.createToken(user.getId(), user.getName(), user.getRole().name());
 
-        ResponseCookie accessTokenCookie = ResponseCookie.from("access_token", newAccessToken)
-                .path("/")
-                .secure(true)
-                .sameSite("None")
-                .httpOnly(true)
-                .build();
+        ResponseCookie accessTokenCookie =
+                ResponseCookie.from("access_token", newAccessToken)
+                        .path("/")
+                        .secure(true)
+                        .sameSite("None")
+                        .httpOnly(true)
+                        .build();
         response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
 
         log.info("🎫 새 Access Token 발급 완료: {}", user.getName());
@@ -82,7 +85,8 @@ public class AuthController {
             @PathVariable("provider") String provider,
             @RequestBody OAuthLinkRequest request) {
         log.info("🔗 소셜 연동 요청: userId={}, provider={}", userPrincipal.getUserId(), provider);
-        linkAccountUseCase.linkAccount(userPrincipal.getUserId(), provider, request.getAuthorizationCode());
+        linkAccountUseCase.linkAccount(
+                userPrincipal.getUserId(), provider, request.getAuthorizationCode());
         return ApiResponse.success(provider + " 계정 연동이 완료되었습니다! 🎉");
     }
 }

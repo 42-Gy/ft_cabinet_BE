@@ -1,16 +1,20 @@
 package com.gyeongsan.cabinet.adapter.out.persistence.watermelon;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "WATERMELON", indexes = {
-    @Index(name = "idx_watermelon_ranking", columnList = "highest_level DESC, highest_level_achieved_at ASC, total_attempts ASC")
-})
+@Table(
+        name = "WATERMELON",
+        indexes = {
+            @Index(
+                    name = "idx_watermelon_ranking",
+                    columnList =
+                            "highest_level DESC, highest_level_achieved_at ASC, total_attempts ASC")
+        })
 @Getter
 @Setter
 @NoArgsConstructor

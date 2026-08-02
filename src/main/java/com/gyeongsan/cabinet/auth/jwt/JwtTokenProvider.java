@@ -1,24 +1,23 @@
 package com.gyeongsan.cabinet.auth.jwt;
 
+import com.gyeongsan.cabinet.adapter.out.persistence.user.UserRepository;
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
-import com.gyeongsan.cabinet.user.domain.User;
-import com.gyeongsan.cabinet.user.repository.UserRepository;
+import com.gyeongsan.cabinet.domain.user.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import java.security.Key;
+import java.util.Collections;
+import java.util.Date;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
-
-import java.security.Key;
-import java.util.Collections;
-import java.util.Date;
 
 @Component
 @RequiredArgsConstructor
@@ -40,8 +39,9 @@ public class JwtTokenProvider {
 
     @PostConstruct
     public void init() {
-        byte[] keyBytes = Decoders.BASE64.decode(
-                java.util.Base64.getEncoder().encodeToString(secretKey.getBytes()));
+        byte[] keyBytes =
+                Decoders.BASE64.decode(
+                        java.util.Base64.getEncoder().encodeToString(secretKey.getBytes()));
         this.key = Keys.hmacShaKeyFor(keyBytes);
     }
 
@@ -72,11 +72,7 @@ public class JwtTokenProvider {
     }
 
     public Claims parseClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
     }
 
     public boolean validateToken(String token) {
@@ -93,14 +89,14 @@ public class JwtTokenProvider {
         Claims claims = parseClaims(token);
         Long userId = Long.valueOf(claims.getSubject());
 
-        String name = claims.get("name", String.class);
-        String roleStr = claims.get("role", String.class);
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
 
-        User user = User.builder()
-                .id(userId)
-                .name(name)
-                .role(com.gyeongsan.cabinet.user.domain.UserRole.valueOf(roleStr))
-                .build();
+        if (user.getRole() == com.gyeongsan.cabinet.domain.user.model.UserRole.BANNED) {
+            throw new IllegalArgumentException("이용이 정지된 사용자입니다.");
+        }
 
         UserPrincipal userPrincipal = new UserPrincipal(user, Collections.emptyMap());
 

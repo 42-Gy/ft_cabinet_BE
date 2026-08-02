@@ -1,8 +1,7 @@
 package com.gyeongsan.cabinet.domain.coin.port.out;
 
-import com.gyeongsan.cabinet.coin.domain.CoinHistory;
-import com.gyeongsan.cabinet.coin.domain.CoinLogType;
-
+import com.gyeongsan.cabinet.domain.coin.model.CoinHistory;
+import com.gyeongsan.cabinet.domain.coin.model.CoinLogType;
 import java.time.LocalDateTime;
 import java.util.List;
 

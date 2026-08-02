@@ -437,8 +437,9 @@ erDiagram
 | **Ver 1.1** | **Hexagonal Architecture** | 레이어드 → **헥사고날(Ports & Adapters)** 아키텍처 전환. **18개 Port 인터페이스**, **14개 Adapter**, **5개 Domain Service** 구축. 도메인 로직의 인프라 독립성 확보 및 테스트 용이성 강화. API 계약 변경 없음 |
 | **Ver 1.2** | **Social Login & Extension** | 카카오 및 구글 소셜 로그인 연동 모듈 추가. 헥사고날(Ports & Adapters) 아키텍처에 부합하도록 인증 및 연동 구조 리팩토링 및 다형성(Strategy Pattern) 적용. 연동용 API 엔드포인트 공통화 (`/v4/auth/link/{provider}`) 및 예외 복구 흐름 개선 |
 | **Ver 1.3** | **Pisciner Identification & Cabinet Restriction** | 42 API `cursus_users`를 활용한 피시너 자동 식별(`cursus_id=9` 판별). 피시너 전용 사물함(`LAPISCINE` 타입) 대여 제한 적용. 관리자 LentType 일괄 변경 API 추가. 피시너 연장 차단. 본과정 합류 시 자동 전환 |
-| **Ver 1.4** | **Azure Redis & Stability** | **Azure Managed Redis** 연동 및 내장 레디스 완전 제거. **ShedLock**을 통한 분산 서버 스케줄러 동시성 제어 적용. JWT Access Token 검증 시 DB 조회 병목 제거(Claims 기반 인증). 12-Factor App 보안 구성을 통한 환경 변수 분리 및 SSL/TLS 강제 적용 |
+| **Ver 1.4** | **Azure Redis & Stability** | **Azure Managed Redis** 연동 및 내장 레디스 완전 제거. **ShedLock**을 통한 분산 서버 스케줄러 동시성 제어 적용. JWT Access Token 검증 시 DB 조회 병목 제거(Claims 기반 인증). 12-Factor App 보안 구성을 통한 환경 변수 분리 및 SSL 단방향 적용 |
 | **Ver 1.5** | **Redis Streams Async Queue** | 대규모 트래픽 확장에 대비하여 **Redis Streams** 기반 비동기 이벤트 큐 시스템 구축. 외부 통신(Slack 알림 발송, 42 API 로그타임 집계)에 의한 메인 서버 블로킹 방지 및 분산 워커 처리 적용 |
+| **Ver 1.6** | **Core Refactoring & Isolation** | **비관적/낙관적(Redis) 분산 락**을 상황에 맞게 적용(사물함 대여 동시성 제어, 코인 사용 등). **Rich Domain Model**로 전환하여 서비스 레이어의 비즈니스 응집도 향상. **Hexagonal Architecture(Package by Feature)** 완전 적용으로 도메인별 디렉토리 철저한 분리 구축. **Jacoco/Spotless/Pre-commit** 도입으로 코드 품질 검증 자동화 완비 |
 
 <br>
 
@@ -475,8 +476,11 @@ erDiagram
     * **Golden Watermelon:** 매월 **20회차** 출석 달성 시 **2,000 코인** 보너스 지급.
 
 ### 4. 🛡️ 시스템 안정성 및 성능 (Robustness & Performance)
+* **상황 맞춤형 락 분리 적용:** 
+    * 사물함 선착순 대여 등 트랜잭션 충돌이 빈번한 곳에는 **Pessimistic Lock(비관적 락)**을 적용하여 성능과 정합성을 보장.
+    * 코인, 이사권 등 충돌 빈도가 낮으나 정합성이 생명인 곳에는 **Optimistic Lock(낙관적 락, `@Version`)** 적용.
+    * Redis Streams 분산 워커 및 스케줄러 동시성 제어에는 **Redis 기반 분산 락(ShedLock 등)** 적용.
 * **비동기 이벤트 큐 (Redis Streams):** 무거운 외부 API 통신(슬랙 알림 전송, 3,000명 단위의 42 API 로그타임 집계)을 메인 스레드에서 분리하여 Redis 큐로 위임. 사용자 응답 지연을 방지하고 분산 워커 환경을 완벽하게 지원합니다.
-* **동시성 제어(Concurrency):** `User` 엔티티에 **낙관적 락(`@Version`)**을 적용하여 코인 중복 사용(Double Spending)을 원천 차단했습니다.
 * **Graceful Shutdown:** 배포나 서버 재시작 시, 진행 중인 대여/반납 요청을 강제로 끊지 않고 **안전하게 완료한 뒤 종료**되도록 설정하여 데이터 유실을 방지합니다.
 * **DB 인덱싱(Indexing):** 대여 기록(`LentHistory`)의 핵심 컬럼(`user_id`, `cabinet_id`, `ended_at`)에 인덱스를 적용하여, 데이터가 수십만 건 쌓여도 **조회 속도가 저하되지 않도록 최적화**했습니다.
 * **Timezone 동기화:** Docker 컨테이너 레벨에서 `Asia/Seoul` 타임존을 강제하여, 서버 환경에 상관없이 **출석 체크와 연체료 계산**이 정확한 시간에 수행됩니다.

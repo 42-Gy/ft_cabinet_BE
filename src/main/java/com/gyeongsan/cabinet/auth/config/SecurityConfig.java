@@ -7,11 +7,15 @@ import com.gyeongsan.cabinet.auth.jwt.JwtTokenProvider;
 import com.gyeongsan.cabinet.auth.oauth.OAuth2SuccessHandler;
 import com.gyeongsan.cabinet.auth.service.CustomOAuth2UserService;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -24,126 +28,159 @@ import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.ArrayList;
-import org.springframework.http.ResponseCookie;
-import org.springframework.http.HttpHeaders;
-import java.util.List;
-
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-        private final CustomOAuth2UserService customOAuth2UserService;
-        private final JwtTokenProvider jwtTokenProvider;
-        private final OAuth2SuccessHandler oAuth2SuccessHandler;
-        private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
-        private final CustomAccessDeniedHandler customAccessDeniedHandler;
-        private final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+    private final CustomAccessDeniedHandler customAccessDeniedHandler;
+    private final CookieOAuth2AuthorizationRequestRepository
+            cookieOAuth2AuthorizationRequestRepository;
 
-        @Value("${app.cors.allowed-origins}")
-        private List<String> allowedOrigins;
+    @Value("${app.cors.allowed-origins}")
+    private List<String> allowedOrigins;
 
-        @Value("${app.frontend.url}")
-        private String frontendUrl;
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
-        @Bean
-        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-                http
-                                .csrf(AbstractHttpConfigurer::disable)
-                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                                .sessionManagement(session -> session
-                                                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                                .authorizeHttpRequests(auth -> auth
-                                                .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                                                .requestMatchers("/", "/index.html", "/css/**", "/js/**",
-                                                                "/favicon.ico")
-                                                .permitAll()
-                                                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**",
-                                                                "/swagger-ui.html")
-                                                .permitAll()
-                                                .requestMatchers("/v4/auth/**").permitAll()
-                                                .requestMatchers(HttpMethod.GET, "/v4/cabinets/**").permitAll()
-                                                .requestMatchers("/v4/admin/**").hasRole("ADMIN")
-                                                .requestMatchers("/actuator/**").hasRole("ADMIN")
-                                                .requestMatchers("/v4/**").authenticated()
-                                                .anyRequest().permitAll())
-                                .exceptionHandling(exception -> exception
-                                                .authenticationEntryPoint(customAuthenticationEntryPoint)
-                                                .accessDeniedHandler(customAccessDeniedHandler))
-                                .addFilterBefore(
-                                                new JwtAuthenticationFilter(jwtTokenProvider),
-                                                UsernamePasswordAuthenticationFilter.class)
-                                .oauth2Login(oauth2 -> oauth2
-                                                .authorizationEndpoint(authorization -> authorization
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(
+                        session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(
+                        auth ->
+                                auth.requestMatchers(CorsUtils::isPreFlightRequest)
+                                        .permitAll()
+                                        .requestMatchers(
+                                                "/",
+                                                "/index.html",
+                                                "/css/**",
+                                                "/js/**",
+                                                "/favicon.ico")
+                                        .permitAll()
+                                        .requestMatchers(
+                                                "/v3/api-docs/**",
+                                                "/swagger-ui/**",
+                                                "/swagger-ui.html")
+                                        .permitAll()
+                                        .requestMatchers("/v4/auth/**")
+                                        .permitAll()
+                                        .requestMatchers(HttpMethod.GET, "/v4/cabinets/**")
+                                        .permitAll()
+                                        .requestMatchers("/v4/admin/**")
+                                        .hasRole("ADMIN")
+                                        .requestMatchers("/actuator/**")
+                                        .hasRole("ADMIN")
+                                        .requestMatchers("/v4/**")
+                                        .authenticated()
+                                        .anyRequest()
+                                        .permitAll())
+                .exceptionHandling(
+                        exception ->
+                                exception
+                                        .authenticationEntryPoint(customAuthenticationEntryPoint)
+                                        .accessDeniedHandler(customAccessDeniedHandler))
+                .addFilterBefore(
+                        new JwtAuthenticationFilter(jwtTokenProvider),
+                        UsernamePasswordAuthenticationFilter.class)
+                .oauth2Login(
+                        oauth2 ->
+                                oauth2.authorizationEndpoint(
+                                                authorization ->
+                                                        authorization
                                                                 .authorizationRequestRepository(
-                                                                                cookieOAuth2AuthorizationRequestRepository))
-                                                .userInfoEndpoint(userInfo -> userInfo
-                                                                .userService(customOAuth2UserService))
-                                                .successHandler(oAuth2SuccessHandler)
-                                                .failureHandler((request, response, exception) -> {
-                                                        String rawMessage = exception.getMessage() != null ? exception.getMessage() : "OAuth_Authentication_Failed";
-                                                        String errorMessage = java.net.URLEncoder.encode(
-                                                                rawMessage, java.nio.charset.StandardCharsets.UTF_8);
-                                                        String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
-                                                                .path("/auth/callback")
-                                                                .queryParam("error", errorMessage)
-                                                                .build()
-                                                                .toUriString();
-                                                        response.sendRedirect(targetUrl);
+                                                                        cookieOAuth2AuthorizationRequestRepository))
+                                        .userInfoEndpoint(
+                                                userInfo ->
+                                                        userInfo.userService(
+                                                                customOAuth2UserService))
+                                        .successHandler(oAuth2SuccessHandler)
+                                        .failureHandler(
+                                                (request, response, exception) -> {
+                                                    String rawMessage =
+                                                            exception.getMessage() != null
+                                                                    ? exception.getMessage()
+                                                                    : "OAuth_Authentication_Failed";
+                                                    String errorMessage =
+                                                            java.net.URLEncoder.encode(
+                                                                    rawMessage,
+                                                                    java.nio.charset
+                                                                            .StandardCharsets
+                                                                            .UTF_8);
+                                                    String targetUrl =
+                                                            UriComponentsBuilder.fromUriString(
+                                                                            frontendUrl)
+                                                                    .path("/auth/callback")
+                                                                    .queryParam(
+                                                                            "error", errorMessage)
+                                                                    .build()
+                                                                    .toUriString();
+                                                    response.sendRedirect(targetUrl);
                                                 }))
-                                .logout(logout -> logout
-                                                .logoutUrl("/v4/auth/logout")
-                                                .addLogoutHandler((request, response, authentication) -> {
-                                                        ResponseCookie accessTokenCookie = ResponseCookie
-                                                                        .from("access_token", "")
-                                                                        .path("/")
-                                                                        .maxAge(0)
-                                                                        .sameSite("None")
-                                                                        .secure(true)
-                                                                        .httpOnly(true)
-                                                                        .build();
-                                                        ResponseCookie refreshTokenCookie = ResponseCookie
-                                                                        .from("refresh_token", "")
-                                                                        .path("/")
-                                                                        .maxAge(0)
-                                                                        .sameSite("None")
-                                                                        .secure(true)
-                                                                        .httpOnly(true)
-                                                                        .build();
-                                                        response.addHeader(HttpHeaders.SET_COOKIE,
-                                                                        accessTokenCookie.toString());
-                                                        response.addHeader(HttpHeaders.SET_COOKIE,
-                                                                        refreshTokenCookie.toString());
+                .logout(
+                        logout ->
+                                logout.logoutUrl("/v4/auth/logout")
+                                        .addLogoutHandler(
+                                                (request, response, authentication) -> {
+                                                    ResponseCookie accessTokenCookie =
+                                                            ResponseCookie.from("access_token", "")
+                                                                    .path("/")
+                                                                    .maxAge(0)
+                                                                    .sameSite("None")
+                                                                    .secure(true)
+                                                                    .httpOnly(true)
+                                                                    .build();
+                                                    ResponseCookie refreshTokenCookie =
+                                                            ResponseCookie.from("refresh_token", "")
+                                                                    .path("/")
+                                                                    .maxAge(0)
+                                                                    .sameSite("None")
+                                                                    .secure(true)
+                                                                    .httpOnly(true)
+                                                                    .build();
+                                                    response.addHeader(
+                                                            HttpHeaders.SET_COOKIE,
+                                                            accessTokenCookie.toString());
+                                                    response.addHeader(
+                                                            HttpHeaders.SET_COOKIE,
+                                                            refreshTokenCookie.toString());
                                                 })
-                                                .logoutSuccessHandler((request, response, authentication) -> {
-                                                        response.setStatus(HttpServletResponse.SC_OK);
+                                        .logoutSuccessHandler(
+                                                (request, response, authentication) -> {
+                                                    response.setStatus(HttpServletResponse.SC_OK);
                                                 })
-                                                .permitAll());
+                                        .permitAll());
 
-                return http.build();
+        return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        List<String> origins = new ArrayList<>();
+        if (allowedOrigins != null) {
+            origins.addAll(allowedOrigins);
         }
+        origins.add("https://subak.site");
+        origins.add("https://subak-server-gs-h3dvbebmgqbmfdgx.koreacentral-01.azurewebsites.net");
+        origins.add("http://localhost:5173");
 
-        @Bean
-        public CorsConfigurationSource corsConfigurationSource() {
-                CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(origins);
+        configuration.setAllowedMethods(
+                List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(List.of("Authorization"));
 
-                List<String> origins = new ArrayList<>();
-                if (allowedOrigins != null) {
-                        origins.addAll(allowedOrigins);
-                }
-                origins.add("https://subak.site");
-                origins.add("https://subak-server-gs-h3dvbebmgqbmfdgx.koreacentral-01.azurewebsites.net");
-                origins.add("http://localhost:5173");
-
-                configuration.setAllowedOriginPatterns(origins);
-                configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-                configuration.setAllowedHeaders(List.of("*"));
-                configuration.setAllowCredentials(true);
-                configuration.setExposedHeaders(List.of("Authorization"));
-
-                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-                source.registerCorsConfiguration("/**", configuration);
-                return source;
-        }
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
 }

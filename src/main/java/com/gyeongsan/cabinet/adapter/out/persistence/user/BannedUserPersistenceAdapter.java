@@ -1,13 +1,11 @@
 package com.gyeongsan.cabinet.adapter.out.persistence.user;
 
+import com.gyeongsan.cabinet.domain.user.model.BannedUser;
 import com.gyeongsan.cabinet.domain.user.port.out.BannedUserRepositoryPort;
-import com.gyeongsan.cabinet.user.domain.BannedUser;
-import com.gyeongsan.cabinet.user.repository.BannedUserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor

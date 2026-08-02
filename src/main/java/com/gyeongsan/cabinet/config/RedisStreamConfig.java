@@ -1,5 +1,8 @@
 package com.gyeongsan.cabinet.config;
 
+import java.time.Duration;
+import java.util.Collections;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.context.annotation.Bean;
@@ -11,13 +14,9 @@ import org.springframework.data.redis.connection.stream.ReadOffset;
 import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer.StreamMessageListenerContainerOptions;
-import org.springframework.data.redis.stream.StreamListener;
-
-import java.time.Duration;
-import java.util.Collections;
-import java.util.UUID;
 
 @Configuration
 @RequiredArgsConstructor
@@ -33,10 +32,12 @@ public class RedisStreamConfig {
     private final String consumerName = UUID.randomUUID().toString();
 
     @Bean
-    public StreamMessageListenerContainer<String, MapRecord<String, String, String>> streamMessageListenerContainer(
-            StreamListener<String, MapRecord<String, String, String>> slackAlarmStreamListener,
-            StreamListener<String, MapRecord<String, String, String>> logtimeStreamListener
-    ) {
+    public StreamMessageListenerContainer<String, MapRecord<String, String, String>>
+            streamMessageListenerContainer(
+                    StreamListener<String, MapRecord<String, String, String>>
+                            slackAlarmStreamListener,
+                    StreamListener<String, MapRecord<String, String, String>>
+                            logtimeStreamListener) {
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
 
         @SuppressWarnings("unchecked")
@@ -55,14 +56,12 @@ public class RedisStreamConfig {
         container.receive(
                 Consumer.from(CONSUMER_GROUP_NAME, consumerName),
                 StreamOffset.create(SLACK_STREAM_KEY, ReadOffset.lastConsumed()),
-                slackAlarmStreamListener
-        );
+                slackAlarmStreamListener);
 
         container.receive(
                 Consumer.from(CONSUMER_GROUP_NAME, consumerName),
                 StreamOffset.create(LOGTIME_STREAM_KEY, ReadOffset.lastConsumed()),
-                logtimeStreamListener
-        );
+                logtimeStreamListener);
 
         container.start();
         return container;
@@ -71,11 +70,14 @@ public class RedisStreamConfig {
     private void createStreamGroup(String streamKey) {
         try {
             if (Boolean.FALSE.equals(stringRedisTemplate.hasKey(streamKey))) {
-                stringRedisTemplate.opsForStream().add(streamKey, Collections.singletonMap("init", "init"));
+                stringRedisTemplate
+                        .opsForStream()
+                        .add(streamKey, Collections.singletonMap("init", "init"));
                 stringRedisTemplate.opsForStream().createGroup(streamKey, CONSUMER_GROUP_NAME);
             } else {
-                boolean groupExists = stringRedisTemplate.opsForStream().groups(streamKey).stream()
-                        .anyMatch(group -> group.groupName().equals(CONSUMER_GROUP_NAME));
+                boolean groupExists =
+                        stringRedisTemplate.opsForStream().groups(streamKey).stream()
+                                .anyMatch(group -> group.groupName().equals(CONSUMER_GROUP_NAME));
                 if (!groupExists) {
                     stringRedisTemplate.opsForStream().createGroup(streamKey, CONSUMER_GROUP_NAME);
                 }

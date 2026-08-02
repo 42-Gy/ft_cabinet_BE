@@ -1,10 +1,9 @@
 package com.gyeongsan.cabinet.adapter.in.web.watermelon.dto;
 
 import com.gyeongsan.cabinet.domain.watermelon.domain.EnhancementResult;
+import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Builder

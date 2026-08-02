@@ -1,23 +1,5 @@
 package com.gyeongsan.cabinet.domain.auth.service;
 
-import com.gyeongsan.cabinet.domain.auth.OauthLink;
-import com.gyeongsan.cabinet.domain.auth.dto.OAuthUserInfo;
-import com.gyeongsan.cabinet.domain.auth.port.out.OAuthApiClientPort;
-import com.gyeongsan.cabinet.domain.auth.port.out.OauthLinkRepositoryPort;
-import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
-import com.gyeongsan.cabinet.global.exception.ErrorCode;
-import com.gyeongsan.cabinet.global.exception.ServiceException;
-import com.gyeongsan.cabinet.user.domain.User;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,20 +7,33 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 
+import com.gyeongsan.cabinet.domain.auth.OauthLink;
+import com.gyeongsan.cabinet.domain.auth.dto.OAuthUserInfo;
+import com.gyeongsan.cabinet.domain.auth.port.out.OAuthApiClientPort;
+import com.gyeongsan.cabinet.domain.auth.port.out.OauthLinkRepositoryPort;
+import com.gyeongsan.cabinet.domain.user.model.User;
+import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
+import com.gyeongsan.cabinet.global.exception.ErrorCode;
+import com.gyeongsan.cabinet.global.exception.ServiceException;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 @ExtendWith(MockitoExtension.class)
 class OauthLinkServiceTest {
 
-    @Mock
-    private OauthLinkRepositoryPort oauthLinkRepository;
+    @Mock private OauthLinkRepositoryPort oauthLinkRepository;
 
-    @Mock
-    private UserRepositoryPort userRepository;
+    @Mock private UserRepositoryPort userRepository;
 
-    @Mock
-    private OAuthApiClientPort kakaoApiClient;
+    @Mock private OAuthApiClientPort kakaoApiClient;
 
-    @Mock
-    private OAuthApiClientPort googleApiClient;
+    @Mock private OAuthApiClientPort googleApiClient;
 
     private OauthLinkService oauthLinkService;
 
@@ -47,11 +42,11 @@ class OauthLinkServiceTest {
         lenient().when(kakaoApiClient.supports("kakao")).thenReturn(true);
         lenient().when(googleApiClient.supports("google")).thenReturn(true);
 
-        oauthLinkService = new OauthLinkService(
-                oauthLinkRepository,
-                userRepository,
-                List.of(kakaoApiClient, googleApiClient)
-        );
+        oauthLinkService =
+                new OauthLinkService(
+                        oauthLinkRepository,
+                        userRepository,
+                        List.of(kakaoApiClient, googleApiClient));
     }
 
     @Test
@@ -64,7 +59,8 @@ class OauthLinkServiceTest {
         User user = mock(User.class);
 
         given(kakaoApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
-        given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678")).willReturn(false);
+        given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678"))
+                .willReturn(false);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(oauthLinkRepository.existsByUserAndProvider(user, "kakao")).willReturn(false);
 
@@ -85,7 +81,8 @@ class OauthLinkServiceTest {
         User user = mock(User.class);
 
         given(googleApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
-        given(oauthLinkRepository.existsByProviderAndProviderId("google", "google-sub-id")).willReturn(false);
+        given(oauthLinkRepository.existsByProviderAndProviderId("google", "google-sub-id"))
+                .willReturn(false);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(oauthLinkRepository.existsByUserAndProvider(user, "google")).willReturn(false);
 
@@ -105,7 +102,8 @@ class OauthLinkServiceTest {
         User user = mock(User.class);
 
         given(kakaoApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
-        given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678")).willReturn(false);
+        given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678"))
+                .willReturn(false);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(oauthLinkRepository.existsByUserAndProvider(user, "kakao")).willReturn(false);
 
@@ -123,12 +121,14 @@ class OauthLinkServiceTest {
         OAuthUserInfo oauthInfo = new OAuthUserInfo("12345678", "kakao@example.com");
 
         given(kakaoApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
-        given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678")).willReturn(true);
+        given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678"))
+                .willReturn(true);
 
         // when & then
-        ServiceException exception = assertThrows(ServiceException.class, () ->
-                oauthLinkService.linkAccount(userId, "kakao", authCode)
-        );
+        ServiceException exception =
+                assertThrows(
+                        ServiceException.class,
+                        () -> oauthLinkService.linkAccount(userId, "kakao", authCode));
 
         assertEquals(ErrorCode.OAUTH_ALREADY_LINKED, exception.getErrorCode());
         then(oauthLinkRepository).should(never()).save(any(OauthLink.class));
@@ -144,14 +144,16 @@ class OauthLinkServiceTest {
         User user = mock(User.class);
 
         given(kakaoApiClient.getOAuthUserInfo(eq(authCode), any())).willReturn(oauthInfo);
-        given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678")).willReturn(false);
+        given(oauthLinkRepository.existsByProviderAndProviderId("kakao", "12345678"))
+                .willReturn(false);
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
         given(oauthLinkRepository.existsByUserAndProvider(user, "kakao")).willReturn(true);
 
         // when & then
-        ServiceException exception = assertThrows(ServiceException.class, () ->
-                oauthLinkService.linkAccount(userId, "kakao", authCode)
-        );
+        ServiceException exception =
+                assertThrows(
+                        ServiceException.class,
+                        () -> oauthLinkService.linkAccount(userId, "kakao", authCode));
 
         assertEquals(ErrorCode.OAUTH_ALREADY_LINKED_BY_USER, exception.getErrorCode());
         then(oauthLinkRepository).should(never()).save(any(OauthLink.class));

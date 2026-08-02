@@ -1,12 +1,11 @@
 package com.gyeongsan.cabinet.adapter.out.cache.redis;
 
 import com.gyeongsan.cabinet.domain.lent.port.out.ReservationPort;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
-
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
@@ -21,8 +20,12 @@ public class ReservationRedisAdapter implements ReservationPort {
     public void reserve(Integer visibleNum, Long userId, long ttlMinutes) {
         String cabinetKey = CABINET_KEY_PREFIX + visibleNum;
         String userKey = USER_KEY_PREFIX + userId;
-        redisTemplate.opsForValue().set(cabinetKey, userId.toString(), ttlMinutes, TimeUnit.MINUTES);
-        redisTemplate.opsForValue().set(userKey, visibleNum.toString(), ttlMinutes, TimeUnit.MINUTES);
+        redisTemplate
+                .opsForValue()
+                .set(cabinetKey, userId.toString(), ttlMinutes, TimeUnit.MINUTES);
+        redisTemplate
+                .opsForValue()
+                .set(userKey, visibleNum.toString(), ttlMinutes, TimeUnit.MINUTES);
     }
 
     @Override

@@ -5,18 +5,18 @@ import com.gyeongsan.cabinet.domain.watermelon.domain.Watermelon;
 import com.gyeongsan.cabinet.domain.watermelon.domain.WatermelonEventLog;
 import com.gyeongsan.cabinet.domain.watermelon.port.out.WatermelonEventLogRepositoryPort;
 import com.gyeongsan.cabinet.domain.watermelon.port.out.WatermelonRepositoryPort;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
 @Component
 @RequiredArgsConstructor
-public class WatermelonPersistenceAdapter implements WatermelonRepositoryPort, WatermelonEventLogRepositoryPort {
+public class WatermelonPersistenceAdapter
+        implements WatermelonRepositoryPort, WatermelonEventLogRepositoryPort {
 
     private final WatermelonJpaRepository jpaRepository;
     private final WatermelonEventLogJpaRepository logJpaRepository;
@@ -40,12 +40,15 @@ public class WatermelonPersistenceAdapter implements WatermelonRepositoryPort, W
 
     @Override
     public long findRankByUserId(Long userId) {
-        return jpaRepository.findByUserId(userId)
-                .map(entity -> jpaRepository.countBetterThan(
-                        entity.getHighestLevel(),
-                        entity.getHighestLevelAchievedAt(),
-                        entity.getTotalAttempts(),
-                        entity.getUserId()))
+        return jpaRepository
+                .findByUserId(userId)
+                .map(
+                        entity ->
+                                jpaRepository.countBetterThan(
+                                        entity.getHighestLevel(),
+                                        entity.getHighestLevelAchievedAt(),
+                                        entity.getTotalAttempts(),
+                                        entity.getUserId()))
                 .orElseGet(() -> jpaRepository.count() + 1);
     }
 
@@ -71,12 +74,15 @@ public class WatermelonPersistenceAdapter implements WatermelonRepositoryPort, W
     }
 
     private WatermelonEntity toEntity(Watermelon domain) {
-        WatermelonEntity entity = jpaRepository.findByUserId(domain.getUserId())
-                .orElseGet(() -> {
-                    WatermelonEntity newEntity = new WatermelonEntity();
-                    newEntity.setUserId(domain.getUserId());
-                    return newEntity;
-                });
+        WatermelonEntity entity =
+                jpaRepository
+                        .findByUserId(domain.getUserId())
+                        .orElseGet(
+                                () -> {
+                                    WatermelonEntity newEntity = new WatermelonEntity();
+                                    newEntity.setUserId(domain.getUserId());
+                                    return newEntity;
+                                });
         entity.setCurrentLevel(domain.getCurrentLevel());
         entity.setHighestLevel(domain.getHighestLevel());
         entity.setHighestLevelAchievedAt(domain.getHighestLevelAchievedAt());

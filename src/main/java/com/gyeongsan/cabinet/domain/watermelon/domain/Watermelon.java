@@ -1,10 +1,9 @@
 package com.gyeongsan.cabinet.domain.watermelon.domain;
 
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Builder
@@ -78,7 +77,8 @@ public class Watermelon {
         }
     }
 
-    public EnhancementResult applyEnhancement(EnhancementResult rawResult, boolean useDropProj, boolean useDestroyProj) {
+    public EnhancementResult applyEnhancement(
+            EnhancementResult rawResult, boolean useDropProj, boolean useDestroyProj) {
         if (this.currentLevel >= WatermelonConfig.MAX_LEVEL) {
             throw new IllegalArgumentException("이미 최대 강화 단계에 도달했습니다.");
         }

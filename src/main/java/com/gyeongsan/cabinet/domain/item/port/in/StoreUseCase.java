@@ -1,7 +1,6 @@
 package com.gyeongsan.cabinet.domain.item.port.in;
 
-import com.gyeongsan.cabinet.item.dto.ItemResponseDto;
-
+import com.gyeongsan.cabinet.adapter.in.web.item.dto.ItemResponseDto;
 import java.util.List;
 
 public interface StoreUseCase {

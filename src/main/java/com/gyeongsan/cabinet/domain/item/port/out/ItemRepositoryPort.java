@@ -1,8 +1,7 @@
 package com.gyeongsan.cabinet.domain.item.port.out;
 
-import com.gyeongsan.cabinet.item.domain.Item;
-import com.gyeongsan.cabinet.item.domain.ItemType;
-
+import com.gyeongsan.cabinet.domain.item.model.Item;
+import com.gyeongsan.cabinet.domain.item.model.ItemType;
 import java.util.List;
 import java.util.Optional;
 

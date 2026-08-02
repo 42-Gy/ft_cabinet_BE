@@ -1,16 +1,22 @@
 package com.gyeongsan.cabinet.auth.service;
 
+import com.gyeongsan.cabinet.adapter.out.persistence.item.ItemHistoryRepository;
+import com.gyeongsan.cabinet.adapter.out.persistence.item.ItemRepository;
+import com.gyeongsan.cabinet.adapter.out.persistence.user.BannedUserRepository;
+import com.gyeongsan.cabinet.adapter.out.persistence.user.UserRepository;
 import com.gyeongsan.cabinet.domain.auth.OauthLink;
 import com.gyeongsan.cabinet.domain.auth.port.out.OauthLinkRepositoryPort;
-import com.gyeongsan.cabinet.item.domain.Item;
-import com.gyeongsan.cabinet.item.domain.ItemHistory;
-import com.gyeongsan.cabinet.item.domain.ItemType;
-import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
-import com.gyeongsan.cabinet.item.repository.ItemRepository;
-import com.gyeongsan.cabinet.user.domain.User;
-import com.gyeongsan.cabinet.user.domain.UserRole;
-import com.gyeongsan.cabinet.user.repository.BannedUserRepository;
-import com.gyeongsan.cabinet.user.repository.UserRepository;
+import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
+import com.gyeongsan.cabinet.domain.item.model.ItemType;
+import com.gyeongsan.cabinet.domain.user.model.User;
+import com.gyeongsan.cabinet.domain.user.model.UserRole;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,14 +29,6 @@ import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -78,10 +76,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         saveOrUpdateUser(intraId, email, blackholedAt, pisciner);
 
-        String userNameAttributeName = userRequest.getClientRegistration()
-                .getProviderDetails()
-                .getUserInfoEndpoint()
-                .getUserNameAttributeName();
+        String userNameAttributeName =
+                userRequest
+                        .getClientRegistration()
+                        .getProviderDetails()
+                        .getUserInfoEndpoint()
+                        .getUserNameAttributeName();
 
         return new DefaultOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority("USER")),
@@ -89,9 +89,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 userNameAttributeName);
     }
 
-    OAuth2User handleSocialLogin(OAuth2UserRequest userRequest,
-                                 Map<String, Object> attributes,
-                                 String provider) {
+    OAuth2User handleSocialLogin(
+            OAuth2UserRequest userRequest, Map<String, Object> attributes, String provider) {
         Object attrValue = "google".equals(provider) ? attributes.get("sub") : attributes.get("id");
         if (attrValue == null) {
             String msg = provider + " 고유 식별자를 가져올 수 없습니다.";
@@ -99,11 +98,15 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
         String providerId = String.valueOf(attrValue);
 
-        OauthLink link = oauthLinkRepository.findByProviderAndProviderId(provider, providerId)
-                .orElseThrow(() -> {
-                    String msg = "먼저 42 인트라로 로그인하여 " + provider + " 계정을 연동해 주세요.";
-                    return new OAuth2AuthenticationException(new OAuth2Error(msg), msg);
-                });
+        OauthLink link =
+                oauthLinkRepository
+                        .findByProviderAndProviderId(provider, providerId)
+                        .orElseThrow(
+                                () -> {
+                                    String msg = "먼저 42 인트라로 로그인하여 " + provider + " 계정을 연동해 주세요.";
+                                    return new OAuth2AuthenticationException(
+                                            new OAuth2Error(msg), msg);
+                                });
 
         User user = link.getUser();
 
@@ -116,12 +119,18 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         Map<String, Object> modifiedAttributes = new HashMap<>(attributes);
         modifiedAttributes.put("login", user.getName());
 
-        String userNameAttributeName = userRequest.getClientRegistration()
-                .getProviderDetails()
-                .getUserInfoEndpoint()
-                .getUserNameAttributeName();
+        String userNameAttributeName =
+                userRequest
+                        .getClientRegistration()
+                        .getProviderDetails()
+                        .getUserInfoEndpoint()
+                        .getUserNameAttributeName();
 
-        log.info("✅ {} 로그인 성공 (연동 유저): providerId={}, intraId={}", provider, providerId, user.getName());
+        log.info(
+                "✅ {} 로그인 성공 (연동 유저): providerId={}, intraId={}",
+                provider,
+                providerId,
+                user.getName());
 
         return new DefaultOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority("USER")),
@@ -131,7 +140,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private LocalDateTime extractBlackholedAt(Map<String, Object> attributes) {
         try {
-            List<Map<String, Object>> cursusUsers = (List<Map<String, Object>>) attributes.get("cursus_users");
+            List<Map<String, Object>> cursusUsers =
+                    (List<Map<String, Object>>) attributes.get("cursus_users");
 
             if (cursusUsers != null) {
                 for (Map<String, Object> cursusUser : cursusUsers) {
@@ -143,9 +153,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
                         if (dateString != null && !dateString.isEmpty()) {
                             ZonedDateTime utcTime = ZonedDateTime.parse(dateString);
-                            return utcTime
-                                     .withZoneSameInstant(ZoneId.of("Asia/Seoul"))
-                                     .toLocalDateTime();
+                            return utcTime.withZoneSameInstant(ZoneId.of("Asia/Seoul"))
+                                    .toLocalDateTime();
                         }
                     }
                 }
@@ -156,8 +165,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return null;
     }
 
-    private void saveOrUpdateUser(String intraId, String email,
-                                  LocalDateTime blackholedAt, boolean isPisciner) {
+    private void saveOrUpdateUser(
+            String intraId, String email, LocalDateTime blackholedAt, boolean isPisciner) {
         User user = userRepository.findByName(intraId).orElse(null);
 
         if (user == null) {
@@ -183,10 +192,13 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         List<ItemHistory> tickets = new java.util.ArrayList<>();
 
         for (ItemType type : promoItems) {
-            itemRepository.findByType(type)
-                    .ifPresentOrElse(item -> {
-                        tickets.add(new ItemHistory(LocalDateTime.now(), null, user, item));
-                    }, () -> log.warn("⚠️ [Beta] 지급 실패: DB에 {} 타입 아이템이 없습니다.", type));
+            itemRepository
+                    .findByType(type)
+                    .ifPresentOrElse(
+                            item -> {
+                                tickets.add(new ItemHistory(LocalDateTime.now(), null, user, item));
+                            },
+                            () -> log.warn("⚠️ [Beta] 지급 실패: DB에 {} 타입 아이템이 없습니다.", type));
         }
 
         itemHistoryRepository.saveAll(tickets);
@@ -199,19 +211,25 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     (List<Map<String, Object>>) attributes.get("cursus_users");
             if (cursusUsers == null || cursusUsers.isEmpty()) return false;
 
-            boolean has42Cursus = cursusUsers.stream()
-                    .anyMatch(cu -> {
-                        Map<String, Object> cursus = (Map<String, Object>) cu.get("cursus");
-                        Integer id = (Integer) cursus.get("id");
-                        return id != null && id == 21;
-                    });
+            boolean has42Cursus =
+                    cursusUsers.stream()
+                            .anyMatch(
+                                    cu -> {
+                                        Map<String, Object> cursus =
+                                                (Map<String, Object>) cu.get("cursus");
+                                        Integer id = (Integer) cursus.get("id");
+                                        return id != null && id == 21;
+                                    });
 
-            boolean hasPiscine = cursusUsers.stream()
-                    .anyMatch(cu -> {
-                        Map<String, Object> cursus = (Map<String, Object>) cu.get("cursus");
-                        Integer id = (Integer) cursus.get("id");
-                        return id != null && id == 9;
-                    });
+            boolean hasPiscine =
+                    cursusUsers.stream()
+                            .anyMatch(
+                                    cu -> {
+                                        Map<String, Object> cursus =
+                                                (Map<String, Object>) cu.get("cursus");
+                                        Integer id = (Integer) cursus.get("id");
+                                        return id != null && id == 9;
+                                    });
 
             return !has42Cursus && hasPiscine;
         } catch (Exception e) {

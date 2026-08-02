@@ -4,18 +4,17 @@ import com.azure.storage.blob.BlobClient;
 import com.azure.storage.blob.BlobContainerClient;
 import com.azure.storage.blob.BlobServiceClient;
 import com.gyeongsan.cabinet.domain.lent.port.out.ImageUploadPort;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-import org.springframework.web.multipart.MultipartFile;
-
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.UUID;
+import javax.imageio.ImageIO;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 @Component
 @RequiredArgsConstructor
@@ -32,7 +31,8 @@ public class AzureBlobAdapter implements ImageUploadPort {
         if (file.isEmpty()) return null;
 
         String contentType = file.getContentType();
-        if (contentType == null || (!contentType.equals("image/jpeg") && !contentType.equals("image/png"))) {
+        if (contentType == null
+                || (!contentType.equals("image/jpeg") && !contentType.equals("image/png"))) {
             throw new RuntimeException("이미지 파일만 업로드 가능합니다. (jpg, png)");
         }
 
@@ -49,7 +49,8 @@ public class AzureBlobAdapter implements ImageUploadPort {
             ImageIO.write(image, format, os);
             ByteArrayInputStream is = new ByteArrayInputStream(os.toByteArray());
 
-            BlobContainerClient containerClient = blobServiceClient.getBlobContainerClient(containerName);
+            BlobContainerClient containerClient =
+                    blobServiceClient.getBlobContainerClient(containerName);
             BlobClient blobClient = containerClient.getBlobClient(fileName);
 
             blobClient.upload(is, os.size(), true);

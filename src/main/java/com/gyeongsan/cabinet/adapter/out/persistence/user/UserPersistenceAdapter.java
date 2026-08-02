@@ -1,16 +1,14 @@
 package com.gyeongsan.cabinet.adapter.out.persistence.user;
 
+import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
-import com.gyeongsan.cabinet.user.domain.User;
-import com.gyeongsan.cabinet.user.repository.UserRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor

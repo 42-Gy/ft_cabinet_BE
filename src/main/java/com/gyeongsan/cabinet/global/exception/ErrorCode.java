@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 @Getter
 @RequiredArgsConstructor
 public enum ErrorCode {
-
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_001", "유저를 찾을 수 없습니다."),
     NOT_ENOUGH_COIN(HttpStatus.BAD_REQUEST, "USER_002", "씨앗이 부족합니다."),
 
@@ -31,13 +30,17 @@ public enum ErrorCode {
     PENALTY_EXEMPTION_TICKET_NOT_FOUND(HttpStatus.BAD_REQUEST, "ITEM_005", "패널티 감면권이 부족합니다."),
     PENALTY_NOT_FOUND(HttpStatus.BAD_REQUEST, "ITEM_006", "적용된 패널티가 없습니다."),
 
-    AI_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "AI_001",
+    AI_SERVER_ERROR(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "AI_001",
             "AI 검사 서버 오류로 반납이 보류되었습니다. 홈페이지 공지된 연락처로 연락 주시면 감사하겠습니다."),
-    CABINET_NOT_EMPTY(HttpStatus.BAD_REQUEST, "AI_002", "사물함 안에 물품이 감지되었습니다. 물품 수거 후 다시 사진을 찍어주세요."),
+    CABINET_NOT_EMPTY(
+            HttpStatus.BAD_REQUEST, "AI_002", "사물함 안에 물품이 감지되었습니다. 물품 수거 후 다시 사진을 찍어주세요."),
     INVALID_IMAGE(HttpStatus.BAD_REQUEST, "AI_003", "사물함 사진이 아닙니다. 올바른 사진을 촬영해주세요."),
 
     EXTENSION_ITEM_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "ITEM_007", "연장권 보유 개수 초과입니다."),
-    EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED(HttpStatus.BAD_REQUEST, "ITEM_008", "연장권 월간 구매 한도 초과입니다."),
+    EXTENSION_ITEM_PURCHASE_LIMIT_EXCEEDED(
+            HttpStatus.BAD_REQUEST, "ITEM_008", "연장권 월간 구매 한도 초과입니다."),
 
     USER_ALREADY_BANNED(HttpStatus.BAD_REQUEST, "BAN_001", "이미 블랙리스트에 등록된 유저입니다."),
     BANNED_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "BAN_002", "블랙리스트에 해당 유저가 없습니다."),
@@ -50,7 +53,8 @@ public enum ErrorCode {
     OAUTH_ALREADY_LINKED_BY_USER(HttpStatus.CONFLICT, "OAUTH_002", "이미 카카오 계정이 연동되어 있습니다."),
 
     PISCINER_CABINET_RESTRICTED(HttpStatus.FORBIDDEN, "LENT_009", "피시너는 라피신 전용 사물함만 사용할 수 있습니다."),
-    NON_PISCINER_LAPISCINE_RESTRICTED(HttpStatus.FORBIDDEN, "LENT_010", "라피신 전용 사물함은 피시너만 사용할 수 있습니다."),
+    NON_PISCINER_LAPISCINE_RESTRICTED(
+            HttpStatus.FORBIDDEN, "LENT_010", "라피신 전용 사물함은 피시너만 사용할 수 있습니다."),
     PISCINER_EXTENSION_RESTRICTED(HttpStatus.FORBIDDEN, "LENT_011", "피시너는 대여 기간을 연장할 수 없습니다.");
 
     private final HttpStatus status;

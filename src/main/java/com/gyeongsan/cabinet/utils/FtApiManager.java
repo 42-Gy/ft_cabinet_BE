@@ -2,6 +2,10 @@ package com.gyeongsan.cabinet.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Iterator;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,11 +17,6 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Iterator;
-import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -49,13 +48,15 @@ public class FtApiManager {
         body.add("client_secret", clientSecret);
 
         try {
-            JsonNode response = webClient.post()
-                    .uri(url)
-                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(BodyInserters.fromValue(body))
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .block();
+            JsonNode response =
+                    webClient
+                            .post()
+                            .uri(url)
+                            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                            .body(BodyInserters.fromValue(body))
+                            .retrieve()
+                            .bodyToMono(JsonNode.class)
+                            .block();
 
             if (response != null) {
                 this.accessToken = response.get("access_token").asText();
@@ -83,7 +84,8 @@ public class FtApiManager {
         return callApiWithRetry(url, intraId, startDate, endDate);
     }
 
-    private int callApiWithRetry(String url, String intraId, LocalDate startDate, LocalDate endDate) {
+    private int callApiWithRetry(
+            String url, String intraId, LocalDate startDate, LocalDate endDate) {
         try {
             return requestLocationStats(url, startDate, endDate);
         } catch (WebClientResponseException.Unauthorized e) {
@@ -102,12 +104,14 @@ public class FtApiManager {
     }
 
     private int requestLocationStats(String url, LocalDate startDate, LocalDate endDate) {
-        JsonNode stats = webClient.get()
-                .uri(url)
-                .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
-                .retrieve()
-                .bodyToMono(JsonNode.class)
-                .block();
+        JsonNode stats =
+                webClient
+                        .get()
+                        .uri(url)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
+                        .retrieve()
+                        .bodyToMono(JsonNode.class)
+                        .block();
 
         if (stats == null || stats.isEmpty()) {
             return 0;
@@ -123,8 +127,8 @@ public class FtApiManager {
 
             LocalDate date = LocalDate.parse(dateStr);
 
-            if ((date.isEqual(startDate) || date.isAfter(startDate)) &&
-                    (date.isEqual(endDate) || date.isBefore(endDate))) {
+            if ((date.isEqual(startDate) || date.isAfter(startDate))
+                    && (date.isEqual(endDate) || date.isBefore(endDate))) {
 
                 String[] parts = timeStr.split(":");
                 if (parts.length == 3) {

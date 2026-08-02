@@ -3,12 +3,10 @@ package com.gyeongsan.cabinet.auth.config;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.Base64;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
-import org.springframework.util.SerializationUtils;
-
-import java.util.Base64;
 
 @Component
 public class CookieOAuth2AuthorizationRequestRepository
@@ -16,6 +14,14 @@ public class CookieOAuth2AuthorizationRequestRepository
 
     private static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
     private static final int COOKIE_EXPIRE_SECONDS = 180;
+    private static final com.fasterxml.jackson.databind.ObjectMapper mapper =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    static {
+        mapper.registerModules(
+                org.springframework.security.jackson2.SecurityJackson2Modules.getModules(
+                        CookieOAuth2AuthorizationRequestRepository.class.getClassLoader()));
+    }
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
@@ -25,8 +31,10 @@ public class CookieOAuth2AuthorizationRequestRepository
     }
 
     @Override
-    public void saveAuthorizationRequest(OAuth2AuthorizationRequest authorizationRequest,
-            HttpServletRequest request, HttpServletResponse response) {
+    public void saveAuthorizationRequest(
+            OAuth2AuthorizationRequest authorizationRequest,
+            HttpServletRequest request,
+            HttpServletResponse response) {
         if (authorizationRequest == null) {
             deleteCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
             return;
@@ -43,8 +51,8 @@ public class CookieOAuth2AuthorizationRequestRepository
     }
 
     @Override
-    public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request,
-            HttpServletResponse response) {
+    public OAuth2AuthorizationRequest removeAuthorizationRequest(
+            HttpServletRequest request, HttpServletResponse response) {
         OAuth2AuthorizationRequest authorizationRequest = loadAuthorizationRequest(request);
         if (authorizationRequest != null) {
             deleteCookie(request, response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME);
@@ -64,7 +72,8 @@ public class CookieOAuth2AuthorizationRequestRepository
         return java.util.Optional.empty();
     }
 
-    private void deleteCookie(HttpServletRequest request, HttpServletResponse response, String name) {
+    private void deleteCookie(
+            HttpServletRequest request, HttpServletResponse response, String name) {
         Cookie cookie = new Cookie(name, "");
         cookie.setPath("/");
         cookie.setMaxAge(0);
@@ -74,11 +83,18 @@ public class CookieOAuth2AuthorizationRequestRepository
     }
 
     private String serialize(Object object) {
-        return Base64.getUrlEncoder().encodeToString(SerializationUtils.serialize(object));
+        try {
+            return Base64.getUrlEncoder().encodeToString(mapper.writeValueAsBytes(object));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to serialize object", e);
+        }
     }
 
-    @SuppressWarnings("unchecked")
     private <T> T deserialize(Cookie cookie, Class<T> cls) {
-        return (T) SerializationUtils.deserialize(Base64.getUrlDecoder().decode(cookie.getValue()));
+        try {
+            return mapper.readValue(Base64.getUrlDecoder().decode(cookie.getValue()), cls);
+        } catch (Exception e) {
+            return null; // Ignore invalid cookie
+        }
     }
 }

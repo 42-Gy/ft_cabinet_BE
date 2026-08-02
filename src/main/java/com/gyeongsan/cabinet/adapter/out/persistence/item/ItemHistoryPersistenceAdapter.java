@@ -1,14 +1,12 @@
 package com.gyeongsan.cabinet.adapter.out.persistence.item;
 
+import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
+import com.gyeongsan.cabinet.domain.item.model.ItemType;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
-import com.gyeongsan.cabinet.item.domain.ItemHistory;
-import com.gyeongsan.cabinet.item.domain.ItemType;
-import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDateTime;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
@@ -37,8 +35,10 @@ public class ItemHistoryPersistenceAdapter implements ItemHistoryRepositoryPort 
     }
 
     @Override
-    public int countByUserIdAndItemTypeAndPurchaseAtBetween(Long userId, ItemType itemType, LocalDateTime start, LocalDateTime end) {
-        return itemHistoryRepository.countByUserIdAndItem_TypeAndPurchaseAtBetween(userId, itemType, start, end);
+    public int countByUserIdAndItemTypeAndPurchaseAtBetween(
+            Long userId, ItemType itemType, LocalDateTime start, LocalDateTime end) {
+        return itemHistoryRepository.countByUserIdAndItem_TypeAndPurchaseAtBetween(
+                userId, itemType, start, end);
     }
 
     @Override

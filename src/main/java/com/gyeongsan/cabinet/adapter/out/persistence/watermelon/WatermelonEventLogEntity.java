@@ -1,16 +1,15 @@
 package com.gyeongsan.cabinet.adapter.out.persistence.watermelon;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "WATERMELON_EVENT_LOG", indexes = {
-    @Index(name = "idx_wm_log_user_id", columnList = "USER_ID")
-})
+@Table(
+        name = "WATERMELON_EVENT_LOG",
+        indexes = {@Index(name = "idx_wm_log_user_id", columnList = "USER_ID")})
 @Getter
 @Setter
 @NoArgsConstructor

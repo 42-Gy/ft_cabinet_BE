@@ -1,7 +1,6 @@
 package com.gyeongsan.cabinet.domain.calendar.port.out;
 
-import com.gyeongsan.cabinet.calendar.domain.CalendarEvent;
-
+import com.gyeongsan.cabinet.domain.calendar.model.CalendarEvent;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

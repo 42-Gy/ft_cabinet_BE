@@ -8,13 +8,24 @@ public interface LentUseCase {
 
     void checkLentCabinetImage(Long userId, MultipartFile file);
 
-    void endLent(Long userId, String previousPassword, MultipartFile file, Boolean forceReturn, String reason);
+    void endLent(
+            Long userId,
+            String previousPassword,
+            MultipartFile file,
+            Boolean forceReturn,
+            String reason);
 
     void useExtension(Long userId);
 
     void manualRenew(Long userId);
 
-    void useSwap(Long userId, Integer newVisibleNum, String previousPassword, MultipartFile file, Boolean forceReturn, String reason);
+    void useSwap(
+            Long userId,
+            Integer newVisibleNum,
+            String previousPassword,
+            MultipartFile file,
+            Boolean forceReturn,
+            String reason);
 
     void usePenaltyExemption(Long userId);
 

@@ -1,8 +1,7 @@
 package com.gyeongsan.cabinet.domain.auth.port.out;
 
 import com.gyeongsan.cabinet.domain.auth.OauthLink;
-import com.gyeongsan.cabinet.user.domain.User;
-
+import com.gyeongsan.cabinet.domain.user.model.User;
 import java.util.Optional;
 
 public interface OauthLinkRepositoryPort {

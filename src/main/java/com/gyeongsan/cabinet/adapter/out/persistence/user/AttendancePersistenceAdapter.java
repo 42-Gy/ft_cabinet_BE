@@ -1,15 +1,13 @@
 package com.gyeongsan.cabinet.adapter.out.persistence.user;
 
+import com.gyeongsan.cabinet.domain.user.model.Attendance;
+import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.port.out.AttendanceRepositoryPort;
-import com.gyeongsan.cabinet.user.domain.Attendance;
-import com.gyeongsan.cabinet.user.domain.User;
-import com.gyeongsan.cabinet.user.repository.AttendanceRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor

@@ -1,8 +1,7 @@
 package com.gyeongsan.cabinet.domain.calendar.port.in;
 
-import com.gyeongsan.cabinet.calendar.dto.CalendarEventRequestDto;
-import com.gyeongsan.cabinet.calendar.dto.CalendarEventResponseDto;
-
+import com.gyeongsan.cabinet.adapter.in.web.calendar.dto.CalendarEventRequestDto;
+import com.gyeongsan.cabinet.adapter.in.web.calendar.dto.CalendarEventResponseDto;
 import java.time.LocalDate;
 import java.util.List;
 

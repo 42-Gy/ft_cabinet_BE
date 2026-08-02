@@ -1,8 +1,15 @@
 package com.gyeongsan.cabinet.alarm;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.annotation.PostConstruct;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -10,15 +17,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
-
-import jakarta.annotation.PostConstruct;
-import org.springframework.core.io.ClassPathResource;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Log4j2
@@ -35,7 +33,8 @@ public class SlackBotService {
         try {
             ClassPathResource resource = new ClassPathResource("slack_users.csv");
             if (resource.exists()) {
-                try (BufferedReader br = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
+                try (BufferedReader br =
+                        new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
                     String line;
                     boolean isFirstLine = true;
                     while ((line = br.readLine()) != null) {
@@ -88,7 +87,8 @@ public class SlackBotService {
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
-            ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
+            ResponseEntity<JsonNode> response =
+                    restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
             JsonNode body = response.getBody();
 
             if (body != null && body.get("ok").asBoolean()) {

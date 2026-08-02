@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.global.aspect;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Arrays;
 import lombok.extern.log4j.Log4j2;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -9,8 +10,6 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-
-import java.util.Arrays;
 
 @Aspect
 @Component
@@ -25,7 +24,8 @@ public class LoggingAspect {
         long startTime = System.currentTimeMillis();
 
         HttpServletRequest request =
-                ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+                ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes())
+                        .getRequest();
 
         String method = request.getMethod();
         String requestURI = request.getRequestURI();

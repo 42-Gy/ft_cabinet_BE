@@ -1,19 +1,18 @@
 package com.gyeongsan.cabinet.domain.auth;
 
-import com.gyeongsan.cabinet.user.domain.User;
+import com.gyeongsan.cabinet.domain.user.model.User;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Entity
-@Table(name = "OAUTH_LINK", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"PROVIDER", "PROVIDER_ID"})
-})
+@Table(
+        name = "OAUTH_LINK",
+        uniqueConstraints = {@UniqueConstraint(columnNames = {"PROVIDER", "PROVIDER_ID"})})
 @Getter
 @Builder
 @AllArgsConstructor

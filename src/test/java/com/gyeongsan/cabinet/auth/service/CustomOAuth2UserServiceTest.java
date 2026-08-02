@@ -1,12 +1,19 @@
 package com.gyeongsan.cabinet.auth.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+
+import com.gyeongsan.cabinet.adapter.out.persistence.item.ItemHistoryRepository;
+import com.gyeongsan.cabinet.adapter.out.persistence.item.ItemRepository;
+import com.gyeongsan.cabinet.adapter.out.persistence.user.BannedUserRepository;
+import com.gyeongsan.cabinet.adapter.out.persistence.user.UserRepository;
 import com.gyeongsan.cabinet.domain.auth.OauthLink;
 import com.gyeongsan.cabinet.domain.auth.port.out.OauthLinkRepositoryPort;
-import com.gyeongsan.cabinet.item.repository.ItemHistoryRepository;
-import com.gyeongsan.cabinet.item.repository.ItemRepository;
-import com.gyeongsan.cabinet.user.domain.User;
-import com.gyeongsan.cabinet.user.repository.BannedUserRepository;
-import com.gyeongsan.cabinet.user.repository.UserRepository;
+import com.gyeongsan.cabinet.domain.user.model.User;
+import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,51 +27,44 @@ import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 
-import java.util.Map;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
-
 @ExtendWith(MockitoExtension.class)
 class CustomOAuth2UserServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
+    @Mock private UserRepository userRepository;
 
-    @Mock
-    private ItemRepository itemRepository;
+    @Mock private ItemRepository itemRepository;
 
-    @Mock
-    private ItemHistoryRepository itemHistoryRepository;
+    @Mock private ItemHistoryRepository itemHistoryRepository;
 
-    @Mock
-    private BannedUserRepository bannedUserRepository;
+    @Mock private BannedUserRepository bannedUserRepository;
 
-    @Mock
-    private OauthLinkRepositoryPort oauthLinkRepository;
+    @Mock private OauthLinkRepositoryPort oauthLinkRepository;
 
     private CustomOAuth2UserService userService;
 
     @BeforeEach
     void setUp() {
-        userService = new CustomOAuth2UserService(
-                userRepository, itemRepository, itemHistoryRepository, bannedUserRepository, oauthLinkRepository
-        );
+        userService =
+                new CustomOAuth2UserService(
+                        userRepository,
+                        itemRepository,
+                        itemHistoryRepository,
+                        bannedUserRepository,
+                        oauthLinkRepository);
     }
 
-    private OAuth2UserRequest createOAuth2UserRequest(String registrationId, String userNameAttributeName) {
-        ClientRegistration clientRegistration = ClientRegistration.withRegistrationId(registrationId)
-                .clientId("client-id")
-                .tokenUri("https://token-uri")
-                .authorizationUri("https://auth-uri")
-                .userInfoUri("https://user-info-uri")
-                .userNameAttributeName(userNameAttributeName)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri("https://redirect-uri")
-                .build();
+    private OAuth2UserRequest createOAuth2UserRequest(
+            String registrationId, String userNameAttributeName) {
+        ClientRegistration clientRegistration =
+                ClientRegistration.withRegistrationId(registrationId)
+                        .clientId("client-id")
+                        .tokenUri("https://token-uri")
+                        .authorizationUri("https://auth-uri")
+                        .userInfoUri("https://user-info-uri")
+                        .userNameAttributeName(userNameAttributeName)
+                        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                        .redirectUri("https://redirect-uri")
+                        .build();
         return new OAuth2UserRequest(clientRegistration, mock(OAuth2AccessToken.class));
     }
 
@@ -73,7 +73,8 @@ class CustomOAuth2UserServiceTest {
     void loadUser_kakaoSuccess() {
         // given
         OAuth2UserRequest request = createOAuth2UserRequest("kakao", "id");
-        Map<String, Object> kakaoAttributes = Map.of("id", 98765432L, "connected_at", "2026-05-29T15:48:43Z");
+        Map<String, Object> kakaoAttributes =
+                Map.of("id", 98765432L, "connected_at", "2026-05-29T15:48:43Z");
 
         User user = mock(User.class);
         given(user.getName()).willReturn("juykim");
@@ -81,7 +82,8 @@ class CustomOAuth2UserServiceTest {
         OauthLink link = mock(OauthLink.class);
         given(link.getUser()).willReturn(user);
 
-        given(oauthLinkRepository.findByProviderAndProviderId("kakao", "98765432")).willReturn(Optional.of(link));
+        given(oauthLinkRepository.findByProviderAndProviderId("kakao", "98765432"))
+                .willReturn(Optional.of(link));
         given(bannedUserRepository.existsByIntraId("juykim")).willReturn(false);
 
         // when
@@ -97,7 +99,8 @@ class CustomOAuth2UserServiceTest {
     void loadUser_googleSuccess() {
         // given
         OAuth2UserRequest request = createOAuth2UserRequest("google", "sub");
-        Map<String, Object> googleAttributes = Map.of("sub", "google-sub-12345", "email", "google@example.com");
+        Map<String, Object> googleAttributes =
+                Map.of("sub", "google-sub-12345", "email", "google@example.com");
 
         User user = mock(User.class);
         given(user.getName()).willReturn("juykim");
@@ -105,7 +108,8 @@ class CustomOAuth2UserServiceTest {
         OauthLink link = mock(OauthLink.class);
         given(link.getUser()).willReturn(user);
 
-        given(oauthLinkRepository.findByProviderAndProviderId("google", "google-sub-12345")).willReturn(Optional.of(link));
+        given(oauthLinkRepository.findByProviderAndProviderId("google", "google-sub-12345"))
+                .willReturn(Optional.of(link));
         given(bannedUserRepository.existsByIntraId("juykim")).willReturn(false);
 
         // when
@@ -123,12 +127,14 @@ class CustomOAuth2UserServiceTest {
         OAuth2UserRequest request = createOAuth2UserRequest("kakao", "id");
         Map<String, Object> kakaoAttributes = Map.of("id", 98765432L);
 
-        given(oauthLinkRepository.findByProviderAndProviderId("kakao", "98765432")).willReturn(Optional.empty());
+        given(oauthLinkRepository.findByProviderAndProviderId("kakao", "98765432"))
+                .willReturn(Optional.empty());
 
         // when & then
-        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class, () ->
-                userService.handleSocialLogin(request, kakaoAttributes, "kakao")
-        );
+        OAuth2AuthenticationException exception =
+                assertThrows(
+                        OAuth2AuthenticationException.class,
+                        () -> userService.handleSocialLogin(request, kakaoAttributes, "kakao"));
 
         assertEquals("먼저 42 인트라로 로그인하여 kakao 계정을 연동해 주세요.", exception.getError().getErrorCode());
     }
@@ -140,12 +146,14 @@ class CustomOAuth2UserServiceTest {
         OAuth2UserRequest request = createOAuth2UserRequest("google", "sub");
         Map<String, Object> googleAttributes = Map.of("sub", "google-sub-12345");
 
-        given(oauthLinkRepository.findByProviderAndProviderId("google", "google-sub-12345")).willReturn(Optional.empty());
+        given(oauthLinkRepository.findByProviderAndProviderId("google", "google-sub-12345"))
+                .willReturn(Optional.empty());
 
         // when & then
-        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class, () ->
-                userService.handleSocialLogin(request, googleAttributes, "google")
-        );
+        OAuth2AuthenticationException exception =
+                assertThrows(
+                        OAuth2AuthenticationException.class,
+                        () -> userService.handleSocialLogin(request, googleAttributes, "google"));
 
         assertEquals("먼저 42 인트라로 로그인하여 google 계정을 연동해 주세요.", exception.getError().getErrorCode());
     }
@@ -163,13 +171,15 @@ class CustomOAuth2UserServiceTest {
         OauthLink link = mock(OauthLink.class);
         given(link.getUser()).willReturn(user);
 
-        given(oauthLinkRepository.findByProviderAndProviderId("google", "google-sub-12345")).willReturn(Optional.of(link));
+        given(oauthLinkRepository.findByProviderAndProviderId("google", "google-sub-12345"))
+                .willReturn(Optional.of(link));
         given(bannedUserRepository.existsByIntraId("bannedUser")).willReturn(true);
 
         // when & then
-        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class, () ->
-                userService.handleSocialLogin(request, googleAttributes, "google")
-        );
+        OAuth2AuthenticationException exception =
+                assertThrows(
+                        OAuth2AuthenticationException.class,
+                        () -> userService.handleSocialLogin(request, googleAttributes, "google"));
 
         assertEquals("서비스 이용이 제한된 유저입니다. 관리자에게 문의하세요.", exception.getError().getErrorCode());
     }

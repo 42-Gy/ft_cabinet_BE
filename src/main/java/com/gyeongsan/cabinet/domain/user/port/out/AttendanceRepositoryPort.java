@@ -1,8 +1,7 @@
 package com.gyeongsan.cabinet.domain.user.port.out;
 
-import com.gyeongsan.cabinet.user.domain.Attendance;
-import com.gyeongsan.cabinet.user.domain.User;
-
+import com.gyeongsan.cabinet.domain.user.model.Attendance;
+import com.gyeongsan.cabinet.domain.user.model.User;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

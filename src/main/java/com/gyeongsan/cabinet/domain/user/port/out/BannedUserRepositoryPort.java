@@ -1,7 +1,6 @@
 package com.gyeongsan.cabinet.domain.user.port.out;
 
-import com.gyeongsan.cabinet.user.domain.BannedUser;
-
+import com.gyeongsan.cabinet.domain.user.model.BannedUser;
 import java.util.List;
 import java.util.Optional;
 

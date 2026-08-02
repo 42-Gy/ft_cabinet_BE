@@ -1,14 +1,12 @@
 package com.gyeongsan.cabinet.adapter.out.persistence.calendar;
 
-import com.gyeongsan.cabinet.calendar.domain.CalendarEvent;
-import com.gyeongsan.cabinet.calendar.repository.CalendarEventRepository;
+import com.gyeongsan.cabinet.domain.calendar.model.CalendarEvent;
 import com.gyeongsan.cabinet.domain.calendar.port.out.CalendarEventRepositoryPort;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor

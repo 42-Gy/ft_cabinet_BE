@@ -7,9 +7,7 @@ public class WatermelonConfig {
 
     public static final int MAX_LEVEL = 10;
 
-    private static final int[] ENHANCE_COSTS = {
-        10, 20, 30, 40, 50, 80, 100, 200, 300, 500
-    };
+    private static final int[] ENHANCE_COSTS = {10, 20, 30, 40, 50, 80, 100, 200, 300, 500};
 
     private static final double[] SUCCESS_RATES = {
         0.95, 0.88, 0.78, 0.65, 0.54, 0.44, 0.35, 0.27, 0.20, 0.15
