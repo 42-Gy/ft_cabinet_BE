@@ -52,10 +52,13 @@ public class LentScheduler {
         int extendedCount = 0;
 
         for (LentHistory lent : expiringLents) {
+            User user = lent.getUser();
             if (!lent.isAutoExtension()) {
+                sendAutoExtensionDisabledAlarm(
+                        user, lent.getCabinet().getVisibleNum(), lent.getExpiredAt());
                 continue;
             }
-            User user = lent.getUser();
+
             List<ItemHistory> tickets =
                     itemHistoryRepository.findUnusedItems(user.getId(), ItemType.LENT);
 
@@ -65,6 +68,9 @@ public class LentScheduler {
                 lent.extendExpiration(lentTerm.longValue());
                 extendedCount++;
                 log.info("자동 연장 성공: User={}, NewExpiredAt={}", user.getName(), lent.getExpiredAt());
+            } else {
+                sendAutoExtensionFailedAlarm(
+                        user, lent.getCabinet().getVisibleNum(), lent.getExpiredAt());
             }
         }
 
@@ -162,6 +168,9 @@ public class LentScheduler {
 
             if (cabinet.getStatus() != CabinetStatus.OVERDUE) {
                 cabinet.updateStatus(CabinetStatus.OVERDUE);
+            }
+
+            if (overdueDays == 1 || overdueDays == 3 || overdueDays == 7 || overdueDays >= 14) {
                 sendOverdueAlarm(user, cabinet.getId());
             }
 
@@ -222,6 +231,26 @@ public class LentScheduler {
                 String.format(
                         "⏳ *[반납 알림]*\n%s님, 사용 중인 사물함(%d번)의 반납 기한이 %d일 남았습니다.\n(반납 예정일: %s)\n잊지 말고 반납해주세요! 😊",
                         user.getName(), visibleNum, daysLeft, dateStr);
+        eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
+    }
+
+    private void sendAutoExtensionFailedAlarm(
+            User user, Integer visibleNum, LocalDateTime expiredAt) {
+        String dateStr = expiredAt.toLocalDate().toString();
+        String message =
+                String.format(
+                        "⚠️ *[자동 연장 실패]*\n%s님, %d번 사물함의 자동 연장이 실패되었습니다.\n(반납 예정일: %s)\n관리자에게 연락 주시면 감사하겠습니다.",
+                        user.getName(), visibleNum, dateStr);
+        eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
+    }
+
+    private void sendAutoExtensionDisabledAlarm(
+            User user, Integer visibleNum, LocalDateTime expiredAt) {
+        String dateStr = expiredAt.toLocalDate().toString();
+        String message =
+                String.format(
+                        "📢 *[반납 임박 안내]*\n%s님, %d번 사물함의 반납 기한이 임박했습니다.\n(반납 예정일: %s)\n자동 연장 기능이 꺼져 있으므로, 수동 연장을 이용해 주세요.",
+                        user.getName(), visibleNum, dateStr);
         eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
     }
 

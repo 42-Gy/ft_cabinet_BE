@@ -121,7 +121,14 @@ public class SlackBotService {
         body.put("text", text);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        restTemplate.postForEntity(url, request, String.class);
+        ResponseEntity<JsonNode> response =
+                restTemplate.postForEntity(url, request, JsonNode.class);
+        JsonNode responseBody = response.getBody();
+
+        if (responseBody == null || !responseBody.get("ok").asBoolean()) {
+            log.error("❌ DM 전송 실패! Target: {}, Error: {}", channelId, responseBody);
+            return;
+        }
 
         log.info("✅ DM 전송 성공! Target: {}", channelId);
     }
