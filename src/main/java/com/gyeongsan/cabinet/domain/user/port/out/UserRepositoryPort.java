@@ -1,7 +1,6 @@
 package com.gyeongsan.cabinet.domain.user.port.out;
 
 import com.gyeongsan.cabinet.domain.user.model.User;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -30,6 +29,4 @@ public interface UserRepositoryPort {
     Optional<Long> sumCoins();
 
     List<User> findAllPenaltyUsers();
-
-    List<User> findAllBlackholedUsers(LocalDateTime date);
 }

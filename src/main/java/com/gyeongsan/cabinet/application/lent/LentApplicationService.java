@@ -416,23 +416,6 @@ public class LentApplicationService implements LentUseCase {
 
     @Override
     @Transactional
-    public void processBlackholeReturn(Long userId) {
-        LentHistory lentHistory = lentRepository.findByUserIdAndEndedAtIsNull(userId).orElse(null);
-
-        if (lentHistory == null) {
-            return;
-        }
-
-        Cabinet cabinet = lentHistory.getCabinet();
-        lentHistory.endLent(LocalDateTime.now(), "블랙홀(퇴소) 반납 보류");
-
-        if (cabinet.getStatus() == CabinetStatus.FULL) {
-            cabinet.updateStatus(CabinetStatus.PENDING);
-        }
-    }
-
-    @Override
-    @Transactional
     public void updateAutoExtensionStatus(Long userId, Boolean enabled) {
         LentHistory lentHistory =
                 lentRepository

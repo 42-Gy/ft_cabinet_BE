@@ -29,8 +29,6 @@ public interface LentUseCase {
 
     void usePenaltyExemption(Long userId);
 
-    void processBlackholeReturn(Long userId);
-
     void updateAutoExtensionStatus(Long userId, Boolean enabled);
 
     void makeReservation(Long userId, Integer visibleNum);

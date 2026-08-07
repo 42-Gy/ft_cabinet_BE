@@ -2,7 +2,6 @@ package com.gyeongsan.cabinet.adapter.out.persistence.user;
 
 import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -69,10 +68,5 @@ public class UserPersistenceAdapter implements UserRepositoryPort {
     @Override
     public List<User> findAllPenaltyUsers() {
         return userRepository.findAllPenaltyUsers();
-    }
-
-    @Override
-    public List<User> findAllBlackholedUsers(LocalDateTime date) {
-        return userRepository.findAllBlackholedUsers(date);
     }
 }

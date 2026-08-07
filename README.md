@@ -1,5 +1,5 @@
 
-# 🗄️ 42Cabi Gyeongsan Ver 1.5
+# 🗄️ 42Cabi Gyeongsan Ver 1.6
 
 > **42 경산 캠퍼스 지능형 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성, 공정한 이용, 게임화(Gamification), 그리고 **시스템의 안정성**을 모두 갖춘 REST API 서버입니다.
@@ -147,18 +147,21 @@ flowchart TD
 │   │   ├── java/com/gyeongsan/cabinet
 │   │   │   ├── CabinetApplication.java
 │   │   │   │
-│   │   │   ├── domain                  # ═══ 도메인 계층 (핵심 비즈니스) ═══
+│   │   │   ├── domain                  # ═══ 도메인 계층 (핵심 비즈니스 + 엔티티 모델) ═══
 │   │   │   │   ├── cabinet
+│   │   │   │   │   ├── model/Cabinet.java, CabinetStatus.java, LentType.java
 │   │   │   │   │   ├── port/in/CabinetQueryUseCase.java      # Inbound Port
 │   │   │   │   │   ├── port/out/CabinetRepositoryPort.java   # Outbound Port
 │   │   │   │   │   └── service/CabinetDomainService.java     # 도메인 서비스
 │   │   │   │   ├── user
+│   │   │   │   │   ├── model/User.java, Attendance.java, BannedUser.java, UserRole.java
 │   │   │   │   │   ├── port/in/UserUseCase.java
 │   │   │   │   │   ├── port/out/UserRepositoryPort.java
 │   │   │   │   │   ├── port/out/AttendanceRepositoryPort.java
 │   │   │   │   │   ├── port/out/BannedUserRepositoryPort.java
 │   │   │   │   │   └── service/UserDomainService.java
 │   │   │   │   ├── lent
+│   │   │   │   │   ├── model/LentHistory.java
 │   │   │   │   │   ├── port/in/LentUseCase.java
 │   │   │   │   │   ├── port/out/LentRepositoryPort.java
 │   │   │   │   │   ├── port/out/ReservationPort.java         # Redis 추상화
@@ -166,13 +169,16 @@ flowchart TD
 │   │   │   │   │   ├── port/out/AiCheckPort.java             # AI 서버 추상화
 │   │   │   │   │   └── port/out/FtApiPort.java               # 42 API 추상화
 │   │   │   │   ├── item
+│   │   │   │   │   ├── model/Item.java, ItemHistory.java, ItemType.java
 │   │   │   │   │   ├── port/in/StoreUseCase.java
 │   │   │   │   │   ├── port/out/ItemRepositoryPort.java
 │   │   │   │   │   ├── port/out/ItemHistoryRepositoryPort.java
 │   │   │   │   │   └── service/StoreDomainService.java
 │   │   │   │   ├── coin
+│   │   │   │   │   ├── model/CoinHistory.java, CoinLogType.java
 │   │   │   │   │   └── port/out/CoinHistoryRepositoryPort.java
 │   │   │   │   ├── calendar
+│   │   │   │   │   ├── model/CalendarEvent.java
 │   │   │   │   │   ├── port/in/CalendarUseCase.java
 │   │   │   │   │   ├── port/out/CalendarEventRepositoryPort.java
 │   │   │   │   │   └── service/CalendarDomainService.java
@@ -183,26 +189,32 @@ flowchart TD
 │   │   │   │   │   ├── port/out/OauthLinkRepositoryPort.java  # Outbound Port
 │   │   │   │   │   ├── port/out/OAuthApiClientPort.java       # Outbound Port
 │   │   │   │   │   └── service/OauthLinkService.java          # 도메인 서비스
-│   │   │   │   └── watermelon
-│   │   │   │       ├── port/in/GetWatermelonStatusUseCase.java # Inbound Port
-│   │   │   │       ├── port/out/WatermelonRepositoryPort.java  # Outbound Port
-│   │   │   │       ├── service/WatermelonEventService.java     # 도메인 서비스
-│   │   │   │       └── domain/                                 # 도메인 모델 & Config
+│   │   │   │   ├── watermelon
+│   │   │   │   │   ├── port/in/GetWatermelonStatusUseCase.java, EnhanceWatermelonUseCase.java, BuyWatermelonItemUseCase.java, GetWatermelonLeaderboardUseCase.java
+│   │   │   │   │   ├── port/out/WatermelonRepositoryPort.java, WatermelonEventLogRepositoryPort.java
+│   │   │   │   │   ├── service/WatermelonEventService.java     # 도메인 서비스
+│   │   │   │   │   └── domain/                                 # 도메인 모델 & Config
+│   │   │   │   └── admin                                       # [Admin] Port 인터페이스 6개
+│   │   │   │       ├── port/in/AdminDashboardUseCase.java, AdminUserUseCase.java, AdminCabinetUseCase.java, AdminItemCoinUseCase.java, AdminBannedUserUseCase.java, AdminAlarmUseCase.java
+│   │   │   │       └── service/AdminDashboardService.java, AdminUserService.java, AdminCabinetService.java, AdminItemCoinService.java, AdminBannedUserService.java, AdminAlarmService.java
 │   │   │   │
 │   │   │   ├── application             # ═══ 애플리케이션 계층 (유스케이스 조합) ═══
 │   │   │   │   └── lent
 │   │   │   │       └── LentApplicationService.java   # 대여 프로세스 오케스트레이션
 │   │   │   │
 │   │   │   ├── adapter                 # ═══ 어댑터 계층 (인프라 구현체) ═══
-│   │   │   │   ├── in/web              # --- Inbound Adapter (Controller) ---
-│   │   │   │   │   ├── CabinetController.java
-│   │   │   │   │   ├── UserController.java
-│   │   │   │   │   ├── LentController.java
-│   │   │   │   │   ├── StoreController.java
-│   │   │   │   │   ├── CalendarEventController.java
-│   │   │   │   │   ├── AdminController.java
+│   │   │   │   ├── in/web              # --- Inbound Adapter (Controller + DTO) ---
+│   │   │   │   │   ├── cabinet/CabinetController.java
+│   │   │   │   │   ├── user/UserController.java
+│   │   │   │   │   ├── lent/LentController.java
+│   │   │   │   │   ├── item/StoreController.java
+│   │   │   │   │   ├── calendar/CalendarEventController.java
+│   │   │   │   │   ├── admin/AdminController.java
 │   │   │   │   │   ├── auth/AuthController.java
 │   │   │   │   │   └── watermelon/WatermelonEventController.java
+│   │   │   │   ├── in/scheduler        # --- Inbound Adapter (Scheduler) ---
+│   │   │   │   │   ├── lent/LentScheduler.java              # D-7/D-1 알림, 자동 연장, 연체 처리
+│   │   │   │   │   └── user/LogtimeScheduler.java, LogtimeStreamListener.java
 │   │   │   │   ├── out/persistence     # --- Outbound Adapter (DB) ---
 │   │   │   │   │   ├── cabinet/CabinetPersistenceAdapter.java
 │   │   │   │   │   ├── user/UserPersistenceAdapter.java
@@ -225,29 +237,32 @@ flowchart TD
 │   │   │   │   └── out/cache           # --- Outbound Adapter (캐시) ---
 │   │   │   │       └── redis/ReservationRedisAdapter.java  # 사물함 예약
 │   │   │   │
-│   │   │   ├── admin                   # [Admin] 관리자 (기존 구조 유지)
-│   │   │   │   ├── controller/AdminController.java
-│   │   │   │   ├── dto/
-│   │   │   │   └── service/AdminService.java          # Port 인터페이스 의존
-│   │   │   │
-│   │   │   ├── alarm                   # [Alarm] 비동기 알림 이벤트
+│   │   │   ├── alarm                   # [Alarm] 비동기 알림 이벤트 (Redis Streams)
 │   │   │   │   ├── dto/AlarmEvent.java
 │   │   │   │   ├── AlarmEventHandler.java
+│   │   │   │   ├── SlackAlarmStreamListener.java
 │   │   │   │   └── SlackBotService.java
 │   │   │   │
 │   │   │   ├── auth                    # [Auth] 스프링 시큐리티 및 JWT 필터링 설정
-│   │   │   │   ├── config/SecurityConfig.java
+│   │   │   │   ├── config/SecurityConfig.java, CookieOAuth2AuthorizationRequestRepository.java
 │   │   │   │   ├── domain/UserPrincipal.java
-│   │   │   │   ├── jwt/JwtTokenProvider.java
+│   │   │   │   ├── exception/CustomAccessDeniedHandler.java, CustomAuthenticationEntryPoint.java
+│   │   │   │   ├── jwt/JwtTokenProvider.java, JwtAuthenticationFilter.java
+│   │   │   │   ├── oauth/OAuth2SuccessHandler.java
 │   │   │   │   └── service/CustomOAuth2UserService.java
 │   │   │   │
-│   │   │   ├── cabinet/                # [Entity] 사물함 엔티티 & JPA Repository
-│   │   │   ├── user/                   # [Entity] 유저 엔티티 & Scheduler
-│   │   │   ├── lent/                   # [Entity] 대여 기록 엔티티
-│   │   │   ├── item/                   # [Entity] 아이템 엔티티
-│   │   │   ├── coin/                   # [Entity] 코인 이력 엔티티
-│   │   │   ├── calendar/               # [Entity] 캘린더 엔티티
-│   │   │   ├── global/                 # [Global] 전역 설정, 예외 처리
+│   │   │   ├── common                  # [Common] 공용 응답/락/Redis 유틸
+│   │   │   │   ├── ApiResponse.java, dto/MessageResponse.java
+│   │   │   │   ├── lock/DistributedLock.java, DistributedLockAop.java
+│   │   │   │   └── redis/RedisService.java
+│   │   │   │
+│   │   │   ├── config                  # [Config] 인프라 빈 설정
+│   │   │   │   └── RedisConfig.java, RedisStreamConfig.java, ShedLockConfig.java, WebConfig.java
+│   │   │   │
+│   │   │   ├── global                  # [Global] 전역 설정, 예외 처리
+│   │   │   │   ├── aspect/LoggingAspect.java
+│   │   │   │   └── exception/ErrorCode.java, GlobalExceptionHandler.java, ServiceException.java
+│   │   │   │
 │   │   │   └── utils/FtApiManager.java # 42 API 통신 모듈
 │   │   │
 │   │   └── resources
@@ -437,7 +452,7 @@ erDiagram
 | **Ver 1.1** | **Hexagonal Architecture** | 레이어드 → **헥사고날(Ports & Adapters)** 아키텍처 전환. **18개 Port 인터페이스**, **14개 Adapter**, **5개 Domain Service** 구축. 도메인 로직의 인프라 독립성 확보 및 테스트 용이성 강화. API 계약 변경 없음 |
 | **Ver 1.2** | **Social Login & Extension** | 카카오 및 구글 소셜 로그인 연동 모듈 추가. 헥사고날(Ports & Adapters) 아키텍처에 부합하도록 인증 및 연동 구조 리팩토링 및 다형성(Strategy Pattern) 적용. 연동용 API 엔드포인트 공통화 (`/v4/auth/link/{provider}`) 및 예외 복구 흐름 개선 |
 | **Ver 1.3** | **Pisciner Identification & Cabinet Restriction** | 42 API `cursus_users`를 활용한 피시너 자동 식별(`cursus_id=9` 판별). 피시너 전용 사물함(`LAPISCINE` 타입) 대여 제한 적용. 관리자 LentType 일괄 변경 API 추가. 피시너 연장 차단. 본과정 합류 시 자동 전환 |
-| **Ver 1.4** | **Azure Redis & Stability** | **Azure Managed Redis** 연동 및 내장 레디스 완전 제거. **ShedLock**을 통한 분산 서버 스케줄러 동시성 제어 적용. JWT Access Token 검증 시 DB 조회 병목 제거(Claims 기반 인증). 12-Factor App 보안 구성을 통한 환경 변수 분리 및 SSL 단방향 적용 |
+| **Ver 1.4** | **Azure Redis & Stability** | **Azure Managed Redis** 연동 및 내장 레디스 완전 제거. **ShedLock**을 통한 분산 서버 스케줄러 동시성 제어 적용. JWT Access Token에 role 등 Claims 포함(최신 상태 반영을 위해 인증 시 DB 조회는 유지, 향후 최적화 예정). 12-Factor App 보안 구성을 통한 환경 변수 분리 및 SSL 단방향 적용 |
 | **Ver 1.5** | **Redis Streams Async Queue** | 대규모 트래픽 확장에 대비하여 **Redis Streams** 기반 비동기 이벤트 큐 시스템 구축. 외부 통신(Slack 알림 발송, 42 API 로그타임 집계)에 의한 메인 서버 블로킹 방지 및 분산 워커 처리 적용 |
 | **Ver 1.6** | **Core Refactoring & Isolation** | **비관적/낙관적(Redis) 분산 락**을 상황에 맞게 적용(사물함 대여 동시성 제어, 코인 사용 등). **Rich Domain Model**로 전환하여 서비스 레이어의 비즈니스 응집도 향상. **Hexagonal Architecture(Package by Feature)** 완전 적용으로 도메인별 디렉토리 철저한 분리 구축. **Jacoco/Spotless/Pre-commit** 도입으로 코드 품질 검증 자동화 완비 |
 
@@ -486,7 +501,7 @@ erDiagram
 * **Timezone 동기화:** Docker 컨테이너 레벨에서 `Asia/Seoul` 타임존을 강제하여, 서버 환경에 상관없이 **출석 체크와 연체료 계산**이 정확한 시간에 수행됩니다.
 * **WebClient Timeout:** AI 서버 통신 시 3초 타임아웃을 강제 적용하여 외부 장애 전파를 차단합니다.
 * **분산 스케줄러 락 (ShedLock):** Azure Managed Redis 기반의 분산 락을 도입하여 다중 서버(Scale-out) 환경이나 무중단 배포 시 스케줄러가 중복 실행되어 데이터 정합성이 깨지는 문제를 원천 차단했습니다.
-* **JWT 인증 최적화:** Access Token 검증 시 DB 조회를 제거하고 Claims 데이터를 활용하여 병목을 개선했으며, Refresh Token은 Redis로 안전하게 관리합니다.
+* **JWT 인증:** Access Token에 role 등 Claims를 포함하며, 인증 시에는 최신 사용자 상태 반영을 위해 DB 조회를 유지합니다(Claims 기반 조회 생략은 추후 최적화 과제). Refresh Token은 Redis로 안전하게 관리합니다.
 * **Logback Rolling Policy:** 로그 파일 용량(10MB/3GB) 제한으로 디스크 장애 예방.
 
 ### 5. 🎮 게임화 및 상점 (Gamification)
@@ -762,12 +777,12 @@ sequenceDiagram
 | `GET` | `/oauth2/authorization/42` | 42 Intra 로그인 (OAuth2) |
 | `POST` | `/v4/auth/reissue` | Access Token 재발급 |
 | `POST` | `/v4/auth/logout` | 로그아웃 (Refresh Token 삭제) |
+| `POST` | `/v4/auth/link/{provider}` | 카카오/구글 소셜 계정 연동 |
 
 ### 2. 👤 유저 (User)
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
-| `GET` | `/v4/users/me` | 내 정보 (대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회 |
-| `GET` | `/v4/users/me/lent-histories` | 나의 과거 대여 기록 조회 |
+| `GET` | `/v4/users/me` | 내 정보 (현재 대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회 |
 | `POST` | `/v4/users/attendance` | **[NEW]** 수동 출석 체크 (코인 획득) |
 | `GET` | `/v4/users/attendance` | 이번 달 출석 현황 조회 |
 
@@ -776,6 +791,7 @@ sequenceDiagram
 | :--- | :--- | :--- |
 | `GET` | `/v4/cabinets` | 건물/층별 사물함 배치도 및 상태 조회 |
 | `GET` | `/v4/cabinets/status-summary` | 층별 잔여 좌석 요약 정보 |
+| `GET` | `/v4/cabinets/status-summary/all` | 전체 건물/층 잔여 좌석 요약 정보 |
 | `GET` | `/v4/cabinets/{cabinetId}` | 사물함 상세 정보 (공유 사물함 인원 등) |
 
 ### 4. 🔑 대여 및 반납 (Lent)
@@ -783,6 +799,7 @@ sequenceDiagram
 | :--- | :--- | :--- |
 | `POST` | `/v4/lent/cabinets/{visibleNum}` | 사물함 대여 시작 |
 | `POST` | `/v4/lent/reservation/{visibleNum}` | **[NEW]** 사물함 예약 (15분 선점, 대여 중이면 이사 예약으로 자동 처리) |
+| `POST` | `/v4/lent/check-image` | **[AI]** 반납 사진 사전 검증 (AI 청결도 검사만 선실행) |
 | `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력) |
 | `POST` | `/v4/lent/swap/{newVisibleNum}` | **[Item]** 이사권을 사용해 사물함 이동 |
 | `POST` | `/v4/lent/extension` | **[Item]** 연장권을 사용해 기간 연장 |
@@ -822,10 +839,15 @@ sequenceDiagram
 | `GET` | `/v4/admin/users` | **[NEW]** 전체 유저 목록 조회 (페이징) |
 | `GET` | `/v4/admin/users/{name}` | 특정 유저 정보 및 대여 이력 검색 |
 | `POST` | `/v4/admin/users/{name}/coin` | 유저에게 코인 수동 지급 |
+| `DELETE` | `/v4/admin/users/{name}/coin` | 유저 코인 수동 회수 |
 | `PATCH` | `/v4/admin/users/{name}/logtime` | 유저 로그타임 수동 수정 |
 | `POST` | `/v4/admin/users/{name}/penalty` | 유저에게 패널티 수동 부여 |
 | `DELETE` | `/v4/admin/users/{name}/penalty` | 유저 패널티 해제 (감면) |
+| `GET` | `/v4/admin/users/penalty` | 패널티 보유 유저 목록 조회 |
 | `POST` | `/v4/admin/users/{name}/items` | 유저에게 아이템 수동 지급 |
+| `DELETE` | `/v4/admin/users/{name}/items` | 유저 미사용 아이템 전체 회수 |
+| `POST` | `/v4/admin/users/{name}/role/admin` | 유저를 관리자로 승급 |
+| `DELETE` | `/v4/admin/users/{name}/role/admin` | 관리자 권한 해제 |
 | `PATCH` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상태(고장 등) 변경 |
 | `PATCH` | `/v4/admin/cabinets/bundle/status` | **[NEW]** 사물함 상태/LentType 일괄 변경 (피시너 전용 구역 설정) |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/force-return` | 관리자 권한 강제 반납 |
@@ -835,9 +857,15 @@ sequenceDiagram
 | `PATCH` | `/v4/admin/items/{itemName}/price` | 상점 아이템 가격 변경 |
 | `POST` | `/v4/admin/alarm/emergency` | 전체 유저 긴급 공지(DM) 발송 |
 | `GET` | `/v4/admin/cabinets/overdue` | 현재 연체 중인 유저 목록 조회 |
+| `GET` | `/v4/admin/cabinets/broken` | 고장 사물함 목록 조회 |
 | `GET` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상세 정보 조회 |
+| `GET` | `/v4/admin/cabinets/{visibleNum}/history` | 사물함 대여 이력 조회 (페이징) |
+| `GET` | `/v4/admin/stats/weekly` | 주간 통계 요약 |
+| `GET` | `/v4/admin/stats/floors` | 층별 사물함 현황 통계 |
 | `GET` | `/v4/admin/stats/coins` | 주간 코인 흐름 통계 (지급/사용) |
 | `GET` | `/v4/admin/stats/items` | 아이템 사용 통계 + 출석/수박씨 집계 |
+| `GET` | `/v4/admin/stats/store` | 상점 판매 통계 |
+| `GET` | `/v4/admin/stats/attendance` | 기간별 출석 통계 조회 |
 | `POST` | `/v4/admin/calendar/events` | **[NEW]** 일정 등록 |
 | `PUT` | `/v4/admin/calendar/events/{id}` | **[NEW]** 일정 수정 |
 | `DELETE` | `/v4/admin/calendar/events/{id}` | **[NEW]** 일정 삭제 |

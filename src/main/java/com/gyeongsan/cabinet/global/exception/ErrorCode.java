@@ -16,7 +16,6 @@ public enum ErrorCode {
 
     LENT_ALREADY_EXIST(HttpStatus.BAD_REQUEST, "LENT_001", "이미 대여 중인 사물함이 있습니다."),
     LENT_NOT_FOUND(HttpStatus.NOT_FOUND, "LENT_002", "대여 기록이 없습니다."),
-    BLACKHOLED_USER(HttpStatus.FORBIDDEN, "LENT_003", "블랙홀 유저는 대여할 수 없습니다."),
     PENALTY_USER(HttpStatus.FORBIDDEN, "LENT_004", "패널티 기간입니다."),
     SAME_CABINET_SWAP(HttpStatus.BAD_REQUEST, "LENT_005", "현재 사용 중인 사물함과 같은 곳으로 이사할 수 없습니다."),
     OVERDUE_USER_CANNOT_SWAP(HttpStatus.FORBIDDEN, "LENT_006", "연체 중에는 이사할 수 없습니다. 먼저 반납해주세요."),

@@ -2,7 +2,6 @@ package com.gyeongsan.cabinet.adapter.out.persistence.user;
 
 import com.gyeongsan.cabinet.domain.user.model.User;
 import jakarta.persistence.LockModeType;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,9 +18,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByName(String name);
 
     Optional<User> findByEmail(String email);
-
-    @Query("SELECT u FROM User u WHERE u.blackholedAt < :date AND u.deletedAt IS NULL")
-    List<User> findAllBlackholedUsers(@Param("date") LocalDateTime date);
 
     long countByPenaltyDaysGreaterThan(Integer penaltyDays);
 
