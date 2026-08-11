@@ -6,3 +6,8 @@ spring:
       password: ${REDIS_PASSWORD}
       ssl:
         enabled: true
+  jpa:
+    properties:
+      hibernate:
+        show_sql: false
+        format_sql: false
