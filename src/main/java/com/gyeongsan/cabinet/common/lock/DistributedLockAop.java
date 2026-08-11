@@ -31,7 +31,7 @@ public class DistributedLockAop {
             new DefaultParameterNameDiscoverer();
     private final ExpressionParser expressionParser = new SpelExpressionParser();
 
-    @Around("@annotation(distributedLock)")
+    @Around(value = "@annotation(distributedLock)", argNames = "joinPoint,distributedLock")
     public Object lock(ProceedingJoinPoint joinPoint, DistributedLock distributedLock)
             throws Throwable {
         String key = distributedLock.key();
