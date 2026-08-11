@@ -23,7 +23,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Log4j2
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class DistributedLockAop {
 
     private final StringRedisTemplate redisTemplate;
@@ -31,7 +31,7 @@ public class DistributedLockAop {
             new DefaultParameterNameDiscoverer();
     private final ExpressionParser expressionParser = new SpelExpressionParser();
 
-    @Around(value = "@annotation(distributedLock)", argNames = "joinPoint,distributedLock")
+    @Around(value = "@annotation(distributedLock)", argNames = "distributedLock")
     public Object lock(ProceedingJoinPoint joinPoint, DistributedLock distributedLock)
             throws Throwable {
         String key = distributedLock.key();
