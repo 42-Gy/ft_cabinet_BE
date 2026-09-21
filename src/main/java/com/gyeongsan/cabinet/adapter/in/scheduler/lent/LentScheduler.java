@@ -69,8 +69,10 @@ public class LentScheduler {
                 extendedCount++;
                 log.info("자동 연장 성공: User={}, NewExpiredAt={}", user.getName(), lent.getExpiredAt());
             } else {
-                sendAutoExtensionFailedAlarm(
-                        user, lent.getCabinet().getVisibleNum(), lent.getExpiredAt());
+                log.warn(
+                        "자동 연장 알림 미발송: User={}, CabinetNum={}, 사유=말일 타이밍 불일치로 알림 임시 비활성화",
+                        user.getName(),
+                        lent.getCabinet().getVisibleNum());
             }
         }
 
@@ -231,16 +233,6 @@ public class LentScheduler {
                 String.format(
                         "⏳ *[반납 알림]*\n%s님, 사용 중인 사물함(%d번)의 반납 기한이 %d일 남았습니다.\n(반납 예정일: %s)\n잊지 말고 반납해주세요! 😊",
                         user.getName(), visibleNum, daysLeft, dateStr);
-        eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
-    }
-
-    private void sendAutoExtensionFailedAlarm(
-            User user, Integer visibleNum, LocalDateTime expiredAt) {
-        String dateStr = expiredAt.toLocalDate().toString();
-        String message =
-                String.format(
-                        "⚠️ *[자동 연장 실패]*\n%s님, %d번 사물함의 자동 연장이 실패되었습니다.\n(반납 예정일: %s)\n관리자에게 연락 주시면 감사하겠습니다.",
-                        user.getName(), visibleNum, dateStr);
         eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
     }
 
