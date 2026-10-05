@@ -70,7 +70,7 @@ spring:
             client-secret: ${FT_CLIENT_SECRET}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
-            redirect-uri: "https://subak.site/login/oauth2/code/42"
+            redirect-uri: "${FRONTEND_URL}/login/oauth2/code/42"
             scope: public
             client-name: 42 gyeongsan
           kakao:
@@ -78,13 +78,13 @@ spring:
             client-secret: ${KAKAO_CLIENT_SECRET}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
-            redirect-uri: "https://subak.site/login/oauth2/code/kakao"
+            redirect-uri: "${FRONTEND_URL}/login/oauth2/code/kakao"
             scope: account_email
             client-name: Kakao
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
-            redirect-uri: "https://subak.site/login/oauth2/code/google"
+            redirect-uri: "${FRONTEND_URL}/login/oauth2/code/google"
             scope: profile,email
         provider:
           42:
@@ -146,7 +146,7 @@ ai:
 
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS},http://localhost:5173,https://subak.site
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   client:
     connect-timeout: 20000
     read-timeout: 20000
