@@ -13,6 +13,11 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.gyeongsan.cabinet.adapter.in.web.admin.dto.BulkStatusUpdateRequest;
 import com.gyeongsan.cabinet.adapter.in.web.admin.dto.BulkStatusUpdateResponse;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActionLog;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActionTargetType;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActionType;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActor;
+import com.gyeongsan.cabinet.domain.admin.port.out.AdminActionLogPort;
 import com.gyeongsan.cabinet.domain.cabinet.model.Cabinet;
 import com.gyeongsan.cabinet.domain.cabinet.model.CabinetStatus;
 import com.gyeongsan.cabinet.domain.cabinet.model.LentType;
@@ -34,6 +39,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -44,10 +50,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 @ExtendWith(MockitoExtension.class)
 class AdminCabinetServiceBulkUpdateTest {
 
-    private static final String ADMIN = "admin01";
+    private static final AdminActor ADMIN = new AdminActor(1L, "admin01");
 
     @Mock private CabinetRepositoryPort cabinetRepository;
     @Mock private LentRepositoryPort lentRepository;
+    @Mock private AdminActionLogPort adminActionLogPort;
 
     @InjectMocks private AdminCabinetService adminCabinetService;
 
@@ -77,7 +84,12 @@ class AdminCabinetServiceBulkUpdateTest {
             LentType lentType,
             String note,
             boolean endActiveLents) {
-        return new BulkStatusUpdateRequest(ids, status, lentType, note, endActiveLents);
+        return new BulkStatusUpdateRequest(ids, status, lentType, note, endActiveLents, null);
+    }
+
+    private static BulkStatusUpdateRequest requestWithReason(
+            List<Long> ids, CabinetStatus status, boolean endActiveLents, String reason) {
+        return new BulkStatusUpdateRequest(ids, status, null, null, endActiveLents, reason);
     }
 
     private void givenLocked(Cabinet... cabinets) {
@@ -141,6 +153,7 @@ class AdminCabinetServiceBulkUpdateTest {
         assertThat(occupied.getStatus()).isEqualTo(CabinetStatus.FULL);
         assertThat(empty.getStatus()).isEqualTo(CabinetStatus.AVAILABLE);
         assertThat(lent.getEndedAt()).isNull();
+        verifyNoInteractions(adminActionLogPort);
     }
 
     @ParameterizedTest
@@ -242,6 +255,7 @@ class AdminCabinetServiceBulkUpdateTest {
                         });
 
         assertThat(existing.getStatus()).isEqualTo(CabinetStatus.AVAILABLE);
+        verifyNoInteractions(adminActionLogPort);
     }
 
     @Test
@@ -370,6 +384,160 @@ class AdminCabinetServiceBulkUpdateTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(messagePart);
 
-        verifyNoInteractions(cabinetRepository, lentRepository);
+        verifyNoInteractions(cabinetRepository, lentRepository, adminActionLogPort);
+    }
+
+    @Test
+    @DisplayName("성공하면 감사 로그를 한 번 저장하고, batchId 는 응답과 같다")
+    void success_savesAuditLogOnce() {
+        Cabinet occupied = cabinet(1L, 101, CabinetStatus.FULL);
+        Cabinet empty = cabinet(2L, 102, CabinetStatus.AVAILABLE);
+        LentHistory lent = lent(10L, occupied, "intra01", 7L);
+        givenLocked(occupied, empty);
+        given(lentRepository.findAllActiveLentByCabinetIds(List.of(1L, 2L)))
+                .willReturn(List.of(lent));
+
+        BulkStatusUpdateResponse response =
+                adminCabinetService.bulkUpdateCabinetStatus(
+                        requestWithReason(
+                                List.of(2L, 1L), CabinetStatus.AVAILABLE, true, "  월말 일괄 반납  "),
+                        ADMIN);
+
+        ArgumentCaptor<AdminActionLog> captor = ArgumentCaptor.forClass(AdminActionLog.class);
+        verify(adminActionLogPort, times(1)).save(captor.capture());
+        AdminActionLog saved = captor.getValue();
+        assertThat(saved.batchId()).isEqualTo(response.batchId());
+        assertThat(saved.actionType()).isEqualTo(AdminActionType.CABINET_BULK_STATUS_UPDATE);
+        assertThat(saved.actor()).isEqualTo(ADMIN);
+        assertThat(saved.reason()).isEqualTo("월말 일괄 반납");
+        assertThat(saved.createdAt()).isNotNull();
+        assertThat(saved.request())
+                .containsEntry("cabinetIds", List.of(2L, 1L))
+                .containsEntry("status", "AVAILABLE")
+                .containsEntry("endActiveLents", true)
+                .containsEntry("reason", "월말 일괄 반납");
+    }
+
+    @Test
+    @DisplayName("감사 로그에는 사물함별 변경 전/후 값과, 종료된 대여의 전/후가 모두 담긴다")
+    void auditLog_containsBeforeAfterOfCabinetsAndEndedLents() {
+        Cabinet occupied = cabinet(1L, 101, CabinetStatus.FULL);
+        Cabinet empty = cabinet(2L, 102, CabinetStatus.AVAILABLE);
+        LentHistory lent = lent(10L, occupied, "intra01", 7L);
+        givenLocked(occupied, empty);
+        given(lentRepository.findAllActiveLentByCabinetIds(List.of(1L, 2L)))
+                .willReturn(List.of(lent));
+
+        adminCabinetService.bulkUpdateCabinetStatus(
+                request(List.of(1L, 2L), CabinetStatus.PENDING, null, "청소 필요", true), ADMIN);
+
+        ArgumentCaptor<AdminActionLog> captor = ArgumentCaptor.forClass(AdminActionLog.class);
+        verify(adminActionLogPort).save(captor.capture());
+        var items = captor.getValue().items();
+
+        var cabinetItems =
+                items.stream()
+                        .filter(i -> i.targetType() == AdminActionTargetType.CABINET)
+                        .toList();
+        assertThat(cabinetItems).hasSize(2);
+        assertThat(cabinetItems.get(0).targetId()).isEqualTo(1L);
+        assertThat(cabinetItems.get(0).targetLabel()).isEqualTo("101");
+        assertThat(cabinetItems.get(0).before())
+                .containsEntry("status", "FULL")
+                .containsEntry("lentType", "PRIVATE")
+                .containsEntry("statusNote", "기존 사유");
+        assertThat(cabinetItems.get(0).after())
+                .containsEntry("status", "PENDING")
+                .containsEntry("statusNote", "청소 필요");
+
+        var lentItems =
+                items.stream()
+                        .filter(i -> i.targetType() == AdminActionTargetType.LENT_HISTORY)
+                        .toList();
+        assertThat(lentItems).hasSize(1);
+        assertThat(lentItems.get(0).targetId()).isEqualTo(10L);
+        assertThat(lentItems.get(0).before())
+                .containsEntry("endedAt", null)
+                .containsEntry("cabinetId", 1L)
+                .containsEntry("userId", 7L);
+        assertThat(lentItems.get(0).after().get("endedAt")).isNotNull();
+        assertThat(lentItems.get(0).after()).containsEntry("userId", 7L);
+        // 사용자 이름은 로그 항목에 담지 않는다.
+        assertThat(lentItems.get(0).before().toString()).doesNotContain("intra01");
+    }
+
+    @Test
+    @DisplayName("lentType 만 바꾸는 요청의 로그에는 사물함 항목만 있고 대여 항목은 없다")
+    void lentTypeOnly_auditLogHasNoLentItems() {
+        Cabinet occupied = cabinet(1L, 101, CabinetStatus.FULL);
+        givenLocked(occupied);
+
+        adminCabinetService.bulkUpdateCabinetStatus(
+                request(List.of(1L), null, LentType.LAPISCINE, null, false), ADMIN);
+
+        ArgumentCaptor<AdminActionLog> captor = ArgumentCaptor.forClass(AdminActionLog.class);
+        verify(adminActionLogPort).save(captor.capture());
+        assertThat(captor.getValue().items())
+                .singleElement()
+                .satisfies(
+                        i -> assertThat(i.targetType()).isEqualTo(AdminActionTargetType.CABINET));
+        assertThat(captor.getValue().reason()).isNull();
+    }
+
+    @Test
+    @DisplayName("공백뿐인 reason 은 없는 것으로 기록한다")
+    void blankReason_isStoredAsNull() {
+        Cabinet one = cabinet(1L, 101, CabinetStatus.AVAILABLE);
+        givenLocked(one);
+        given(lentRepository.findAllActiveLentByCabinetIds(List.of(1L))).willReturn(List.of());
+
+        adminCabinetService.bulkUpdateCabinetStatus(
+                requestWithReason(List.of(1L), CabinetStatus.DISABLED, false, "   "), ADMIN);
+
+        ArgumentCaptor<AdminActionLog> captor = ArgumentCaptor.forClass(AdminActionLog.class);
+        verify(adminActionLogPort).save(captor.capture());
+        assertThat(captor.getValue().reason()).isNull();
+    }
+
+    @Test
+    @DisplayName("작업 사유가 255자를 넘으면 락 전에 400 대상 예외로 거부한다")
+    void tooLongReason_isRejectedBeforeAnyLock() {
+        assertThatThrownBy(
+                        () ->
+                                adminCabinetService.bulkUpdateCabinetStatus(
+                                        requestWithReason(
+                                                List.of(1L),
+                                                CabinetStatus.DISABLED,
+                                                false,
+                                                "가".repeat(256)),
+                                        ADMIN))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("reason");
+
+        verifyNoInteractions(cabinetRepository, lentRepository, adminActionLogPort);
+    }
+
+    @Test
+    @DisplayName("감사 로그 저장이 실패하면 예외를 삼키지 않고 던져서 트랜잭션이 롤백되게 한다")
+    void auditLogFailure_propagates() {
+        Cabinet one = cabinet(1L, 101, CabinetStatus.AVAILABLE);
+        givenLocked(one);
+        given(lentRepository.findAllActiveLentByCabinetIds(List.of(1L))).willReturn(List.of());
+        org.mockito.Mockito.doThrow(new IllegalStateException("log failure"))
+                .when(adminActionLogPort)
+                .save(org.mockito.ArgumentMatchers.any());
+
+        assertThatThrownBy(
+                        () ->
+                                adminCabinetService.bulkUpdateCabinetStatus(
+                                        request(
+                                                List.of(1L),
+                                                CabinetStatus.DISABLED,
+                                                null,
+                                                null,
+                                                false),
+                                        ADMIN))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("log failure");
     }
 }

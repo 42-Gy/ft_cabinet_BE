@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.domain.admin.port.in;
 
 import com.gyeongsan.cabinet.adapter.in.web.admin.dto.*;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActor;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,5 +23,6 @@ public interface AdminCabinetUseCase {
 
     List<BrokenCabinetResponse> getBrokenCabinets();
 
-    BulkStatusUpdateResponse bulkUpdateCabinetStatus(BulkStatusUpdateRequest request, String actor);
+    BulkStatusUpdateResponse bulkUpdateCabinetStatus(
+            BulkStatusUpdateRequest request, AdminActor actor);
 }

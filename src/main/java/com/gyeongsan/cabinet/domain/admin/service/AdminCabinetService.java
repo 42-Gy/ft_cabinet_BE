@@ -1,7 +1,13 @@
 package com.gyeongsan.cabinet.domain.admin.service;
 
 import com.gyeongsan.cabinet.adapter.in.web.admin.dto.*;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActionLog;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActionLogItem;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActionTargetType;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActionType;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActor;
 import com.gyeongsan.cabinet.domain.admin.port.in.AdminCabinetUseCase;
+import com.gyeongsan.cabinet.domain.admin.port.out.AdminActionLogPort;
 import com.gyeongsan.cabinet.domain.cabinet.model.Cabinet;
 import com.gyeongsan.cabinet.domain.cabinet.model.CabinetStatus;
 import com.gyeongsan.cabinet.domain.cabinet.model.LentType;
@@ -14,6 +20,7 @@ import com.gyeongsan.cabinet.global.exception.ServiceException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -46,6 +53,7 @@ public class AdminCabinetService implements AdminCabinetUseCase {
 
     private final CabinetRepositoryPort cabinetRepository;
     private final LentRepositoryPort lentRepository;
+    private final AdminActionLogPort adminActionLogPort;
 
     @Override
     @Transactional(readOnly = true)
@@ -163,17 +171,19 @@ public class AdminCabinetService implements AdminCabinetUseCase {
      */
     @Override
     public BulkStatusUpdateResponse bulkUpdateCabinetStatus(
-            BulkStatusUpdateRequest request, String actor) {
+            BulkStatusUpdateRequest request, AdminActor actor) {
         String batchId = UUID.randomUUID().toString();
         log.info(
-                "[BULK:{}] 일괄 변경 요청 - 관리자: {}, 대상: {}건, status: {}, lentType: {}, endActiveLents: {}, 사유: {}",
+                "[BULK:{}] 일괄 변경 요청 - 관리자: {}(id={}), 대상: {}건, status: {}, lentType: {}, endActiveLents: {}, 사유: {}, 작업 사유: {}",
                 batchId,
-                actor,
+                actor.name(),
+                actor.id(),
                 request.cabinetIds() == null ? 0 : request.cabinetIds().size(),
                 request.status(),
                 request.lentType(),
                 request.endActiveLents(),
-                sanitizeForLog(request.statusNote()));
+                sanitizeForLog(request.statusNote()),
+                sanitizeForLog(request.reason()));
 
         validateBulkRequest(request);
 
@@ -208,12 +218,15 @@ public class AdminCabinetService implements AdminCabinetUseCase {
         LocalDateTime now = LocalDateTime.now();
         List<BulkStatusUpdateResponse.UpdatedCabinet> updatedCabinets = new ArrayList<>();
         List<BulkStatusUpdateResponse.EndedLent> endedLents = new ArrayList<>();
+        List<AdminActionLogItem> logItems = new ArrayList<>();
 
         for (Cabinet cabinet : cabinets) {
             if (request.endActiveLents()) {
                 for (LentHistory lent :
                         activeLentsByCabinetId.getOrDefault(cabinet.getId(), List.of())) {
+                    LocalDateTime previousEndedAt = lent.getEndedAt();
                     lent.endLent(now);
+                    logItems.add(lentLogItem(cabinet, lent, previousEndedAt));
                     endedLents.add(
                             new BulkStatusUpdateResponse.EndedLent(
                                     lent.getId(),
@@ -244,6 +257,13 @@ public class AdminCabinetService implements AdminCabinetUseCase {
                             : previousNote;
             cabinet.updateStatus(newStatus, newLentType, newNote);
 
+            logItems.add(
+                    new AdminActionLogItem(
+                            AdminActionTargetType.CABINET,
+                            cabinet.getId(),
+                            String.valueOf(cabinet.getVisibleNum()),
+                            cabinetSnapshot(previousStatus, previousLentType, previousNote),
+                            cabinetSnapshot(newStatus, newLentType, newNote)));
             updatedCabinets.add(
                     new BulkStatusUpdateResponse.UpdatedCabinet(
                             cabinet.getId(), cabinet.getVisibleNum(), previousStatus, newStatus));
@@ -260,10 +280,21 @@ public class AdminCabinetService implements AdminCabinetUseCase {
                     sanitizeForLog(newNote));
         }
 
+        // 변경과 같은 트랜잭션에서 저장한다. 로그 저장이 실패하면 변경도 롤백되어 "기록 없는 변경"이 생기지 않는다.
+        adminActionLogPort.save(
+                new AdminActionLog(
+                        batchId,
+                        AdminActionType.CABINET_BULK_STATUS_UPDATE,
+                        actor,
+                        normalizedReason(request),
+                        requestSnapshot(request),
+                        now,
+                        logItems));
+
         log.info(
                 "[BULK:{}] 완료 - 관리자: {}, 변경 {}개, 종료된 대여 {}건",
                 batchId,
-                actor,
+                actor.name(),
                 updatedCabinets.size(),
                 endedLents.size());
         return new BulkStatusUpdateResponse(batchId, updatedCabinets, endedLents);
@@ -300,6 +331,61 @@ public class AdminCabinetService implements AdminCabinetUseCase {
             throw new IllegalArgumentException(
                     "endActiveLents=true 는 status 를 AVAILABLE/BROKEN/DISABLED/PENDING 중 하나로 함께 지정해야 합니다.");
         }
+
+        String reason = normalizedReason(request);
+        if (reason != null && reason.length() > AdminActionLog.REASON_MAX_LENGTH) {
+            throw new IllegalArgumentException(
+                    "작업 사유(reason)는 " + AdminActionLog.REASON_MAX_LENGTH + "자 이하여야 합니다.");
+        }
+    }
+
+    /** 공백뿐인 사유는 없는 것으로 본다. */
+    private static String normalizedReason(BulkStatusUpdateRequest request) {
+        if (request.reason() == null || request.reason().isBlank()) {
+            return null;
+        }
+        return request.reason().strip();
+    }
+
+    /** 받은 요청을 로그에 그대로 남기기 위한 스냅샷. */
+    private static Map<String, Object> requestSnapshot(BulkStatusUpdateRequest request) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("cabinetIds", request.cabinetIds());
+        snapshot.put("status", request.status() == null ? null : request.status().name());
+        snapshot.put("lentType", request.lentType() == null ? null : request.lentType().name());
+        snapshot.put("statusNote", request.statusNote());
+        snapshot.put("endActiveLents", request.endActiveLents());
+        snapshot.put("reason", normalizedReason(request));
+        return snapshot;
+    }
+
+    private static Map<String, Object> cabinetSnapshot(
+            CabinetStatus status, LentType lentType, String statusNote) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("status", status == null ? null : status.name());
+        snapshot.put("lentType", lentType == null ? null : lentType.name());
+        snapshot.put("statusNote", statusNote);
+        return snapshot;
+    }
+
+    /** 종료된 대여의 전/후. Undo 가 대여를 다시 열 때 필요한 사물함과 사용자를 양쪽에 모두 담는다. 사용자 이름은 담지 않고 ID 만 남긴다. */
+    private static AdminActionLogItem lentLogItem(
+            Cabinet cabinet, LentHistory lent, LocalDateTime previousEndedAt) {
+        Map<String, Object> before = new LinkedHashMap<>();
+        before.put("endedAt", previousEndedAt == null ? null : previousEndedAt.toString());
+        before.put("returnMemo", lent.getReturnMemo());
+        before.put("cabinetId", cabinet.getId());
+        before.put("userId", lent.getUser().getId());
+
+        Map<String, Object> after = new LinkedHashMap<>(before);
+        after.put("endedAt", lent.getEndedAt() == null ? null : lent.getEndedAt().toString());
+
+        return new AdminActionLogItem(
+                AdminActionTargetType.LENT_HISTORY,
+                lent.getId(),
+                String.valueOf(cabinet.getVisibleNum()),
+                before,
+                after);
     }
 
     /** 상태를 바꾸는 요청일 때만 대여를 조회한다. lentType/사유만 바꾸는 요청은 대여를 건드리지 않는다. */

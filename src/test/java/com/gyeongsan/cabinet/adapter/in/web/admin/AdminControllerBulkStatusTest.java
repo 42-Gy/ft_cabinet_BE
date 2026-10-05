@@ -14,6 +14,7 @@ import com.gyeongsan.cabinet.adapter.in.web.admin.dto.BulkStatusRejection;
 import com.gyeongsan.cabinet.adapter.in.web.admin.dto.BulkStatusUpdateRequest;
 import com.gyeongsan.cabinet.adapter.in.web.admin.dto.BulkStatusUpdateResponse;
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActor;
 import com.gyeongsan.cabinet.domain.admin.port.in.AdminAlarmUseCase;
 import com.gyeongsan.cabinet.domain.admin.port.in.AdminBannedUserUseCase;
 import com.gyeongsan.cabinet.domain.admin.port.in.AdminCabinetUseCase;
@@ -44,6 +45,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 class AdminControllerBulkStatusTest {
 
     private static final String URL = "/v4/admin/cabinets/bundle/status";
+    private static final AdminActor ADMIN = new AdminActor(1L, "admin01");
 
     private final AdminCabinetUseCase adminCabinetUseCase = Mockito.mock(AdminCabinetUseCase.class);
     private MockMvc mockMvc;
@@ -79,9 +81,9 @@ class AdminControllerBulkStatusTest {
     }
 
     @Test
-    @DisplayName("endActiveLents 를 생략하면 false 로 전달되고, 호출한 관리자 이름이 서비스로 넘어간다")
+    @DisplayName("endActiveLents 를 생략하면 false 로 전달되고, 호출한 관리자(ID, 이름)가 서비스로 넘어간다")
     void missingEndActiveLents_defaultsToFalse_andPassesActor() throws Exception {
-        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq("admin01")))
+        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq(ADMIN)))
                 .willReturn(new BulkStatusUpdateResponse("batch-1", List.of(), List.of()));
 
         mockMvc.perform(
@@ -95,7 +97,7 @@ class AdminControllerBulkStatusTest {
 
         ArgumentCaptor<BulkStatusUpdateRequest> captor =
                 ArgumentCaptor.forClass(BulkStatusUpdateRequest.class);
-        verify(adminCabinetUseCase).bulkUpdateCabinetStatus(captor.capture(), eq("admin01"));
+        verify(adminCabinetUseCase).bulkUpdateCabinetStatus(captor.capture(), eq(ADMIN));
         assertThat(captor.getValue().endActiveLents()).isFalse();
         assertThat(captor.getValue().cabinetIds()).containsExactly(1L, 2L);
     }
@@ -103,7 +105,7 @@ class AdminControllerBulkStatusTest {
     @Test
     @DisplayName("endActiveLents=true 는 그대로 전달된다")
     void explicitEndActiveLents_isPassedThrough() throws Exception {
-        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq("admin01")))
+        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq(ADMIN)))
                 .willReturn(new BulkStatusUpdateResponse("batch-2", List.of(), List.of()));
 
         mockMvc.perform(
@@ -116,7 +118,7 @@ class AdminControllerBulkStatusTest {
 
         ArgumentCaptor<BulkStatusUpdateRequest> captor =
                 ArgumentCaptor.forClass(BulkStatusUpdateRequest.class);
-        verify(adminCabinetUseCase).bulkUpdateCabinetStatus(captor.capture(), eq("admin01"));
+        verify(adminCabinetUseCase).bulkUpdateCabinetStatus(captor.capture(), eq(ADMIN));
         assertThat(captor.getValue().endActiveLents()).isTrue();
         assertThat(captor.getValue().status()).isEqualTo(CabinetStatus.AVAILABLE);
     }
@@ -128,7 +130,7 @@ class AdminControllerBulkStatusTest {
                 new BulkStatusRejection(
                         List.of(),
                         List.of(new BulkStatusRejection.OccupiedCabinet(1L, 101, 7L, "intra01")));
-        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq("admin01")))
+        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq(ADMIN)))
                 .willThrow(new BulkStatusUpdateRejectedException(rejection));
 
         mockMvc.perform(
@@ -146,7 +148,7 @@ class AdminControllerBulkStatusTest {
     @Test
     @DisplayName("존재하지 않는 ID 때문에 거부되면 404 와 함께 해당 ID 목록을 내려준다")
     void missingRejection_returns404WithMissingIds() throws Exception {
-        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq("admin01")))
+        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq(ADMIN)))
                 .willThrow(
                         new BulkStatusUpdateRejectedException(
                                 new BulkStatusRejection(List.of(99L), List.of())));
@@ -162,7 +164,7 @@ class AdminControllerBulkStatusTest {
     @Test
     @DisplayName("입력 검증 실패는 기존처럼 400 으로 응답한다")
     void invalidInput_returns400() throws Exception {
-        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq("admin01")))
+        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq(ADMIN)))
                 .willThrow(new IllegalArgumentException("사물함 ID 목록이 비어있습니다."));
 
         mockMvc.perform(
@@ -182,5 +184,27 @@ class AdminControllerBulkStatusTest {
                                 BulkStatusUpdateRequest.class);
 
         assertThat(parsed.endActiveLents()).isFalse();
+        assertThat(parsed.reason()).isNull();
+    }
+
+    @Test
+    @DisplayName("reason 필드는 요청에서 그대로 전달된다")
+    void reason_isPassedThrough() throws Exception {
+        given(adminCabinetUseCase.bulkUpdateCabinetStatus(any(), eq(ADMIN)))
+                .willReturn(new BulkStatusUpdateResponse("batch-3", List.of(), List.of()));
+
+        mockMvc.perform(
+                        patch(URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        "{\"cabinetIds\":[1],\"status\":\"AVAILABLE\","
+                                                + "\"endActiveLents\":true,"
+                                                + "\"reason\":\"월말 일괄 반납\"}"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<BulkStatusUpdateRequest> captor =
+                ArgumentCaptor.forClass(BulkStatusUpdateRequest.class);
+        verify(adminCabinetUseCase).bulkUpdateCabinetStatus(captor.capture(), eq(ADMIN));
+        assertThat(captor.getValue().reason()).isEqualTo("월말 일괄 반납");
     }
 }

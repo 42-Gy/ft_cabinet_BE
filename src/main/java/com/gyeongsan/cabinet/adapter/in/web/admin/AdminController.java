@@ -3,6 +3,7 @@ package com.gyeongsan.cabinet.adapter.in.web.admin;
 import com.gyeongsan.cabinet.adapter.in.web.admin.dto.*;
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
 import com.gyeongsan.cabinet.common.ApiResponse;
+import com.gyeongsan.cabinet.domain.admin.model.AdminActor;
 import com.gyeongsan.cabinet.domain.admin.port.in.AdminAlarmUseCase;
 import com.gyeongsan.cabinet.domain.admin.port.in.AdminBannedUserUseCase;
 import com.gyeongsan.cabinet.domain.admin.port.in.AdminCabinetUseCase;
@@ -79,7 +80,8 @@ public class AdminController {
             @RequestBody BulkStatusUpdateRequest request,
             @AuthenticationPrincipal UserPrincipal admin) {
         BulkStatusUpdateResponse result =
-                adminCabinetUseCase.bulkUpdateCabinetStatus(request, admin.getName());
+                adminCabinetUseCase.bulkUpdateCabinetStatus(
+                        request, new AdminActor(admin.getUserId(), admin.getName()));
         return ApiResponse.success(result, "사물함 상태 일괄 변경 완료");
     }
 
