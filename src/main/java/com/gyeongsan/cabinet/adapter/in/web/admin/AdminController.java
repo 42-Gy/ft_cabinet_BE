@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.adapter.in.web.admin;
 
 import com.gyeongsan.cabinet.adapter.in.web.admin.dto.*;
+import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
 import com.gyeongsan.cabinet.common.ApiResponse;
 import com.gyeongsan.cabinet.domain.admin.port.in.AdminAlarmUseCase;
 import com.gyeongsan.cabinet.domain.admin.port.in.AdminBannedUserUseCase;
@@ -15,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -73,10 +75,12 @@ public class AdminController {
     }
 
     @PatchMapping("/cabinets/bundle/status")
-    public ApiResponse<String> bulkUpdateCabinetStatus(
-            @RequestBody BulkStatusUpdateRequest request) {
-        adminCabinetUseCase.bulkUpdateCabinetStatus(request);
-        return ApiResponse.success("사물함 상태 일괄 변경 완료");
+    public ApiResponse<BulkStatusUpdateResponse> bulkUpdateCabinetStatus(
+            @RequestBody BulkStatusUpdateRequest request,
+            @AuthenticationPrincipal UserPrincipal admin) {
+        BulkStatusUpdateResponse result =
+                adminCabinetUseCase.bulkUpdateCabinetStatus(request, admin.getName());
+        return ApiResponse.success(result, "사물함 상태 일괄 변경 완료");
     }
 
     @PostMapping("/cabinets/{visibleNum}/force-return")

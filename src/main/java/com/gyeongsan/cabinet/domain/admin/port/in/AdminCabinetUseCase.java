@@ -22,5 +22,5 @@ public interface AdminCabinetUseCase {
 
     List<BrokenCabinetResponse> getBrokenCabinets();
 
-    void bulkUpdateCabinetStatus(BulkStatusUpdateRequest request);
+    BulkStatusUpdateResponse bulkUpdateCabinetStatus(BulkStatusUpdateRequest request, String actor);
 }

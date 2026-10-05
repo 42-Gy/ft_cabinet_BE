@@ -1,5 +1,6 @@
 package com.gyeongsan.cabinet.global.exception;
 
+import com.gyeongsan.cabinet.adapter.in.web.admin.dto.BulkStatusRejection;
 import com.gyeongsan.cabinet.common.ApiResponse;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import lombok.extern.log4j.Log4j2;
@@ -21,6 +22,16 @@ public class GlobalExceptionHandler {
 
         ApiResponse<?> response = ApiResponse.fail(ec.getStatus(), ec.getMessage());
         return ResponseEntity.status(ec.getStatus()).body(response);
+    }
+
+    @ExceptionHandler(BulkStatusUpdateRejectedException.class)
+    public ResponseEntity<ApiResponse<BulkStatusRejection>> handleBulkStatusUpdateRejected(
+            BulkStatusUpdateRejectedException e) {
+        log.warn("⚠️ 사물함 일괄 변경 거부: {}", e.getMessage());
+
+        ApiResponse<BulkStatusRejection> response =
+                ApiResponse.fail(e.getStatus(), e.getMessage(), e.getRejection());
+        return ResponseEntity.status(e.getStatus()).body(response);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
