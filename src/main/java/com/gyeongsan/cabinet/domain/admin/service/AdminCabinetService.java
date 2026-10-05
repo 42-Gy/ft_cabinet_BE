@@ -333,6 +333,11 @@ public class AdminCabinetService implements AdminCabinetUseCase {
         }
 
         String reason = normalizedReason(request);
+        // 대여를 끝내는 작업은 되돌리기 어려운 파괴적 작업이라, 감사 로그에 남길 작업 사유를 반드시 받는다.
+        if (request.endActiveLents() && reason == null) {
+            throw new IllegalArgumentException(
+                    "대여를 종료(endActiveLents=true)하려면 작업 사유(reason)가 필요합니다.");
+        }
         if (reason != null && reason.length() > AdminActionLog.REASON_MAX_LENGTH) {
             throw new IllegalArgumentException(
                     "작업 사유(reason)는 " + AdminActionLog.REASON_MAX_LENGTH + "자 이하여야 합니다.");

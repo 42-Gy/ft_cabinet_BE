@@ -84,7 +84,9 @@ class AdminCabinetServiceBulkUpdateTest {
             LentType lentType,
             String note,
             boolean endActiveLents) {
-        return new BulkStatusUpdateRequest(ids, status, lentType, note, endActiveLents, null);
+        // 대여를 종료하는 요청은 작업 사유가 필수이므로, 별도 지정이 없으면 기본 사유를 채운다.
+        String reason = endActiveLents ? "테스트 사유" : null;
+        return new BulkStatusUpdateRequest(ids, status, lentType, note, endActiveLents, reason);
     }
 
     private static BulkStatusUpdateRequest requestWithReason(
@@ -372,7 +374,10 @@ class AdminCabinetServiceBulkUpdateTest {
                         request(ids, CabinetStatus.DISABLED, null, "가".repeat(65), false),
                         "64자 이하"),
                 Arguments.of(request(ids, null, LentType.LAPISCINE, null, true), "endActiveLents"),
-                Arguments.of(request(ids, CabinetStatus.FULL, null, null, true), "FULL/OVERDUE"));
+                Arguments.of(request(ids, CabinetStatus.FULL, null, null, true), "FULL/OVERDUE"),
+                Arguments.of(requestWithReason(ids, CabinetStatus.AVAILABLE, true, null), "reason"),
+                Arguments.of(
+                        requestWithReason(ids, CabinetStatus.AVAILABLE, true, "   "), "reason"));
     }
 
     @ParameterizedTest

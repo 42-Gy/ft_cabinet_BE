@@ -849,7 +849,7 @@ sequenceDiagram
 | `POST` | `/v4/admin/users/{name}/role/admin` | 유저를 관리자로 승급 |
 | `DELETE` | `/v4/admin/users/{name}/role/admin` | 관리자 권한 해제 |
 | `PATCH` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상태(고장 등) 변경 |
-| `PATCH` | `/v4/admin/cabinets/bundle/status` | **[NEW]** 사물함 상태/LentType 일괄 변경 (피시너 전용 구역 설정, 월말 일괄 반납). 대여 중인 사물함의 상태를 바꾸려면 `endActiveLents: true` 를 명시해야 하며, 없는 ID 또는 미명시 대여 중 사물함이 하나라도 있으면 아무것도 바꾸지 않고 전체 거부합니다(404/409, 문제 사물함 목록 포함). 응답에는 변경된 사물함과 종료된 대여/사용자 요약이 담깁니다. 선택 필드 `reason`(작업 사유, 255자 이하)을 보내면 감사 로그에 함께 남고, 성공한 작업은 변경 전/후 값이 `admin_action_log` / `admin_action_log_item` 테이블에 영구 기록됩니다. |
+| `PATCH` | `/v4/admin/cabinets/bundle/status` | **[NEW]** 사물함 상태/LentType 일괄 변경 (피시너 전용 구역 설정, 월말 일괄 반납). 대여 중인 사물함의 상태를 바꾸려면 `endActiveLents: true` 를 명시해야 하며, 없는 ID 또는 미명시 대여 중 사물함이 하나라도 있으면 아무것도 바꾸지 않고 전체 거부합니다(404/409, 문제 사물함 목록 포함). 응답에는 변경된 사물함과 종료된 대여/사용자 요약이 담깁니다. `reason`(작업 사유, 255자 이하)은 선택이지만 `endActiveLents: true`일 때는 필수이며, 감사 로그에 함께 남고, 성공한 작업은 변경 전/후 값이 `admin_action_log` / `admin_action_log_item` 테이블에 영구 기록됩니다. |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/force-return` | 관리자 권한 강제 반납 |
 | `GET` | `/v4/admin/cabinets/pending` | 수동 반납 승인 대기 목록 조회 |
 | `GET` | `/v4/admin/returns/photos` | **[NEW]** 반납 완료된 사물함 사진 조회 (Audit) |
