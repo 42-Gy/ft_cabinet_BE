@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.gyeongsan.cabinet.domain.admin.model.AdminActionTargetType;
 import com.gyeongsan.cabinet.domain.admin.model.AdminActionType;
+import com.gyeongsan.cabinet.support.MariaDbDriverMySqlContainer;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -24,7 +25,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * 실제 운영/테스트 DB 와 같은 종류(MySQL 8.0/8.4)에서, 운영과 같은 방식(MariaDB 드라이버 + MariaDBDialect + Spring Boot 기본
@@ -32,29 +32,6 @@ import org.testcontainers.utility.DockerImageName;
  */
 @Testcontainers(disabledWithoutDocker = true)
 class AdminActionLogMigrationTest {
-
-    /** 운영과 같이 MariaDB 드라이버/URL 로 MySQL 서버에 붙는 컨테이너. */
-    static class MariaDbDriverMySqlContainer extends MySQLContainer<MariaDbDriverMySqlContainer> {
-
-        MariaDbDriverMySqlContainer(String image) {
-            super(DockerImageName.parse(image));
-        }
-
-        @Override
-        public String getDriverClassName() {
-            return "org.mariadb.jdbc.Driver";
-        }
-
-        @Override
-        public String getJdbcUrl() {
-            return "jdbc:mariadb://"
-                    + getHost()
-                    + ":"
-                    + getMappedPort(MYSQL_PORT)
-                    + "/"
-                    + getDatabaseName();
-        }
-    }
 
     private static MySQLContainer<?> newMysql(String image) {
         return new MariaDbDriverMySqlContainer(image);

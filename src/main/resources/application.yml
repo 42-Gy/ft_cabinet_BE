@@ -62,9 +62,10 @@ spring:
       leak-detection-threshold: 15000
 
   jpa:
+    # spring.jpa.defer-datasource-initialization 을 true 로 켜면 Flyway 와 entityManagerFactory 가 서로를 기다리는
+    # 순환 의존이 생겨 FLYWAY_ENABLED=true 에서 부팅이 실패한다. 스키마는 Flyway 가 만들므로 켜지 않는다.
     hibernate:
       ddl-auto: validate
-    defer-datasource-initialization: true
     properties:
       hibernate:
         format_sql: true

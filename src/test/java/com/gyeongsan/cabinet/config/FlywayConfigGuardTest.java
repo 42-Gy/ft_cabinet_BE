@@ -51,6 +51,15 @@ class FlywayConfigGuardTest {
     }
 
     @Test
+    @DisplayName("defer-datasource-initialization 은 켜지 않는다 (Flyway 와 순환 의존이 생겨 부팅이 실패한다)")
+    void deferDatasourceInitializationIsNotEnabled() throws IOException {
+        StandardEnvironment env = environment(Map.of("FLYWAY_ENABLED", "true"));
+
+        assertThat(env.getProperty("spring.jpa.defer-datasource-initialization", Boolean.class))
+                .isNotEqualTo(true);
+    }
+
+    @Test
     @DisplayName("baselineOnMigrate 는 어떤 경우에도 false 이고 clean 은 막혀 있다")
     void baselineOnMigrateIsNeverEnabled() throws IOException {
         StandardEnvironment env = environment(Map.of("FLYWAY_ENABLED", "true"));
