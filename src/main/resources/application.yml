@@ -30,6 +30,16 @@ spring:
       host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6379}
 
+  flyway:
+    # 기본은 꺼 둔다. 설정 실수로 다른 DB(특히 운영)에서 마이그레이션이 조용히 실행되는 것을 막기 위해
+    # 마이그레이션을 적용할 환경에서만 FLYWAY_ENABLED=true 로 명시한다.
+    enabled: ${FLYWAY_ENABLED:false}
+    # 기존 DB 의 baseline 은 사람이 수동으로 1회 실행한다. 자동 baseline 은 절대 켜지 않는다.
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    clean-disabled: true
+    locations: classpath:db/migration
+
   sql:
     init:
       mode: never
