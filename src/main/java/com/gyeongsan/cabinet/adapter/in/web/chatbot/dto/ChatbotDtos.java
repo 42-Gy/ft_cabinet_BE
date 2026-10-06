@@ -10,7 +10,14 @@ public final class ChatbotDtos {
     private ChatbotDtos() {}
 
     /** question 의 길이와 공백 검증은 서비스가 한다(오류 응답 형식을 다른 API 와 맞추기 위해). */
-    public record AskRequest(String question) {}
+    public record AskRequest(String question) {
+
+        /** 질문 원문은 로그에 남기지 않는다(우연히 이 객체가 로그에 찍혀도 길이만 보인다). */
+        @Override
+        public String toString() {
+            return "AskRequest[question=<" + (question == null ? 0 : question.length()) + "자>]";
+        }
+    }
 
     public record FaqView(Long faqId, String category, String question, String answer) {
         public static FaqView of(Faq faq, String question) {
