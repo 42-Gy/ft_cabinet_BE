@@ -166,6 +166,14 @@ app:
   ft-api:
     root-url: https://api.intra.42.fr
     token-url: https://api.intra.42.fr/oauth/token
+  # 사물함 오류제보 채널의 새 글을 관리자 DM 으로 전달한다. 기본은 꺼짐.
+  # 켜려면 SLACK_REPORT_FORWARD_ENABLED=true 와 채널 ID, 수신자(인트라 ID, 쉼표 구분)가 모두 필요하다(없으면 부팅 실패).
+  slack-report:
+    enabled: ${SLACK_REPORT_FORWARD_ENABLED:false}
+    channel-id: ${SLACK_REPORT_CHANNEL_ID:}
+    recipients: ${SLACK_REPORT_RECIPIENTS:}
+    poll-interval-ms: ${SLACK_REPORT_POLL_INTERVAL_MS:60000}
+    max-per-poll: 20
   reward:
     lent-ticket:
       # 월간 로그타임(분)이 이 값 이상이면 지급일에 대여권을 지급한다. 사용자마다 기준은 하나만 적용된다.
