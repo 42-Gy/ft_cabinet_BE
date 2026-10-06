@@ -190,10 +190,6 @@ resilience4j:
         limitForPeriod: 50
         limitRefreshPeriod: 1s
         timeoutDuration: 0s
-      storeApi:
-        limitForPeriod: 3
-        limitRefreshPeriod: 1s
-        timeoutDuration: 0s
       # 대여/예약/반납 API 전체가 함께 쓰는 한도(사용자별이 아니라 서버 전체 기준)이다. 정상 트래픽을 막지 않도록 넉넉한
       # 보호용 상한으로 두었으며, 실제 트래픽을 보고 이 값만 조정한다.
       lentApi:
