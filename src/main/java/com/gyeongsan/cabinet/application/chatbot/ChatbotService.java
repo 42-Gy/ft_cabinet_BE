@@ -47,8 +47,10 @@ public class ChatbotService implements AskChatbotUseCase {
         }
 
         float[] vector = embedQuestion(question);
-        List<FaqIndex.Hit> hits =
-                indexManager.current().search(vector, Math.max(settings.maxSuggestions(), 1));
+        // 1·2위 차이를 보려면 최소 2개, 자동 답변의 대안 후보를 위해 1위 + 대안 개수까지 필요하다.
+        int limit =
+                Math.max(Math.max(settings.maxSuggestions(), settings.matchAlternatives() + 1), 2);
+        List<FaqIndex.Hit> hits = indexManager.current().search(vector, limit);
 
         ChatbotAnswer answer = decide(hits);
         metrics.recordAsk(answer.result());
@@ -61,13 +63,16 @@ public class ChatbotService implements AskChatbotUseCase {
             return ChatbotAnswer.unmatched(0);
         }
         FaqIndex.Hit best = hits.get(0);
-        if (best.score() >= settings.matchThreshold()) {
+        double second = hits.size() > 1 ? hits.get(1).score() : 0;
+        // 점수가 높아도 2위와 거의 같으면(헷갈리는 FAQ 쌍) 자동 답변하지 않고 후보로 보여 준다.
+        if (best.score() >= settings.matchThreshold()
+                && best.score() - second >= settings.matchMargin()) {
             return new ChatbotAnswer(
                     ChatbotAnswer.Result.MATCHED,
                     best.faq(),
                     best.matchedQuestion(),
                     best.score(),
-                    List.of());
+                    alternatives(hits));
         }
         if (best.score() >= settings.suggestThreshold() && settings.maxSuggestions() > 0) {
             List<ChatbotAnswer.Suggestion> suggestions =
@@ -89,6 +94,19 @@ public class ChatbotService implements AskChatbotUseCase {
                     suggestions);
         }
         return ChatbotAnswer.unmatched(best.score());
+    }
+
+    /** 자동 답변이 틀렸을 때 바로 고를 수 있는 "혹시 이 질문인가요?" 대안. 후보 제안 하한 이상인 2위부터 채운다. */
+    private List<ChatbotAnswer.Suggestion> alternatives(List<FaqIndex.Hit> hits) {
+        return hits.stream()
+                .skip(1)
+                .filter(h -> h.score() >= settings.suggestThreshold())
+                .limit(settings.matchAlternatives())
+                .map(
+                        h ->
+                                new ChatbotAnswer.Suggestion(
+                                        h.faq().id(), h.faq().representativeQuestion(), h.score()))
+                .toList();
     }
 
     private float[] embedQuestion(String question) {

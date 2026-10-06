@@ -36,9 +36,11 @@ public class ChatbotConfig {
 
     @Bean
     public ChatbotSettings chatbotSettings(
-            @Value("${app.chatbot.match-threshold:0.80}") double matchThreshold,
-            @Value("${app.chatbot.suggest-threshold:0.60}") double suggestThreshold,
+            @Value("${app.chatbot.match-threshold:0.92}") double matchThreshold,
+            @Value("${app.chatbot.suggest-threshold:0.88}") double suggestThreshold,
             @Value("${app.chatbot.max-suggestions:3}") int maxSuggestions,
+            @Value("${app.chatbot.match-margin:0.03}") double matchMargin,
+            @Value("${app.chatbot.match-alternatives:2}") int matchAlternatives,
             @Value("${app.chatbot.max-question-length:200}") int maxQuestionLength,
             @Value("${app.chatbot.max-concurrent-embeddings:2}") int maxConcurrentEmbeddings,
             @Value("${app.chatbot.fallback-message}") String fallbackMessage) {
@@ -46,6 +48,8 @@ public class ChatbotConfig {
                 matchThreshold,
                 suggestThreshold,
                 maxSuggestions,
+                matchMargin,
+                matchAlternatives,
                 maxQuestionLength,
                 maxConcurrentEmbeddings,
                 fallbackMessage);

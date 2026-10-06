@@ -68,8 +68,10 @@ class ChatbotConfigTest {
                             assertThat(context).hasNotFailed();
                             assertThat(context).hasSingleBean(ChatbotService.class);
                             ChatbotSettings settings = context.getBean(ChatbotSettings.class);
-                            assertThat(settings.matchThreshold()).isEqualTo(0.80);
-                            assertThat(settings.suggestThreshold()).isEqualTo(0.60);
+                            assertThat(settings.matchThreshold()).isEqualTo(0.92);
+                            assertThat(settings.suggestThreshold()).isEqualTo(0.88);
+                            assertThat(settings.matchMargin()).isEqualTo(0.03);
+                            assertThat(settings.matchAlternatives()).isEqualTo(2);
                             assertThat(settings.maxQuestionLength()).isEqualTo(200);
                             assertThat(context.getBean(EmbeddingPort.class).modelId())
                                     .startsWith("char-ngram");
@@ -136,6 +138,16 @@ class ChatbotConfigTest {
                         "CHATBOT_EMBEDDING_PROVIDER=ngram",
                         "CHATBOT_MATCH_THRESHOLD=0.5",
                         "CHATBOT_SUGGEST_THRESHOLD=0.7")
+                .run(context -> assertThat(context).hasFailed());
+        runner().withPropertyValues(
+                        "CHATBOT_ENABLED=true",
+                        "CHATBOT_EMBEDDING_PROVIDER=ngram",
+                        "CHATBOT_MATCH_MARGIN=1.5")
+                .run(context -> assertThat(context).hasFailed());
+        runner().withPropertyValues(
+                        "CHATBOT_ENABLED=true",
+                        "CHATBOT_EMBEDDING_PROVIDER=ngram",
+                        "CHATBOT_MATCH_ALTERNATIVES=-1")
                 .run(context -> assertThat(context).hasFailed());
     }
 }

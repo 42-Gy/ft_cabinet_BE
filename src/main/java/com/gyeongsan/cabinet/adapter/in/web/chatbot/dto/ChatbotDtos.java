@@ -23,7 +23,8 @@ public final class ChatbotDtos {
     /**
      * @param result MATCHED(찾음) | SUGGESTED(비슷한 후보만 있음) | UNMATCHED(못 찾음)
      * @param answer MATCHED 일 때 답변
-     * @param suggestions SUGGESTED 일 때 후보 질문들. 고르면 {@code GET /v4/chatbot/faqs/{id}} 로 답변을 받는다
+     * @param suggestions SUGGESTED 일 때 후보 질문들, MATCHED 일 때는 "혹시 이 질문인가요?" 대안(없으면 빈 목록). 고르면 {@code
+     *     GET /v4/chatbot/faqs/{id}} 로 답변을 받는다
      * @param message UNMATCHED 일 때 안내 문구
      */
     public record AskResponse(
@@ -35,7 +36,9 @@ public final class ChatbotDtos {
                         new AskResponse(
                                 answer.result().name(),
                                 FaqView.of(answer.faq(), answer.faq().representativeQuestion()),
-                                List.of(),
+                                answer.suggestions().stream()
+                                        .map(s -> new SuggestionView(s.faqId(), s.question()))
+                                        .toList(),
                                 null);
                 case SUGGESTED ->
                         new AskResponse(

@@ -44,6 +44,37 @@ final class ChatbotEvalSupport {
 
     record EvalSet(List<EvalItem> inScope, List<String> outOfScope) {}
 
+    /**
+     * FAQ 를 병합·개명하면 평가 질문 파일의 정답 키(expected)가 낡는다. 평가 질문 파일은 결과를 보고 고치지 않는 것이 원칙이라, 파일은 그대로 두고 이
+     * 별칭표(faq-key-aliases.json: 옛 키 → 새 키)로 읽을 때만 새 키로 바꾼다.
+     */
+    static EvalSet applyAliases(EvalSet set, Map<String, String> aliases) {
+        List<EvalItem> items = new ArrayList<>();
+        for (EvalItem item : set.inScope()) {
+            String expected = aliases.getOrDefault(item.expected(), item.expected());
+            List<String> also = null;
+            if (item.alsoAccept() != null) {
+                also =
+                        item.alsoAccept().stream()
+                                .map(k -> aliases.getOrDefault(k, k))
+                                .filter(k -> !k.equals(expected))
+                                .distinct()
+                                .toList();
+            }
+            items.add(new EvalItem(expected, item.question(), also));
+        }
+        return new EvalSet(items, set.outOfScope());
+    }
+
+    static EvalSet loadEvalSet(String resource) throws IOException {
+        EvalSet raw = readResource(resource, new TypeReference<EvalSet>() {});
+        Map<String, String> aliases =
+                readResource(
+                        "/chatbot/faq-key-aliases.json",
+                        new TypeReference<Map<String, String>>() {});
+        return applyAliases(raw, aliases);
+    }
+
     static <T> T readResource(String resource, TypeReference<T> type) throws IOException {
         try (InputStream in = ChatbotEvalSupport.class.getResourceAsStream(resource)) {
             if (in == null) {
@@ -402,5 +433,49 @@ final class ChatbotEvalSupport {
                                 .reversed()
                                 .thenComparing(Map.Entry.comparingByKey()))
                 .toList();
+    }
+
+    // ---- 두 세트에서 같은 칸을 비교하는 공통 격자 ----
+
+    static final double[] GRID_T = {0.86, 0.88, 0.90, 0.92, 0.93, 0.94, 0.95, 0.96};
+    static final double[] GRID_M = {0, 0.01, 0.02, 0.03, 0.05};
+
+    static SetResult pool(SetResult a, SetResult b) {
+        List<Probe> in = new ArrayList<>(a.in());
+        in.addAll(b.in());
+        List<OosProbe> out = new ArrayList<>(a.out());
+        out.addAll(b.out());
+        return new SetResult(a.categoryByKey(), in, out);
+    }
+
+    /** 두 세트 모두에서 범위 밖 수락이 0% 이고 답변이 나가는 칸. 정밀도는 두 세트 중 낮은 쪽으로 비교한다. */
+    record StableCell(double t, double m, RuleCell dev, RuleCell holdout) {
+        double minPrecision() {
+            return Math.min(dev.precision(), holdout.precision());
+        }
+
+        double minCoverage() {
+            return Math.min(dev.coverage(), holdout.coverage());
+        }
+    }
+
+    static List<StableCell> stableCells(SetResult dev, SetResult holdout) {
+        List<StableCell> cells = new ArrayList<>();
+        for (double t : GRID_T) {
+            for (double m : GRID_M) {
+                RuleCell d = rule(dev, t, m);
+                RuleCell h = rule(holdout, t, m);
+                boolean answered = d.coverage() > 0 && h.coverage() > 0;
+                if (answered && d.oosAccept() == 0 && h.oosAccept() == 0) {
+                    cells.add(new StableCell(t, m, d, h));
+                }
+            }
+        }
+        cells.sort(
+                Comparator.comparingDouble(StableCell::minPrecision)
+                        .reversed()
+                        .thenComparing(
+                                Comparator.comparingDouble(StableCell::minCoverage).reversed()));
+        return cells;
     }
 }

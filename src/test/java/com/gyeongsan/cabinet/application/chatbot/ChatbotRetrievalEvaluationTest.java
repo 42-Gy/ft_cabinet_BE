@@ -2,7 +2,6 @@ package com.gyeongsan.cabinet.application.chatbot;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.gyeongsan.cabinet.adapter.out.embedding.CharNgramEmbeddingAdapter;
 import com.gyeongsan.cabinet.adapter.out.embedding.OnnxEmbeddingAdapter;
 import com.gyeongsan.cabinet.application.chatbot.ChatbotEvalSupport.CachingEmbedder;
@@ -308,6 +307,57 @@ class ChatbotRetrievalEvaluationTest {
         return sb.toString();
     }
 
+    private static void appendRuleTable(StringBuilder sb, String title, SetResult result) {
+        sb.append(title).append("\n\n| T \\ M |");
+        for (double m : ChatbotEvalSupport.GRID_M) {
+            sb.append(String.format(Locale.ROOT, " %.2f |", m));
+        }
+        sb.append("\n|---|").append("---|".repeat(ChatbotEvalSupport.GRID_M.length)).append('\n');
+        for (double t : ChatbotEvalSupport.GRID_T) {
+            sb.append(String.format(Locale.ROOT, "| %.2f |", t));
+            for (double m : ChatbotEvalSupport.GRID_M) {
+                sb.append(' ').append(cell(ChatbotEvalSupport.rule(result, t, m))).append(" |");
+            }
+            sb.append('\n');
+        }
+        sb.append('\n');
+    }
+
+    /** 두 세트에서 같은 (T, M) 칸을 나란히 본다. 자동 답변 규칙은 이 표로 고른다. */
+    private static String commonGrid(String candidateId, SetResult dev, SetResult holdout) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format(Locale.ROOT, "#### %s — 공통 격자(같은 T, M)%n%n", candidateId));
+        sb.append(
+                "칸마다 `커버리지 / 1위 정답률 / 범위 밖 수락`. 두 세트의 범위 밖 질문 난이도가 다르다(개발은 먼 도메인, 보류는 근접 도메인 포함).\n\n");
+        appendRuleTable(sb, "개발 세트", dev);
+        appendRuleTable(sb, "보류 세트", holdout);
+        appendRuleTable(sb, "합산(개발+보류)", ChatbotEvalSupport.pool(dev, holdout));
+
+        List<ChatbotEvalSupport.StableCell> stable = ChatbotEvalSupport.stableCells(dev, holdout);
+        if (stable.isEmpty()) {
+            sb.append("두 세트 모두 범위 밖 수락 0%이면서 답변이 나가는 칸이 없습니다.\n\n");
+        } else {
+            sb.append("두 세트 모두 범위 밖 수락 0%인 칸(두 세트 중 낮은 정밀도 순 상위 8)\n\n");
+            sb.append("| T | M | 개발 | 보류 | 낮은 쪽 정밀도 | 낮은 쪽 커버리지 |\n|---|---|---|---|---|---|\n");
+            stable.stream()
+                    .limit(8)
+                    .forEach(
+                            c ->
+                                    sb.append(
+                                            String.format(
+                                                    Locale.ROOT,
+                                                    "| %.2f | %.2f | %s | %s | %s | %s |%n",
+                                                    c.t(),
+                                                    c.m(),
+                                                    cell(c.dev()),
+                                                    cell(c.holdout()),
+                                                    pct(c.minPrecision()),
+                                                    pct(c.minCoverage()))));
+            sb.append('\n');
+        }
+        return sb.toString();
+    }
+
     private static String learningCurve(
             List<SeedFaq> faqs, CachingEmbedder embedder, EvalSet dev, EvalSet holdout) {
         int maxVariants = faqs.stream().mapToInt(f -> f.questions().size()).max().orElse(1);
@@ -364,12 +414,8 @@ class ChatbotRetrievalEvaluationTest {
     @DisplayName("FAQ 의미 검색 평가: 재표현 질문을 올바른 FAQ 로 찾고, 범위 밖 질문은 거르는지 측정한다")
     void evaluate() throws Exception {
         List<SeedFaq> faqs = ChatbotEvalSupport.loadFaqs();
-        EvalSet dev =
-                ChatbotEvalSupport.readResource(
-                        "/chatbot/eval-set.json", new TypeReference<EvalSet>() {});
-        EvalSet holdout =
-                ChatbotEvalSupport.readResource(
-                        "/chatbot/eval-holdout.json", new TypeReference<EvalSet>() {});
+        EvalSet dev = ChatbotEvalSupport.loadEvalSet("/chatbot/eval-set.json");
+        EvalSet holdout = ChatbotEvalSupport.loadEvalSet("/chatbot/eval-holdout.json");
         assertThat(faqs).hasSizeGreaterThanOrEqualTo(20);
         assertThat(dev.inScope()).hasSizeGreaterThanOrEqualTo(60);
         assertThat(dev.outOfScope()).hasSizeGreaterThanOrEqualTo(15);
@@ -467,5 +513,47 @@ class ChatbotRetrievalEvaluationTest {
         if (enforce) {
             assertThat(failures).as("평가 기준 미달").isEmpty();
         }
+    }
+
+    /**
+     * FAQ 변형이 평가 질문을 거의 베낀 것이 아닌지 확인한다. 글자가 완전히 같은지는 evaluate() 가 막고, 여기서는 같은 FAQ 를 가리키는 평가 질문과 글자
+     * 겹침이 매우 큰(어순·조사만 바꾼) 변형을 막는다. 다른 FAQ 의 질문끼리 틀(예: "~는 어디서 하나요")을 공유하는 것은 정상이라 보지 않는다.
+     */
+    @Test
+    @DisplayName("FAQ 변형이 같은 FAQ 를 가리키는 평가 질문의 거의 복사본이면 실패한다")
+    void variantsAreNotNearCopiesOfEvalQuestions() throws Exception {
+        double limit = 0.85;
+        List<SeedFaq> faqs = ChatbotEvalSupport.loadFaqs();
+        CharNgramEmbeddingAdapter ngram = new CharNgramEmbeddingAdapter();
+        List<String> violations = new ArrayList<>();
+        for (String resource : List.of("/chatbot/eval-set.json", "/chatbot/eval-holdout.json")) {
+            EvalSet set = ChatbotEvalSupport.loadEvalSet(resource);
+            for (EvalItem item : set.inScope()) {
+                float[] q = ngram.embed(TextNormalizer.normalize(item.question()));
+                for (SeedFaq faq : faqs) {
+                    if (!item.accepted().contains(faq.seedKey())) {
+                        continue;
+                    }
+                    for (String variant : faq.questions()) {
+                        float[] v = ngram.embed(TextNormalizer.normalize(variant));
+                        double dot = 0;
+                        for (int i = 0; i < q.length; i++) {
+                            dot += (double) q[i] * v[i];
+                        }
+                        if (dot >= limit) {
+                            violations.add(
+                                    String.format(
+                                            Locale.ROOT,
+                                            "%.2f | FAQ 변형 \"%s\" ≈ 평가 질문 \"%s\" (%s)",
+                                            dot,
+                                            variant,
+                                            item.question(),
+                                            resource));
+                        }
+                    }
+                }
+            }
+        }
+        assertThat(violations).as("평가 질문을 거의 베낀 FAQ 변형").isEmpty();
     }
 }

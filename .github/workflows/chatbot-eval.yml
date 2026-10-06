@@ -1,6 +1,6 @@
 name: 🤖 챗봇 모델 평가 / 고정
 
-# 챗봇 임베딩 모델(minilm, e5)을 Hugging Face 에서 내려받아 평가 질문 세트로 비교하고,
+# 챗봇 임베딩 모델(후보였던 minilm 은 폐기, 현재는 e5)을 Hugging Face 에서 내려받아 평가 질문 세트로 비교하고,
 # lock 파일(chatbot-models.lock)에 고정할 revision/SHA256 을 출력한다. 수동 실행 전용이다.
 #
 #  1) 이 작업을 실행한다 → 요약(Job summary)에 구현 정합성(Java vs 정답 벡터), 모델별 정확도 표,
@@ -15,7 +15,7 @@ on:
       models:
         description: '평가할 모델 id (공백으로 구분, chatbot-models.lock 의 id)'
         required: false
-        default: 'minilm e5'
+        default: 'e5'
       min_top1:
         description: '기준 적용 시 후보 모델이 넘어야 하는 top-1 정확도(0~1)'
         required: false
@@ -92,7 +92,7 @@ jobs:
           CHATBOT_EVAL_ENFORCE: ${{ inputs.enforce }}
         run: |
           chmod +x gradlew
-          ./gradlew test --tests '*ChatbotGoldenVectorTest' --tests '*ChatbotRetrievalEvaluationTest' --no-daemon -i
+          ./gradlew test --tests '*ChatbotGoldenVectorTest' --tests '*ChatbotRetrievalEvaluationTest' -x jacocoTestCoverageVerification --no-daemon -i
 
       - name: 📝 요약 작성
         if: always()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 챗봇 임베딩 모델(ONNX + 토크나이저)을 내려받아 SHA256 으로 검증한다.
 #
-#   scripts/chatbot/fetch-model.sh --id minilm --out build/chatbot-model/minilm [--mode strict|resolve]
+#   scripts/chatbot/fetch-model.sh --id e5 --out build/chatbot-model/e5 [--mode strict|resolve]
 #
 # strict (기본, Docker 이미지 빌드용): chatbot-models.lock 의 revision/SHA256 이 모두 고정되어 있어야 하고,
 #          내려받은 파일의 SHA256 이 다르면 실패한다. 고정되지 않은(PENDING) 항목이 있으면 실패한다.

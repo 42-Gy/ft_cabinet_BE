@@ -557,11 +557,11 @@ erDiagram
 ### FAQ 챗봇 (Tier 1: 의미 검색 FAQ 매칭)
 
 - 질문을 임베딩(문장 벡터)으로 바꿔 미리 써 둔 FAQ 질문들과 코사인 유사도로 비교하고, **가장 비슷한 FAQ 의 정해진 답변을 그대로 돌려준다**. 문장을 생성하는 LLM 은 쓰지 않으므로 답변이 지어내질 일이 없다.
-- 결과는 세 가지다: `MATCHED`(임계값 이상, 답변 반환), `SUGGESTED`(애매함, 비슷한 FAQ 최대 3개 제안), `UNMATCHED`(안내 문구).
+- 결과는 세 가지다: `MATCHED`(점수와 1·2위 차이가 모두 기준 이상, 답변 반환 + 대안 후보 최대 2개), `SUGGESTED`(애매함, 비슷한 FAQ 최대 3개 제안), `UNMATCHED`(안내 문구).
 - **서버 내부 임베딩**: ONNX Runtime(Java) + DJL 토크나이저로 같은 JVM 안에서 계산한다. 질문이 외부 API 로 나가지 않는다. 동시 임베딩은 세마포어(기본 2)로 제한하고 넘치면 503 을 준다. jar 크기가 약 75MB 늘어난다(ONNX Runtime·토크나이저 네이티브 라이브러리 포함).
 - **FAQ 는 DB**(`faq`, `faq_question`, Flyway V5)에 저장하고 관리자 API 로 관리한다. 하나의 FAQ(답변)에 여러 질문 표현을 둘 수 있다. **임베딩은 저장하지 않고** 서버마다 메모리에 인덱스를 만든다. 서버는 30초마다 FAQ 변경(건수 + 최신 수정 시각)을 확인해 다시 만들고, 다른 서버에서 고친 내용도 그 안에 반영된다. 인덱스가 아직 준비되지 않았거나 모델을 못 불러오면 챗봇만 503 이고 서버는 정상 기동한다.
 - **개인정보**: 질문 원문은 저장도 로그도 하지 않는다. 결과별 건수만 `chatbot.ask{result=...}` 지표로 집계한다.
-- **초기 FAQ**: 테이블이 비어 있을 때만 `src/main/resources/chatbot/faq-seed.json`(27개)으로 채운다(`seed_key` UNIQUE 로 서버 여러 대의 동시 시작도 안전). **답변은 초안**이며 `docs/chatbot/FAQ_REVIEW.md` 의 "확인 필요" 항목을 사람이 검토해야 한다.
+- **초기 FAQ**: 테이블이 비어 있을 때만 `src/main/resources/chatbot/faq-seed.json`(26개, 질문 표현 180개)으로 채운다(`seed_key` UNIQUE 로 서버 여러 대의 동시 시작도 안전). **답변은 초안**이며 `docs/chatbot/FAQ_REVIEW.md` 의 "확인 필요" 항목을 사람이 검토해야 한다.
 
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
@@ -577,7 +577,9 @@ erDiagram
 | `CHATBOT_ENABLED` | `false` | `true` 여야 컨트롤러·인덱스·스케줄러가 켜진다 |
 | `CHATBOT_MODEL_DIR` | `/app/chatbot-model` | `model.onnx`, `tokenizer.json`, `model.properties` 가 있는 디렉터리(Docker 빌드가 채운다) |
 | `CHATBOT_MODEL_ID`, `CHATBOT_EMBEDDING_PREFIX`, `CHATBOT_MAX_TOKENS` | 비움 | 비워 두면 `model.properties` 를 따른다(e5 의 `query: ` 접두어 누락 방지). 값을 넣으면 그 값이 우선 |
-| `CHATBOT_MATCH_THRESHOLD` / `CHATBOT_SUGGEST_THRESHOLD` | `0.80` / `0.60` | 자리표시 값이다. **모델을 정한 뒤 평가 결과로 맞춘다.** `0 < suggest <= match <= 1` 아니면 부팅 실패 |
+| `CHATBOT_MATCH_THRESHOLD` / `CHATBOT_MATCH_MARGIN` | `0.92` / `0.03` | **자동 답변(MATCHED)** 조건: 1위 유사도가 T 이상이고 1·2위 차이도 M 이상. e5 는 점수가 0.84~0.96 에 몰려서 절대 점수보다 1·2위 차이가 정답을 더 잘 가려낸다. 잠정값이며 평가의 공통 격자로 확정한다 |
+| `CHATBOT_SUGGEST_THRESHOLD` | `0.88` | **후보 제안** 하한. 이 이상이면 비슷한 질문 후보(최대 3개)를 보여 주고, 사용자가 눌러 확정한다(틀린 후보의 피해가 작다). 근접 도메인 범위 밖 질문("사물함 크기")에도 후보가 나갈 수 있는 것은 감수한다 |
+| `CHATBOT_MATCH_ALTERNATIVES` | `2` | 자동 답변과 함께 "혹시 이 질문인가요?" 대안 후보를 최대 몇 개 돌려줄지(후보 하한 이상인 2위부터). 0 이면 끔 |
 | `CHATBOT_EMBEDDING_THREADS` | `2` | ONNX 스레드 수 |
 | `CHATBOT_EMBEDDING_PROVIDER` | `onnx` | `ngram` 은 모델 없이 글자 겹침만 보는 **개발용**(의미 검색 아님). 알 수 없는 값은 부팅 실패 |
 
@@ -585,7 +587,7 @@ erDiagram
 
 **모델 고정과 배포(SHA256 검증)**
 
-1. `chatbot-models.lock` 에 후보 모델(`minilm` = paraphrase-multilingual-MiniLM-L12-v2, `e5` = multilingual-e5-small)의 저장소·revision·파일 경로·SHA256 을 적는다. 처음에는 `PENDING` 이다.
+1. `chatbot-models.lock` 에 모델의 저장소·revision·파일 경로·SHA256 을 적는다. 후보 비교(평가 + 정답 벡터 대조) 결과 **`e5`(intfloat/multilingual-e5-small)로 확정**했고 minilm 은 폐기했다. 새 모델을 평가할 때는 `PENDING` 으로 추가해 Actions(resolve 모드)가 출력하는 값을 옮겨 적는다.
 2. GitHub Actions 의 **"챗봇 모델 평가 / 고정"**(수동 실행)이 두 모델을 내려받아 다음을 요약(Job summary)에 보여 주고, lock 파일에 옮겨 적을 `meta|…`/`file|…` 줄을 출력한다. 기본은 기준을 적용하지 않아(`enforce=false`) 표만 보고 빨간불이 뜨지 않는다.
    - **구현 정합성**: 같은 모델 저장소의 원본 가중치를 sentence-transformers(파이썬)로 돌린 정답 벡터(`golden.json`)와 Java 어댑터의 임베딩을 같은 문장 31개로 비교한다(코사인). 평가 점수가 낮을 때 "모델이 약한 것"과 "구현이 틀린 것"을 가르는 첫 번째 확인이다. 1.0 에 가까워야 한다.
    - **검색 품질**: 개발 세트(`eval-set.json`)와 보류 세트(`eval-holdout.json`)의 top-1/top-3, 임계값별 표(0.05 단위 + 점수가 몰린 구간 0.01 단위), 점수·margin 이 정답을 가려내는 신호인지(AUROC), 자동 답변 규칙(점수 ≥ T 그리고 margin ≥ M) 격자, 틀린 질문 전체와 혼동 쌍, FAQ 당 변형 수에 따른 학습곡선.
