@@ -75,18 +75,6 @@ public class ReservationRedisAdapter implements ReservationPort {
                     String.class);
 
     @Override
-    public void reserve(Integer visibleNum, Long userId, long ttlMinutes) {
-        String cabinetKey = CABINET_KEY_PREFIX + visibleNum;
-        String userKey = USER_KEY_PREFIX + userId;
-        redisTemplate
-                .opsForValue()
-                .set(cabinetKey, userId.toString(), ttlMinutes, TimeUnit.MINUTES);
-        redisTemplate
-                .opsForValue()
-                .set(userKey, visibleNum.toString(), ttlMinutes, TimeUnit.MINUTES);
-    }
-
-    @Override
     public ReservationOutcome reserveReplacing(Integer visibleNum, Long userId, long ttlMinutes) {
         List<?> result =
                 redisTemplate.execute(

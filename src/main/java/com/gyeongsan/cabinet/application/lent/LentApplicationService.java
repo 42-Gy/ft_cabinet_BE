@@ -9,6 +9,7 @@ import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
 import com.gyeongsan.cabinet.domain.item.model.ItemType;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
+import com.gyeongsan.cabinet.domain.lent.model.ReservationOutcome;
 import com.gyeongsan.cabinet.domain.lent.port.in.LentUseCase;
 import com.gyeongsan.cabinet.domain.lent.port.out.AiCheckPort;
 import com.gyeongsan.cabinet.domain.lent.port.out.ImageUploadPort;
@@ -41,6 +42,8 @@ public class LentApplicationService implements LentUseCase {
     private final AiCheckPort aiCheckPort;
     private final ImageUploadPort imageUploadPort;
     private final TransactionTemplate transactionTemplate;
+
+    private static final long RESERVATION_TTL_MINUTES = 15;
 
     @Value("${cabinet.policy.lent-term}")
     private int lentTerm;
@@ -430,7 +433,8 @@ public class LentApplicationService implements LentUseCase {
     public void makeReservation(Long userId, Integer visibleNum) {
         log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
 
-        if (reservationPort.getUserReservation(userId).isPresent()) {
+        // 같은 사물함을 다시 예약하는 것은 DB 작업 전에 빠르게 거부한다. 최종 판단은 아래 reserveReplacing 이 한다.
+        if (reservationPort.getUserReservation(userId).filter(visibleNum::equals).isPresent()) {
             throw new ServiceException(ErrorCode.ALREADY_RESERVED);
         }
 
@@ -459,14 +463,25 @@ public class LentApplicationService implements LentUseCase {
                         .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
         validateLentTypePermission(user, cabinet);
 
-        var reservedUserId = reservationPort.getReservedUserId(visibleNum);
-        if (reservedUserId.isPresent() && !reservedUserId.get().equals(userId)) {
-            throw new ServiceException(ErrorCode.CABINET_ALREADY_RESERVED);
+        // 위 검증을 모두 통과한 뒤에만 기존 예약을 취소하고 새로 예약한다(실패하면 기존 예약은 그대로).
+        // 한 사용자는 예약을 하나만 가지며, 확인과 변경이 Redis 안에서 한 번에 일어나 동시 요청에도 하나만 남는다.
+        ReservationOutcome outcome =
+                reservationPort.reserveReplacing(visibleNum, userId, RESERVATION_TTL_MINUTES);
+
+        switch (outcome.status()) {
+            case TAKEN_BY_OTHER -> throw new ServiceException(ErrorCode.CABINET_ALREADY_RESERVED);
+            case ALREADY_MINE -> throw new ServiceException(ErrorCode.ALREADY_RESERVED);
+            case RESERVED -> {
+                if (outcome.replacedVisibleNum() != null) {
+                    log.info(
+                            "기존 예약 자동 취소 - User: {}, 취소: {}번, 새 예약: {}번",
+                            userId,
+                            outcome.replacedVisibleNum(),
+                            visibleNum);
+                }
+                log.info("사물함 예약 성공 - User: {}, Cabinet: {}", userId, visibleNum);
+            }
         }
-
-        reservationPort.reserve(visibleNum, userId, 15);
-
-        log.info("사물함 예약 성공 - User: {}, Cabinet: {}", userId, visibleNum);
     }
 
     private void checkCabinetReservation(Integer visibleNum, Long userId) {

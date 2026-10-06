@@ -65,7 +65,6 @@ class AdminBulkUndoRoundTripMysqlTest {
     static class FakeReservationPort implements ReservationPort {
         final Map<Integer, Long> reservations = new HashMap<>();
 
-        @Override
         public void reserve(Integer visibleNum, Long userId, long ttlMinutes) {
             reservations.put(visibleNum, userId);
         }
