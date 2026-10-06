@@ -3,7 +3,9 @@ package com.gyeongsan.cabinet.domain.lent.model;
 import com.gyeongsan.cabinet.domain.cabinet.model.Cabinet;
 import com.gyeongsan.cabinet.domain.user.model.User;
 import jakarta.persistence.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -111,5 +113,14 @@ public class LentHistory {
     public int calculateOverdueDays(LocalDateTime now) {
         if (!isOverdue(now)) return 0;
         return (int) java.time.temporal.ChronoUnit.DAYS.between(this.expiredAt, now);
+    }
+
+    /**
+     * 만료일까지 남은 일수를 달력 날짜 기준으로 계산한다. 시각은 보지 않는다.
+     *
+     * <p>양수는 남은 일수, 0은 오늘이 만료일, 음수는 만료일이 지난 일수다. 반납 임박 알림(D-7, D-1)이 만료일의 날짜로 일수를 세는 것과 같은 기준이다.
+     */
+    public int calculateRemainingDays(LocalDate today) {
+        return (int) ChronoUnit.DAYS.between(today, this.expiredAt.toLocalDate());
     }
 }

@@ -1,5 +1,6 @@
 package com.gyeongsan.cabinet.domain.lent.port.in;
 
+import com.gyeongsan.cabinet.domain.lent.model.LentReturnResult;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface LentUseCase {
@@ -8,7 +9,8 @@ public interface LentUseCase {
 
     void checkLentCabinetImage(Long userId, MultipartFile file);
 
-    void endLent(
+    /** 반납하고, 반납 시점의 만료/연체 정보를 돌려준다. */
+    LentReturnResult endLent(
             Long userId,
             String previousPassword,
             MultipartFile file,

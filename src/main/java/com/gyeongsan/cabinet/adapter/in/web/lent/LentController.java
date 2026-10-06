@@ -1,9 +1,11 @@
 package com.gyeongsan.cabinet.adapter.in.web.lent;
 
 import com.gyeongsan.cabinet.adapter.in.web.lent.dto.LentExtensionRequest;
+import com.gyeongsan.cabinet.adapter.in.web.lent.dto.LentReturnResponse;
 import com.gyeongsan.cabinet.auth.domain.UserPrincipal;
 import com.gyeongsan.cabinet.common.ApiResponse;
 import com.gyeongsan.cabinet.common.dto.MessageResponse;
+import com.gyeongsan.cabinet.domain.lent.model.LentReturnResult;
 import com.gyeongsan.cabinet.domain.lent.port.in.LentUseCase;
 import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
@@ -67,7 +69,7 @@ public class LentController {
     }
 
     @PostMapping(value = "/return", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<MessageResponse> endLentCabinet(
+    public ApiResponse<LentReturnResponse> endLentCabinet(
             @RequestPart("file") MultipartFile file,
             @RequestParam("previousPassword") String previousPassword,
             @RequestParam("forceReturn") Boolean forceReturn,
@@ -83,15 +85,17 @@ public class LentController {
             throw new IllegalArgumentException("비밀번호는 4자리 숫자여야 합니다.");
         }
 
-        lentUseCase.endLent(userId, previousPassword, file, forceReturn, reason);
+        LentReturnResult result =
+                lentUseCase.endLent(userId, previousPassword, file, forceReturn, reason);
 
         if (forceReturn) {
             return ApiResponse.success(
-                    new MessageResponse(
-                            "✅ " + user.getName() + "님, 수동 반납 접수 완료. (AI 검사 실패로 승인 요청)"));
+                    LentReturnResponse.of(
+                            "✅ " + user.getName() + "님, 수동 반납 접수 완료. (AI 검사 실패로 승인 요청)", result));
         }
         return ApiResponse.success(
-                new MessageResponse("✅ " + user.getName() + "님, 반납 성공! (AI 청결도 검사 통과 🧹)"));
+                LentReturnResponse.of(
+                        "✅ " + user.getName() + "님, 반납 성공! (AI 청결도 검사 통과 🧹)", result));
     }
 
     @PostMapping("/extension")

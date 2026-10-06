@@ -9,6 +9,7 @@ import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
 import com.gyeongsan.cabinet.domain.item.model.ItemType;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
+import com.gyeongsan.cabinet.domain.lent.model.LentReturnResult;
 import com.gyeongsan.cabinet.domain.lent.model.ReservationOutcome;
 import com.gyeongsan.cabinet.domain.lent.port.in.LentUseCase;
 import com.gyeongsan.cabinet.domain.lent.port.out.AiCheckPort;
@@ -117,7 +118,7 @@ public class LentApplicationService implements LentUseCase {
     }
 
     @Override
-    public void endLent(
+    public LentReturnResult endLent(
             Long userId,
             String previousPassword,
             MultipartFile file,
@@ -142,22 +143,20 @@ public class LentApplicationService implements LentUseCase {
         boolean doManualReturn = !isAiSuccess && forceReturn;
         String photoUrl = imageUploadPort.uploadImage(userId, file);
 
-        transactionTemplate.execute(
+        return transactionTemplate.execute(
                 status -> {
                     if (doManualReturn) {
                         String returnReason =
                                 (reason != null && !reason.isBlank())
                                         ? "[User Force] " + reason
                                         : "AI 검사 실패 및 강제 반납";
-                        endLentManual(userId, previousPassword, returnReason, photoUrl);
-                    } else {
-                        processReturnTransaction(userId, previousPassword, photoUrl);
+                        return endLentManual(userId, previousPassword, returnReason, photoUrl);
                     }
-                    return null;
+                    return processReturnTransaction(userId, previousPassword, photoUrl);
                 });
     }
 
-    public void endLentManual(
+    public LentReturnResult endLentManual(
             Long userId, String previousPassword, String reason, String photoUrl) {
         LentHistory lentHistory =
                 lentRepository
@@ -165,28 +164,34 @@ public class LentApplicationService implements LentUseCase {
                         .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
         User user = lentHistory.getUser();
-        checkAndApplyPenalty(user, lentHistory);
+        LocalDateTime now = LocalDateTime.now();
+        LentReturnResult result =
+                buildReturnResult(lentHistory, checkAndApplyPenalty(user, lentHistory, now), now);
 
-        lentHistory.endLent(LocalDateTime.now(), previousPassword);
+        lentHistory.endLent(now, previousPassword);
         lentHistory.attachReturnPhoto(photoUrl);
 
         Cabinet cabinet = lentHistory.getCabinet();
         cabinet.updateStatus(CabinetStatus.PENDING);
         cabinet.updateStatusNote(reason);
+        return result;
     }
 
-    protected void processReturnTransaction(Long userId, String previousPassword, String photoUrl) {
+    protected LentReturnResult processReturnTransaction(
+            Long userId, String previousPassword, String photoUrl) {
         LentHistory lentHistory =
                 lentRepository
                         .findByUserIdAndEndedAtIsNull(userId)
                         .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
 
         User user = lentHistory.getUser();
-        checkAndApplyPenalty(user, lentHistory);
+        LocalDateTime now = LocalDateTime.now();
+        LentReturnResult result =
+                buildReturnResult(lentHistory, checkAndApplyPenalty(user, lentHistory, now), now);
 
         Cabinet cabinet = lentHistory.getCabinet();
 
-        lentHistory.endLent(LocalDateTime.now(), previousPassword);
+        lentHistory.endLent(now, previousPassword);
         lentHistory.attachReturnPhoto(photoUrl);
 
         if (cabinet.getStatus() == CabinetStatus.FULL
@@ -195,6 +200,7 @@ public class LentApplicationService implements LentUseCase {
         }
 
         log.info("반납 성공! 대여 ID: {}, 사물함: {}", lentHistory.getId(), cabinet.getVisibleNum());
+        return result;
     }
 
     @Override
@@ -371,9 +377,10 @@ public class LentApplicationService implements LentUseCase {
             returnReason = "[User Force] " + previousPassword;
         }
 
-        checkAndApplyPenalty(user, oldLent);
+        LocalDateTime swapAt = LocalDateTime.now();
+        checkAndApplyPenalty(user, oldLent, swapAt);
 
-        oldLent.endLent(LocalDateTime.now(), returnReason);
+        oldLent.endLent(swapAt, returnReason);
         oldLent.attachReturnPhoto(photoUrl);
 
         if (oldCabinet.getStatus() == CabinetStatus.FULL) {
@@ -501,11 +508,10 @@ public class LentApplicationService implements LentUseCase {
         }
     }
 
-    private void checkAndApplyPenalty(User user, LentHistory lentHistory) {
-        LocalDateTime now = LocalDateTime.now();
-
+    /** 연체였다면 패널티를 부여하고, 이번에 새로 붙인 패널티 일수를 돌려준다. 연체가 아니면 0. */
+    private int checkAndApplyPenalty(User user, LentHistory lentHistory, LocalDateTime now) {
         if (!lentHistory.isOverdue(now)) {
-            return;
+            return 0;
         }
 
         int overdueDays = lentHistory.calculateOverdueDays(now);
@@ -520,6 +526,18 @@ public class LentApplicationService implements LentUseCase {
                 overdueDays,
                 newPenalty,
                 user.getPenaltyDays());
+        return newPenalty;
+    }
+
+    /** 반납 직전 시점(now) 기준의 만료/연체 정보를 만든다. 반드시 endLent 호출 전에 불러야 한다. */
+    private LentReturnResult buildReturnResult(
+            LentHistory lentHistory, int penaltyAppliedDays, LocalDateTime now) {
+        return new LentReturnResult(
+                lentHistory.getExpiredAt(),
+                lentHistory.calculateRemainingDays(now.toLocalDate()),
+                lentHistory.isOverdue(now),
+                penaltyAppliedDays,
+                now);
     }
 
     private void validateLentTypePermission(User user, Cabinet cabinet) {

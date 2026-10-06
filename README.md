@@ -530,6 +530,12 @@ erDiagram
 * **Redis TTL:** Redis를 활용한 만료 시간 관리로, 예약 후 15분 내에 이사를 완료하지 않으면 예약이 자동 취소되어 다른 사용자가 이용 가능해집니다.
 * **예약은 하나만:** 한 사용자는 예약을 하나만 가질 수 있고, 다른 사물함을 예약하면 기존 예약은 자동 취소됩니다(`DELETE /v4/lent/reservation`으로 직접 취소도 가능). 사물함을 대여하거나 이사하면 내 예약은 함께 정리됩니다. 내 `/me` 응답의 `reservedVisibleNum`, `reservationRemainingSeconds`로 현재 예약과 남은 시간을 볼 수 있습니다.
 
+### 잔여기간 표기 기준
+
+- `daysRemaining`은 **달력 날짜 기준**이다(만료일 − 오늘). 시각은 보지 않는다. `0`은 만료일 당일, 음수는 만료일이 지난 일수. `/me`, 반납 응답, 사물함 목록(`daysRemaining`)이 모두 같은 기준이다.
+- `overdue`는 반납 시 패널티 부과와 같은 판정(`now > expiredAt`, 시각 포함)이다. 그래서 만료일 당일(`daysRemaining == 0`)이어도 만료 시각이 지났으면 `overdue == true`일 수 있다.
+- `expiredAt`(`MM월 dd일 HH:mm`)은 기존 프론트 호환을 위해 그대로 두며, 새 화면은 `expiredAtIso`를 쓴다.
+
 ### 10. 🍉 수박씨 강화 이벤트 & 독립 상점 (Watermelon Event) [New]
 * **강화 시도 및 확률 매트릭스:** 레벨별 기본 확률에 따라 0강~최대 10강까지 강화 성공/유지/하락/파괴를 롤링합니다.
 * **비료 및 방지권 기능:** 프리미엄 비료(성공확률 보정) 및 위험한 비료(성공률 대폭 상승, 단 7강 이상 사용 불가) 사용이 가능하며, 실패 페널티를 막아줄 하락 방지권 및 파괴 방지권(파괴 무효화 대신 현재 레벨에서 -2강)을 제공합니다.
@@ -783,7 +789,7 @@ sequenceDiagram
 ### 2. 👤 유저 (User)
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
-| `GET` | `/v4/users/me` | 내 정보 (현재 대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회 |
+| `GET` | `/v4/users/me` | 내 정보 (현재 대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회. 대여 중이면 `expiredAtIso`(ISO 만료 시각), `daysRemaining`, `overdue` 포함 (`expiredAt`은 표시용 문자열로 유지) |
 | `POST` | `/v4/users/attendance` | **[NEW]** 수동 출석 체크 (코인 획득) |
 | `GET` | `/v4/users/attendance` | 이번 달 출석 현황 조회 |
 
@@ -802,7 +808,7 @@ sequenceDiagram
 | `POST` | `/v4/lent/reservation/{visibleNum}` | **[NEW]** 사물함 예약 (15분 선점, 대여 중이면 이사 예약으로 자동 처리). 사용자는 예약을 **하나만** 가지며, 다른 사물함을 다시 예약하면 기존 예약은 자동 취소됩니다. 이미 예약한 사물함을 다시 예약하면 거부(`ALREADY_RESERVED`)하고 시간도 연장되지 않습니다. |
 | `DELETE` | `/v4/lent/reservation` | 내 예약 취소. 예약이 없으면 404(`RESERVATION_NOT_FOUND`). |
 | `POST` | `/v4/lent/check-image` | **[AI]** 반납 사진 사전 검증 (AI 청결도 검사만 선실행) |
-| `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력) |
+| `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력). 응답 `data`에 `message`와 함께 `expiredAtIso`, `daysRemaining`, `overdue`, `penaltyAppliedDays`, `returnedAt` 포함 |
 | `POST` | `/v4/lent/swap/{newVisibleNum}` | **[Item]** 이사권을 사용해 사물함 이동 |
 | `POST` | `/v4/lent/extension` | **[Item]** 연장권을 사용해 기간 연장 |
 | `POST` | `/v4/lent/renew` | **[Ticket]** 대여권을 새로 사용하여 기간 연장 (31일) |

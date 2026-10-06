@@ -12,8 +12,8 @@ import com.gyeongsan.cabinet.domain.cabinet.port.out.CabinetRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
 import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.port.out.ReservationPort;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -61,8 +61,7 @@ public class CabinetDomainService implements CabinetQueryUseCase {
                                 expiredAt = activeLent.getExpiredAt();
                                 daysRemaining =
                                         expiredAt != null
-                                                ? ChronoUnit.DAYS.between(
-                                                        LocalDateTime.now(), expiredAt)
+                                                ? activeLent.calculateRemainingDays(LocalDate.now())
                                                 : 0;
                             }
 

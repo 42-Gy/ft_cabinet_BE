@@ -85,6 +85,9 @@ public class UserDomainService implements UserUseCase {
         String section = null;
         String lentStartedAt = null;
         String expiredAt = null;
+        LocalDateTime expiredAtIso = null;
+        Integer daysRemaining = null;
+        Boolean overdue = null;
         String previousPassword = null;
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM월 dd일 HH:mm");
 
@@ -96,6 +99,11 @@ public class UserDomainService implements UserUseCase {
 
             lentStartedAt = activeLent.getStartedAt().format(formatter);
             expiredAt = activeLent.getExpiredAt().format(formatter);
+
+            LocalDateTime now = LocalDateTime.now();
+            expiredAtIso = activeLent.getExpiredAt();
+            daysRemaining = activeLent.calculateRemainingDays(now.toLocalDate());
+            overdue = activeLent.isOverdue(now);
 
             LentHistory prevHistory =
                     lentRepository
@@ -148,6 +156,9 @@ public class UserDomainService implements UserUseCase {
                 .reservedVisibleNum(reservedVisibleNum)
                 .reservationRemainingSeconds(reservationRemainingSeconds)
                 .expiredAt(expiredAt)
+                .expiredAtIso(expiredAtIso)
+                .daysRemaining(daysRemaining)
+                .overdue(overdue)
                 .previousPassword(previousPassword)
                 .myItems(itemDtos)
                 .coinHistories(

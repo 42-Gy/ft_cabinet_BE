@@ -41,7 +41,17 @@ public class MyProfileResponseDto {
     /** 내 예약이 만료되기까지 남은 초. 예약이 없으면 null. */
     private Long reservationRemainingSeconds;
 
+    /** 표시용 만료 시각("MM월 dd일 HH:mm", 연도 없음). 새 화면은 {@link #expiredAtIso}를 쓴다. */
     private String expiredAt;
+
+    /** 만료 시각(ISO-8601). 대여 중이 아니면 null. */
+    private LocalDateTime expiredAtIso;
+
+    /** 만료일까지 남은 일수(달력 기준). 0은 만료일 당일, 음수는 만료일이 지난 일수. 대여 중이 아니면 null. */
+    private Integer daysRemaining;
+
+    /** 현재 연체인지. 반납 시 패널티 부과와 같은 판정이다. 대여 중이 아니면 null. */
+    private Boolean overdue;
 
     private List<MyItemDto> myItems;
     private List<CoinHistoryDto> coinHistories;
