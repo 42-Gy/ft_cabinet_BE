@@ -3,15 +3,14 @@ package com.gyeongsan.cabinet.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.gyeongsan.cabinet.adapter.out.persistence.admin.AdminActionLogEntity;
+import com.gyeongsan.cabinet.support.BaselinedSchema;
 import com.gyeongsan.cabinet.support.MariaDbDriverMySqlContainer;
 import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.List;
 import javax.sql.DataSource;
-import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -82,23 +81,12 @@ class FlywayBootWiringTest {
     /** 기존 DB 처럼 비어 있지 않은 스키마에 사람이 baseline(v1)을 찍어 둔 상태를 만든다. */
     private static void prepareBaselinedExistingSchema(MariaDbDriverMySqlContainer mysql)
             throws Exception {
-        try (Connection c =
-                        DriverManager.getConnection(
-                                mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
-                Statement s = c.createStatement()) {
-            s.execute("CREATE TABLE cabinet (id BIGINT PRIMARY KEY)");
-        }
-        Flyway.configure()
-                .dataSource(mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())
-                .baselineVersion("1")
-                .baselineOnMigrate(false)
-                .load()
-                .baseline();
+        BaselinedSchema.prepare(mysql);
     }
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
-    @DisplayName("FLYWAY_ENABLED=true 와 운영 yml 설정으로 부팅하면 Flyway 가 V2, V3 를 적용한 뒤 JPA(validate)가 뜬다")
+    @DisplayName("FLYWAY_ENABLED=true 와 운영 yml 설정으로 부팅하면 Flyway 가 V2~V4 를 적용한 뒤 JPA(validate)가 뜬다")
     void bootsWithFlywayEnabled_usingRealApplicationYml(String image) throws Exception {
         try (MariaDbDriverMySqlContainer mysql = new MariaDbDriverMySqlContainer(image)) {
             mysql.start();
@@ -129,7 +117,7 @@ class FlywayBootWiringTest {
                                                         + ":"
                                                         + rs.getInt("success"));
                                     }
-                                    assertThat(applied).containsExactly("1:1", "2:1", "3:1");
+                                    assertThat(applied).containsExactly("1:1", "2:1", "3:1", "4:1");
                                 }
                             });
         }

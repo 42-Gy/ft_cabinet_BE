@@ -166,6 +166,12 @@ app:
   ft-api:
     root-url: https://api.intra.42.fr
     token-url: https://api.intra.42.fr/oauth/token
+  reward:
+    lent-ticket:
+      # 월간 로그타임(분)이 이 값 이상이면 지급일에 대여권을 지급한다. 사용자마다 기준은 하나만 적용된다.
+      default-threshold-minutes: ${LENT_TICKET_THRESHOLD_MINUTES:4800}
+      # 트센(본과정 grade "Transcender") 기준. 일반 기준보다 클 수 없고, 잘못되면 부팅이 실패한다.
+      transcender-threshold-minutes: ${LENT_TICKET_TRANSCENDER_THRESHOLD_MINUTES:900}
 
 resilience4j:
   circuitbreaker:

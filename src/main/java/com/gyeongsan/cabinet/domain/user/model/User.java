@@ -72,6 +72,10 @@ public class User {
     @Column(name = "IS_PISCINER", nullable = false)
     private boolean isPisciner = false;
 
+    /** 42 API 본과정(cursus 21)의 grade 원문. 판정은 {@link #isTranscender()} 로 한다. */
+    @Column(name = "FT_GRADE", length = 32)
+    private String ftGrade;
+
     protected User(
             String name,
             String email,
@@ -162,5 +166,14 @@ public class User {
 
     public void updatePiscinerStatus(boolean isPisciner) {
         this.isPisciner = isPisciner;
+    }
+
+    public void updateFtGrade(String ftGrade) {
+        this.ftGrade = ftGrade;
+    }
+
+    /** 본과정 grade 가 정확히 "Transcender" 인 경우만 트센이다. 그 외(Cadet, 미확인 값, null)는 일반 사용자다. */
+    public boolean isTranscender() {
+        return FtGradeResolver.TRANSCENDER.equals(this.ftGrade);
     }
 }

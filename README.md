@@ -536,6 +536,13 @@ erDiagram
 - `overdue`는 반납 시 패널티 부과와 같은 판정(`now > expiredAt`, 시각 포함)이다. 그래서 만료일 당일(`daysRemaining == 0`)이어도 만료 시각이 지났으면 `overdue == true`일 수 있다.
 - `expiredAt`(`MM월 dd일 HH:mm`)은 기존 프론트 호환을 위해 그대로 두며, 새 화면은 `expiredAtIso`를 쓴다.
 
+### 월간 대여권 지급 기준 (트센)
+
+- 매월 1일, 지난달 로그타임이 기준 이상이면 `LENT` 대여권을 지급한다. 기준은 사용자마다 **하나만** 적용된다: 일반 80시간(4800분), 트센 15시간(900분). 두 기준을 동시에 만족해도 대여권은 1개다. 기준값은 `app.reward.lent-ticket.*`(환경변수 `LENT_TICKET_THRESHOLD_MINUTES`, `LENT_TICKET_TRANSCENDER_THRESHOLD_MINUTES`)로 바꿀 수 있고, 잘못된 값(0 이하, 트센 기준 > 일반 기준)이면 부팅이 실패한다.
+- **트센 판정**: 42 API `cursus_users`에서 `cursus.id == 21`인 항목의 `grade`가 정확히 `"Transcender"`일 때만 트센이다. `Cadet`, 값 없음, 처음 보는 값은 모두 일반 사용자다(확인된 값은 `Cadet`, `Transcender`뿐이며, 미확인 값은 경고 로그를 남긴다). 피시너(9)·재도전 피시너(66)의 `grade`는 읽지 않는다.
+- `grade` 원문은 `USER.FT_GRADE`(Flyway V4)에 저장하며 **로그인 때** 갱신된다. 지급일에는 로그타임이 15시간 이상 80시간 미만인 비-트센·비-피시너 사용자만 42 API로 `grade`를 다시 조회한다(실패하면 저장된 값을 유지).
+- 이미 미사용 대여권이 있으면 지급을 생략하며, 이때도 월간 로그타임은 초기화된다(기존 동작).
+
 ### 10. 🍉 수박씨 강화 이벤트 & 독립 상점 (Watermelon Event) [New]
 * **강화 시도 및 확률 매트릭스:** 레벨별 기본 확률에 따라 0강~최대 10강까지 강화 성공/유지/하락/파괴를 롤링합니다.
 * **비료 및 방지권 기능:** 프리미엄 비료(성공확률 보정) 및 위험한 비료(성공률 대폭 상승, 단 7강 이상 사용 불가) 사용이 가능하며, 실패 페널티를 막아줄 하락 방지권 및 파괴 방지권(파괴 무효화 대신 현재 레벨에서 -2강)을 제공합니다.
@@ -789,7 +796,7 @@ sequenceDiagram
 ### 2. 👤 유저 (User)
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
-| `GET` | `/v4/users/me` | 내 정보 (현재 대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회. 대여 중이면 `expiredAtIso`(ISO 만료 시각), `daysRemaining`, `overdue` 포함 (`expiredAt`은 표시용 문자열로 유지) |
+| `GET` | `/v4/users/me` | 내 정보 (현재 대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회. 대여 중이면 `expiredAtIso`(ISO 만료 시각), `daysRemaining`, `overdue` 포함 (`expiredAt`은 표시용 문자열로 유지). `isTranscender`(트센 여부) 포함 |
 | `POST` | `/v4/users/attendance` | **[NEW]** 수동 출석 체크 (코인 획득) |
 | `GET` | `/v4/users/attendance` | 이번 달 출석 현황 조회 |
 

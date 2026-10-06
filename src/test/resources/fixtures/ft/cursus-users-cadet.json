@@ -1,0 +1,7 @@
+{
+  "cursus_users": [
+    { "grade": "Pisciner", "cursus": { "id": 9, "slug": "c-piscine" } },
+    { "grade": "Cadet", "cursus": { "id": 21, "slug": "42cursus" } },
+    { "grade": null, "cursus": { "id": 66, "slug": "c-piscine-reloaded" } }
+  ]
+}

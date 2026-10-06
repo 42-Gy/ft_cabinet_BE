@@ -12,6 +12,9 @@ import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
 import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.port.out.ReservationPort;
 import com.gyeongsan.cabinet.domain.user.model.Attendance;
+import com.gyeongsan.cabinet.domain.user.model.FtGradeResolver;
+import com.gyeongsan.cabinet.domain.user.model.FtGradeSnapshot;
+import com.gyeongsan.cabinet.domain.user.model.LentTicketRewardPolicy;
 import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.port.in.UserUseCase;
 import com.gyeongsan.cabinet.domain.user.port.out.AttendanceRepositoryPort;
@@ -41,8 +44,7 @@ public class UserDomainService implements UserUseCase {
     private final AttendanceRepositoryPort attendanceRepository;
     private final CoinHistoryRepositoryPort coinHistoryRepository;
     private final ReservationPort reservationPort;
-
-    private static final int MONTHLY_TARGET_MINUTES = 4800;
+    private final LentTicketRewardPolicy rewardPolicy;
 
     @Override
     public MyProfileResponseDto getMyProfile(Long userId) {
@@ -146,6 +148,7 @@ public class UserDomainService implements UserUseCase {
                 .coin(user.getCoin())
                 .role(user.getRole())
                 .isPisciner(user.isPisciner())
+                .transcender(user.isTranscender())
                 .penaltyDays(penaltyDays)
                 .monthlyLogtime(user.getMonthlyLogtime())
                 .lentCabinetId(cabinetId)
@@ -265,7 +268,8 @@ public class UserDomainService implements UserUseCase {
         }
 
         if (isPayDay) {
-            if (lentTicketItem != null && user.getMonthlyLogtime() >= MONTHLY_TARGET_MINUTES) {
+            // 사용자마다 적용되는 기준은 하나뿐이라, 두 기준을 동시에 만족해도 대여권은 많아야 1개다.
+            if (lentTicketItem != null && rewardPolicy.qualifies(user, user.getMonthlyLogtime())) {
                 int currentLentCount =
                         itemHistoryRepository.countByUserIdAndItemTypeAndUsedAtIsNull(
                                 userId, lentTicketItem.getType());
@@ -273,12 +277,46 @@ public class UserDomainService implements UserUseCase {
                     ItemHistory reward =
                             new ItemHistory(LocalDateTime.now(), null, user, lentTicketItem);
                     itemHistoryRepository.save(reward);
-                    log.info("[Reward] {}님 지난달 80시간 달성! 대여권 지급 완료.", user.getName());
+                    log.info(
+                            "[Reward] {}님 지난달 {}분 달성(기준 {}분{}). 대여권 지급 완료.",
+                            user.getName(),
+                            user.getMonthlyLogtime(),
+                            rewardPolicy.thresholdMinutesFor(user),
+                            user.isTranscender() ? ", 트센" : "");
                 } else {
                     log.info("[Skip] {}님 대여권 이미 보유 중 (최대 1개). 지급 생략.", user.getName());
                 }
             }
             user.resetMonthlyLogtime();
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean needsGradeRefresh(Long userId, int totalMinutes) {
+        return userRepository
+                .findById(userId)
+                .map(user -> rewardPolicy.isGradeRefreshCandidate(user, totalMinutes))
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional
+    public void updateFtGrade(Long userId, FtGradeSnapshot snapshot) {
+        if (!snapshot.parsed()) {
+            return;
+        }
+        if (snapshot.rejected()) {
+            log.warn("[Grade] userId={} 의 grade 형식이 올바르지 않아 저장하지 않습니다.", userId);
+            return;
+        }
+        User user =
+                userRepository
+                        .findById(userId)
+                        .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+        if (!FtGradeResolver.isRecognized(snapshot.grade())) {
+            log.warn("[Grade] 미확인 grade 값을 받았습니다(일반 사용자로 취급): {}", snapshot.grade());
+        }
+        user.updateFtGrade(snapshot.grade());
     }
 }

@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.gyeongsan.cabinet.domain.admin.model.AdminActionTargetType;
 import com.gyeongsan.cabinet.domain.admin.model.AdminActionType;
+import com.gyeongsan.cabinet.domain.user.model.User;
+import com.gyeongsan.cabinet.domain.user.model.UserRole;
+import com.gyeongsan.cabinet.support.BaselinedSchema;
 import com.gyeongsan.cabinet.support.MariaDbDriverMySqlContainer;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -89,7 +92,7 @@ class AdminActionLogMigrationTest {
         try (MySQLContainer<?> mysql = newMysql(image)) {
             mysql.start();
             // 기존 운영 DB 처럼 비어 있지 않은 스키마를 흉내 낸다.
-            executeSql(mysql, "CREATE TABLE cabinet (id BIGINT PRIMARY KEY)");
+            BaselinedSchema.createExistingTables(mysql);
 
             // 규칙 4: baseline 없이 비어 있지 않은 스키마에 migrate 하면 조용히 실행되지 않고 실패해야 한다.
             assertThatThrownBy(() -> flyway(mysql).migrate()).isInstanceOf(FlywayException.class);
@@ -97,8 +100,8 @@ class AdminActionLogMigrationTest {
             // 사람이 1회 수동으로 찍는 baseline 과 같은 효과.
             flyway(mysql).baseline();
             MigrateResult result = flyway(mysql).migrate();
-            assertThat(result.migrationsExecuted).isEqualTo(2);
-            assertThat(flyway(mysql).info().current().getVersion().getVersion()).isEqualTo("3");
+            assertThat(result.migrationsExecuted).isEqualTo(3);
+            assertThat(flyway(mysql).info().current().getVersion().getVersion()).isEqualTo("4");
             // 두 번째 실행은 아무것도 하지 않는다.
             assertThat(flyway(mysql).migrate().migrationsExecuted).isZero();
 
@@ -130,11 +133,97 @@ class AdminActionLogMigrationTest {
     }
 
     @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @DisplayName(
+            "V4: 기존 user 테이블에 ft_grade 가 추가되고, 기존 행은 NULL 이며, User 엔티티가 validate 를 통과해 저장/조회된다")
+    void v4AddsFtGradeToExistingUserTable(String image) throws Exception {
+        try (MySQLContainer<?> mysql = newMysql(image)) {
+            mysql.start();
+            // ft_grade 가 없는 기존 운영 user 테이블과 이미 들어 있는 사용자 한 명.
+            executeSql(
+                    mysql,
+                    "CREATE TABLE `user` ("
+                            + " id BIGINT AUTO_INCREMENT PRIMARY KEY, version BIGINT,"
+                            + " name VARCHAR(32) NOT NULL UNIQUE, email VARCHAR(255) UNIQUE,"
+                            + " role VARCHAR(255) NOT NULL, coin BIGINT NOT NULL,"
+                            + " penalty_days INT NOT NULL, monthly_logtime INT NOT NULL,"
+                            + " blackholed_at DATETIME(6), deleted_at DATETIME(6),"
+                            + " slack_alarm BIT(1), email_alarm BIT(1), push_alarm BIT(1),"
+                            + " is_pisciner BIT(1) NOT NULL)");
+            executeSql(
+                    mysql,
+                    "INSERT INTO `user` (version, name, email, role, coin, penalty_days,"
+                            + " monthly_logtime, is_pisciner)"
+                            + " VALUES (0, 'existing-user', 'e@example.com', 'USER', 0, 0, 0, 0)");
+            executeSql(mysql, "CREATE TABLE cabinet (id BIGINT PRIMARY KEY)");
+            flyway(mysql).baseline();
+
+            assertThat(flyway(mysql).migrate().migrationsExecuted).isEqualTo(3);
+
+            try (Connection c =
+                            DriverManager.getConnection(
+                                    mariaDbUrl(mysql), mysql.getUsername(), mysql.getPassword());
+                    Statement s = c.createStatement()) {
+                try (ResultSet rs =
+                        s.executeQuery(
+                                "SELECT column_type, is_nullable FROM information_schema.columns"
+                                        + " WHERE table_schema = DATABASE() AND table_name = 'user'"
+                                        + " AND column_name = 'ft_grade'")) {
+                    assertThat(rs.next()).isTrue();
+                    assertThat(rs.getString("column_type")).isEqualTo("varchar(32)");
+                    assertThat(rs.getString("is_nullable")).isEqualTo("YES");
+                }
+                try (ResultSet rs =
+                        s.executeQuery(
+                                "SELECT ft_grade FROM `user` WHERE name = 'existing-user'")) {
+                    assertThat(rs.next()).isTrue();
+                    assertThat(rs.getString("ft_grade")).isNull();
+                }
+            }
+
+            StandardServiceRegistry registry =
+                    new StandardServiceRegistryBuilder()
+                            .applySetting(
+                                    "hibernate.connection.driver_class", "org.mariadb.jdbc.Driver")
+                            .applySetting("hibernate.connection.url", mariaDbUrl(mysql))
+                            .applySetting("hibernate.connection.username", mysql.getUsername())
+                            .applySetting("hibernate.connection.password", mysql.getPassword())
+                            .applySetting(
+                                    "hibernate.dialect", "org.hibernate.dialect.MariaDBDialect")
+                            .applySetting(
+                                    "hibernate.physical_naming_strategy",
+                                    "org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy")
+                            .applySetting("hibernate.hbm2ddl.auto", "validate")
+                            .build();
+            try (SessionFactory sessionFactory =
+                    new MetadataSources(registry)
+                            .addAnnotatedClass(User.class)
+                            .buildMetadata()
+                            .buildSessionFactory()) {
+                User transcender =
+                        User.of("new-transcender", "t@example.com", UserRole.USER, false);
+                transcender.updateFtGrade("Transcender");
+                try (Session session = sessionFactory.openSession()) {
+                    session.beginTransaction();
+                    session.persist(transcender);
+                    session.getTransaction().commit();
+                }
+                try (Session session = sessionFactory.openSession()) {
+                    User loaded = session.find(User.class, transcender.getId());
+                    assertThat(loaded.getFtGrade()).isEqualTo("Transcender");
+                    assertThat(loaded.isTranscender()).isTrue();
+                }
+            }
+        }
+    }
+
+    @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"mysql:8.4"})
     @DisplayName("같은 batchId 로 두 번 저장할 수 없다")
     void batchIdIsUnique(String image) throws Exception {
         try (MySQLContainer<?> mysql = newMysql(image)) {
             mysql.start();
+            BaselinedSchema.prepare(mysql);
             flyway(mysql).migrate();
 
             try (SessionFactory sessionFactory = validatingSessionFactory(mysql)) {
@@ -151,6 +240,7 @@ class AdminActionLogMigrationTest {
     void undoOfBatchIdIsUniquePerOriginal(String image) throws Exception {
         try (MySQLContainer<?> mysql = newMysql(image)) {
             mysql.start();
+            BaselinedSchema.prepare(mysql);
             flyway(mysql).migrate();
 
             try (SessionFactory sessionFactory = validatingSessionFactory(mysql)) {

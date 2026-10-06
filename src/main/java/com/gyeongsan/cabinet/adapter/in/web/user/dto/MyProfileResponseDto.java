@@ -1,5 +1,6 @@
 package com.gyeongsan.cabinet.adapter.in.web.user.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.gyeongsan.cabinet.domain.user.model.UserRole;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +23,10 @@ public class MyProfileResponseDto {
     private UserRole role;
 
     private boolean isPisciner;
+
+    /** 본과정 grade 가 "Transcender" 인지. 트센은 더 낮은 로그타임 기준으로 대여권을 받는다. */
+    @JsonProperty("isTranscender")
+    private boolean transcender;
 
     private Integer penaltyDays;
     private Integer monthlyLogtime;

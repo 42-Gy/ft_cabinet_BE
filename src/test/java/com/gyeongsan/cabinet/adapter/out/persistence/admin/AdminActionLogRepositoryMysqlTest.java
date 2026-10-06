@@ -10,6 +10,7 @@ import com.gyeongsan.cabinet.domain.admin.model.AdminActionLogSummary;
 import com.gyeongsan.cabinet.domain.admin.model.AdminActionTargetType;
 import com.gyeongsan.cabinet.domain.admin.model.AdminActionType;
 import com.gyeongsan.cabinet.domain.admin.model.AdminActor;
+import com.gyeongsan.cabinet.support.BaselinedSchema;
 import com.gyeongsan.cabinet.support.MariaDbDriverMySqlContainer;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -107,9 +108,10 @@ class AdminActionLogRepositoryMysqlTest {
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
     @DisplayName("목록은 최신순이고 항목 수와 Undo 여부를 한 번에 가져오며, 상세는 항목과 JSON 을 복원한다")
-    void listDetailAndUndoLookup(String image) {
+    void listDetailAndUndoLookup(String image) throws Exception {
         try (MariaDbDriverMySqlContainer mysql = new MariaDbDriverMySqlContainer(image)) {
             mysql.start();
+            BaselinedSchema.prepare(mysql);
             runner(mysql)
                     .run(
                             context -> {

@@ -9,6 +9,7 @@ import com.gyeongsan.cabinet.domain.coin.port.out.CoinHistoryRepositoryPort;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.port.out.ReservationPort;
+import com.gyeongsan.cabinet.domain.user.model.LentTicketRewardPolicy;
 import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.model.UserRole;
 import com.gyeongsan.cabinet.domain.user.port.out.AttendanceRepositoryPort;
@@ -37,7 +38,8 @@ class UserDomainServiceReservationTest {
                         mock(ItemHistoryRepositoryPort.class),
                         mock(AttendanceRepositoryPort.class),
                         mock(CoinHistoryRepositoryPort.class),
-                        reservationPort);
+                        reservationPort,
+                        new LentTicketRewardPolicy(4800, 900));
 
         User user = User.of("intra09", "intra09@example.com", null, UserRole.USER);
         ReflectionTestUtils.setField(user, "id", USER_ID);
