@@ -174,6 +174,31 @@ app:
     recipients: ${SLACK_REPORT_RECIPIENTS:}
     poll-interval-ms: ${SLACK_REPORT_POLL_INTERVAL_MS:60000}
     max-per-poll: 20
+  # FAQ 챗봇(의미 검색, 서버 내부 임베딩). 기본은 꺼짐. 켜려면 CHATBOT_ENABLED=true 와 모델 파일이 필요하다(없어도 서버는 뜨고 챗봇만 503).
+  # 질문은 서버 밖으로 나가지 않고, 원문은 저장하지 않는다(결과별 건수만 지표로 집계).
+  chatbot:
+    enabled: ${CHATBOT_ENABLED:false}
+    # 임계값은 모델마다 다르다. 모델을 정한 뒤 평가 결과(GitHub Actions 의 챗봇 평가)로 맞춘다.
+    match-threshold: ${CHATBOT_MATCH_THRESHOLD:0.80}
+    suggest-threshold: ${CHATBOT_SUGGEST_THRESHOLD:0.60}
+    max-suggestions: 3
+    max-question-length: 200
+    max-concurrent-embeddings: 2
+    reload-interval-ms: 30000
+    fallback-message: "비슷한 FAQ 를 찾지 못했어요. 홈페이지 공지의 연락처나 오류제보 채널로 문의해 주세요."
+    embedding:
+      # onnx(기본, 서버 내부 모델) | ngram(모델 없이 글자 겹침만 보는 개발용, 의미 검색 아님)
+      provider: ${CHATBOT_EMBEDDING_PROVIDER:onnx}
+      # model-id, prefix, max-tokens 를 비워 두면 모델 디렉터리의 model.properties 를 따른다.
+      model-id: ${CHATBOT_MODEL_ID:unknown}
+      model-dir: ${CHATBOT_MODEL_DIR:/app/chatbot-model}
+      model-file: ${CHATBOT_MODEL_FILE:model.onnx}
+      tokenizer-file: ${CHATBOT_TOKENIZER_FILE:tokenizer.json}
+      # e5 계열 모델은 "query: " 를 앞에 붙여야 한다.
+      prefix: ${CHATBOT_EMBEDDING_PREFIX:}
+      # 0 이면 model.properties(모델 내려받기 스크립트가 만든 파일)의 값, 없으면 128
+      max-tokens: ${CHATBOT_MAX_TOKENS:0}
+      threads: ${CHATBOT_EMBEDDING_THREADS:2}
   reward:
     lent-ticket:
       # 월간 로그타임(분)이 이 값 이상이면 지급일에 대여권을 지급한다. 사용자마다 기준은 하나만 적용된다.
@@ -200,6 +225,11 @@ resilience4j:
         timeoutDuration: 0s
       # 대여/예약/반납 API 전체가 함께 쓰는 한도(사용자별이 아니라 서버 전체 기준)이다. 정상 트래픽을 막지 않도록 넉넉한
       # 보호용 상한으로 두었으며, 실제 트래픽을 보고 이 값만 조정한다.
+      # FAQ 챗봇 질문. 임베딩 계산이 CPU 를 쓰므로 서버 전체 기준으로 상한을 둔다(별도로 동시 계산 수도 제한한다).
+      chatbotApi:
+        limitForPeriod: 20
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0s
       lentApi:
         limitForPeriod: 30
         limitRefreshPeriod: 1s

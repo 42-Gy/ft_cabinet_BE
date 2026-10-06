@@ -100,8 +100,8 @@ class AdminActionLogMigrationTest {
             // 사람이 1회 수동으로 찍는 baseline 과 같은 효과.
             flyway(mysql).baseline();
             MigrateResult result = flyway(mysql).migrate();
-            assertThat(result.migrationsExecuted).isEqualTo(3);
-            assertThat(flyway(mysql).info().current().getVersion().getVersion()).isEqualTo("4");
+            assertThat(result.migrationsExecuted).isEqualTo(4);
+            assertThat(flyway(mysql).info().current().getVersion().getVersion()).isEqualTo("5");
             // 두 번째 실행은 아무것도 하지 않는다.
             assertThat(flyway(mysql).migrate().migrationsExecuted).isZero();
 
@@ -158,7 +158,7 @@ class AdminActionLogMigrationTest {
             executeSql(mysql, "CREATE TABLE cabinet (id BIGINT PRIMARY KEY)");
             flyway(mysql).baseline();
 
-            assertThat(flyway(mysql).migrate().migrationsExecuted).isEqualTo(3);
+            assertThat(flyway(mysql).migrate().migrationsExecuted).isEqualTo(4);
 
             try (Connection c =
                             DriverManager.getConnection(

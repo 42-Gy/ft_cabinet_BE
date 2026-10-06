@@ -1,0 +1,18 @@
+package com.gyeongsan.cabinet.adapter.out.metrics;
+
+import com.gyeongsan.cabinet.domain.chatbot.model.ChatbotAnswer;
+import com.gyeongsan.cabinet.domain.chatbot.port.out.ChatbotMetricsPort;
+import io.micrometer.core.instrument.MeterRegistry;
+import lombok.RequiredArgsConstructor;
+
+/** 결과별 질문 건수를 Prometheus 지표(chatbot_ask_total{result=...})로 노출한다. 질문 내용은 어디에도 남기지 않는다. */
+@RequiredArgsConstructor
+public class MicrometerChatbotMetricsAdapter implements ChatbotMetricsPort {
+
+    private final MeterRegistry registry;
+
+    @Override
+    public void recordAsk(ChatbotAnswer.Result result) {
+        registry.counter("chatbot.ask", "result", result.name().toLowerCase()).increment();
+    }
+}

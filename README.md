@@ -554,6 +554,44 @@ erDiagram
 - **설정(기본은 꺼짐)**: `SLACK_REPORT_FORWARD_ENABLED=true`, `SLACK_REPORT_CHANNEL_ID`(채널 ID), `SLACK_REPORT_RECIPIENTS`(DM 받을 관리자 인트라 ID, 쉼표 구분 — 슬랙 사용자명이 인트라 ID 와 같아야 함). 켠 상태에서 채널 ID 나 수신자가 없으면 부팅이 실패한다. 선택: `SLACK_REPORT_POLL_INTERVAL_MS`(기본 60000).
 - **Slack 앱 준비(사람이 해야 함)**: 봇 토큰 앱에 `channels:history`(비공개 채널은 `groups:history`) 권한을 추가해 재설치하고, 채널에 봇을 초대한다. `chat:write` 등 기존 DM 권한은 그대로 쓴다.
 
+### FAQ 챗봇 (Tier 1: 의미 검색 FAQ 매칭)
+
+- 질문을 임베딩(문장 벡터)으로 바꿔 미리 써 둔 FAQ 질문들과 코사인 유사도로 비교하고, **가장 비슷한 FAQ 의 정해진 답변을 그대로 돌려준다**. 문장을 생성하는 LLM 은 쓰지 않으므로 답변이 지어내질 일이 없다.
+- 결과는 세 가지다: `MATCHED`(임계값 이상, 답변 반환), `SUGGESTED`(애매함, 비슷한 FAQ 최대 3개 제안), `UNMATCHED`(안내 문구).
+- **서버 내부 임베딩**: ONNX Runtime(Java) + DJL 토크나이저로 같은 JVM 안에서 계산한다. 질문이 외부 API 로 나가지 않는다. 동시 임베딩은 세마포어(기본 2)로 제한하고 넘치면 503 을 준다. jar 크기가 약 75MB 늘어난다(ONNX Runtime·토크나이저 네이티브 라이브러리 포함).
+- **FAQ 는 DB**(`faq`, `faq_question`, Flyway V5)에 저장하고 관리자 API 로 관리한다. 하나의 FAQ(답변)에 여러 질문 표현을 둘 수 있다. **임베딩은 저장하지 않고** 서버마다 메모리에 인덱스를 만든다. 서버는 30초마다 FAQ 변경(건수 + 최신 수정 시각)을 확인해 다시 만들고, 다른 서버에서 고친 내용도 그 안에 반영된다. 인덱스가 아직 준비되지 않았거나 모델을 못 불러오면 챗봇만 503 이고 서버는 정상 기동한다.
+- **개인정보**: 질문 원문은 저장도 로그도 하지 않는다. 결과별 건수만 `chatbot.ask{result=...}` 지표로 집계한다.
+- **초기 FAQ**: 테이블이 비어 있을 때만 `src/main/resources/chatbot/faq-seed.json`(27개)으로 채운다(`seed_key` UNIQUE 로 서버 여러 대의 동시 시작도 안전). **답변은 초안**이며 `docs/chatbot/FAQ_REVIEW.md` 의 "확인 필요" 항목을 사람이 검토해야 한다.
+
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `POST` | `/v4/chatbot/ask` | 질문(`{"question": "..."}`, 200자 이하)에 대한 FAQ 매칭 결과 |
+| `GET` | `/v4/chatbot/faqs` | 사용 중인 FAQ 를 카테고리별로 조회(검색 없이 둘러보기) |
+| `GET` | `/v4/chatbot/faqs/{id}` | FAQ 하나 조회 |
+| `GET/POST/PUT/DELETE` | `/v4/admin/faqs`, `/v4/admin/faqs/{id}` | 관리자: FAQ 목록(비활성 포함)/등록/수정/삭제. 질문은 FAQ 당 최대 10개(각 200자), 답변 2000자 이하 |
+
+**설정(기본은 꺼짐)**
+
+| 환경변수 | 기본값 | 설명 |
+| :--- | :--- | :--- |
+| `CHATBOT_ENABLED` | `false` | `true` 여야 컨트롤러·인덱스·스케줄러가 켜진다 |
+| `CHATBOT_MODEL_DIR` | `/app/chatbot-model` | `model.onnx`, `tokenizer.json`, `model.properties` 가 있는 디렉터리(Docker 빌드가 채운다) |
+| `CHATBOT_MODEL_ID`, `CHATBOT_EMBEDDING_PREFIX`, `CHATBOT_MAX_TOKENS` | 비움 | 비워 두면 `model.properties` 를 따른다(e5 의 `query: ` 접두어 누락 방지). 값을 넣으면 그 값이 우선 |
+| `CHATBOT_MATCH_THRESHOLD` / `CHATBOT_SUGGEST_THRESHOLD` | `0.80` / `0.60` | 자리표시 값이다. **모델을 정한 뒤 평가 결과로 맞춘다.** `0 < suggest <= match <= 1` 아니면 부팅 실패 |
+| `CHATBOT_EMBEDDING_THREADS` | `2` | ONNX 스레드 수 |
+| `CHATBOT_EMBEDDING_PROVIDER` | `onnx` | `ngram` 은 모델 없이 글자 겹침만 보는 **개발용**(의미 검색 아님). 알 수 없는 값은 부팅 실패 |
+
+`/v4/chatbot/*` 는 전역 한도 `chatbotApi`(20/s)를 쓴다.
+
+**모델 고정과 배포(SHA256 검증)**
+
+1. `chatbot-models.lock` 에 후보 모델(`minilm` = paraphrase-multilingual-MiniLM-L12-v2, `e5` = multilingual-e5-small)의 저장소·revision·파일 경로·SHA256 을 적는다. 처음에는 `PENDING` 이다.
+2. GitHub Actions 의 **"챗봇 모델 평가 / 고정"**(수동 실행)이 두 모델을 내려받아 평가 질문 세트(`src/test/resources/chatbot/eval-set.json`, 범위 안 87개 + 범위 밖 20개)로 top-1/top-3 정확도와 임계값 후보를 표로 보여 주고, lock 파일에 옮겨 적을 `meta|…`/`file|…` 줄을 출력한다.
+3. 모델을 고르고 출력된 줄로 lock 파일을 고쳐 커밋하면, 이후 `docker build --build-arg CHATBOT_MODEL=<id> .` 는 **고정된 revision 의 파일만 받고 SHA256 이 다르거나 `PENDING` 이 남아 있으면 실패**한다. `CHATBOT_MODEL` 을 주지 않으면(기본) 아무것도 받지 않으며 기존 빌드와 같다.
+4. 평가 기준: 후보 모델은 top-1 `CHATBOT_EVAL_MIN_TOP1`(기본 0.80) 이상이어야 하고, "범위 밖 오답 수락률 5% 이하 · 정밀도 95% 이상 · 커버리지 50% 이상"인 임계값이 존재해야 한다. 로컬에서는 `CHATBOT_EVAL_MODELS_DIR` 아래에 `<id>/model.onnx`, `tokenizer.json`, `model.properties` 를 두고 `./gradlew test --tests '*ChatbotRetrievalEvaluationTest'` 로 같은 평가를 돌린다(모델이 없으면 ngram 기준선만 계산).
+
+**운영 반영 순서**: ① V5 는 새 테이블 두 개를 만들고 엔티티가 항상 등록되므로 `ddl-auto: validate` 인 운영에서는 Flyway 롤아웃(baseline → `FLYWAY_ENABLED=true` → 배포)을 먼저 해야 한다 ② 모델을 고정하고 `CHATBOT_MODEL` 빌드 인자를 배포 워크플로우에 넣는다 ③ `CHATBOT_ENABLED=true` 와 임계값을 설정한다 ④ `docs/chatbot/FAQ_REVIEW.md` 를 검토한 뒤 관리자 API 로 답변을 고친다.
+
 ### 10. 🍉 수박씨 강화 이벤트 & 독립 상점 (Watermelon Event) [New]
 * **강화 시도 및 확률 매트릭스:** 레벨별 기본 확률에 따라 0강~최대 10강까지 강화 성공/유지/하락/파괴를 롤링합니다.
 * **비료 및 방지권 기능:** 프리미엄 비료(성공확률 보정) 및 위험한 비료(성공률 대폭 상승, 단 7강 이상 사용 불가) 사용이 가능하며, 실패 페널티를 막아줄 하락 방지권 및 파괴 방지권(파괴 무효화 대신 현재 레벨에서 -2강)을 제공합니다.
