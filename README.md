@@ -595,6 +595,8 @@ erDiagram
 3. 모델을 고르고 출력된 줄로 lock 파일을 고쳐 커밋하면, 이후 `docker build --build-arg CHATBOT_MODEL=<id> .` 는 **고정된 revision 의 파일만 받고 SHA256 이 다르거나 `PENDING` 이 남아 있으면 실패**한다. `CHATBOT_MODEL` 을 주지 않으면(기본) 아무것도 받지 않으며 기존 빌드와 같다.
 4. 평가 기준(`CHATBOT_EVAL_ENFORCE=true`, 로컬 기본값. 개발 세트에 적용): 후보 모델은 top-1 `CHATBOT_EVAL_MIN_TOP1`(기본 0.80) 이상이어야 하고, "범위 밖 오답 수락률 5% 이하 · 정밀도 95% 이상 · 커버리지 50% 이상"인 임계값이 존재해야 한다. 로컬에서는 `CHATBOT_EVAL_MODELS_DIR` 아래에 `<id>/model.onnx`, `tokenizer.json`, `model.properties`(정합성 검사는 `golden.json` 도, `scripts/chatbot/golden_vectors.py` 로 생성)를 두고 `./gradlew test --tests '*ChatbotRetrievalEvaluationTest' --tests '*ChatbotGoldenVectorTest'` 로 같은 평가를 돌린다(모델이 없으면 ngram 기준선만 계산).
 
+**메모리·지연(참고)**: CI 러너에서 CPU 를 2코어로 제한해 잰 값이다(Azure 실측 아님). e5 fp32 모델 파일 448MB, 로드 약 1.9초, 프로세스 RSS 약 +874MB(로드 중 최고 약 +1.2GB), 첫 질문 약 31ms, 질문 1개 p50/p95 약 10/13ms, 색인 전체(질문 표현 180개) 임베딩 약 2.4초. 모델은 JVM 힙이 아니라 네이티브 메모리를 써서 `jvm.memory.*` 지표에는 안 보인다. 챗봇을 켠 서버에서는 `/actuator/metrics` 의 `chatbot.process.rss.bytes`(RSS), `chatbot.process.rss.peak.bytes`, `chatbot.ask.duration`(p50/p95/p99)과 로그("임베딩 모델 로드 완료", "색인 완료")로 확인한다. CI 측정은 평가 워크플로우의 "메모리·지연 측정" 단계에서 다시 돌릴 수 있다.
+
 **운영 반영 순서**: ① V5 는 새 테이블 두 개를 만들고 엔티티가 항상 등록되므로 `ddl-auto: validate` 인 운영에서는 Flyway 롤아웃(baseline → `FLYWAY_ENABLED=true` → 배포)을 먼저 해야 한다 ② 모델을 고정하고 `CHATBOT_MODEL` 빌드 인자를 배포 워크플로우에 넣는다 ③ `CHATBOT_ENABLED=true` 와 임계값을 설정한다 ④ `docs/chatbot/FAQ_REVIEW.md` 를 검토한 뒤 관리자 API 로 답변을 고친다.
 
 ### 10. 🍉 수박씨 강화 이벤트 & 독립 상점 (Watermelon Event) [New]
