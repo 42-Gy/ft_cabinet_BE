@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.global.exception;
 
 import com.gyeongsan.cabinet.adapter.in.web.admin.dto.BulkStatusRejection;
+import com.gyeongsan.cabinet.adapter.in.web.admin.dto.UndoRejection;
 import com.gyeongsan.cabinet.common.ApiResponse;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import lombok.extern.log4j.Log4j2;
@@ -32,6 +33,15 @@ public class GlobalExceptionHandler {
         ApiResponse<BulkStatusRejection> response =
                 ApiResponse.fail(e.getStatus(), e.getMessage(), e.getRejection());
         return ResponseEntity.status(e.getStatus()).body(response);
+    }
+
+    @ExceptionHandler(UndoRejectedException.class)
+    public ResponseEntity<ApiResponse<UndoRejection>> handleUndoRejected(UndoRejectedException e) {
+        log.warn("⚠️ 되돌리기 거부: {}", e.getMessage());
+
+        ApiResponse<UndoRejection> response =
+                ApiResponse.fail(HttpStatus.CONFLICT, e.getMessage(), e.getRejection());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

@@ -75,6 +75,12 @@ public class LentHistory {
         this.endedAt = now;
     }
 
+    /** 종료된 대여를 다시 활성 상태로 되돌린다(관리자 Undo). 종료 시각을 지우고 반납 메모를 지정한 값으로 복원한다. */
+    public void reopen(String returnMemo) {
+        this.endedAt = null;
+        this.returnMemo = returnMemo;
+    }
+
     public void addReturnMemo(String returnMemo) {
         this.returnMemo = returnMemo;
     }

@@ -21,6 +21,9 @@ public interface LentRepositoryPort {
 
     List<LentHistory> findAllActiveLentByCabinetIds(List<Long> cabinetIds);
 
+    /** 사용자와 사물함을 함께 가져온다. 없는 ID 는 결과에서 빠진다. */
+    List<LentHistory> findAllByIds(List<Long> ids);
+
     List<LentHistory> findAllActiveLentByUserIds(List<Long> userIds);
 
     List<LentHistory> findAllActiveLentsByExpiredAtBetween(LocalDateTime start, LocalDateTime end);

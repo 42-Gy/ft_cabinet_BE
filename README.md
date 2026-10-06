@@ -852,6 +852,7 @@ sequenceDiagram
 | `PATCH` | `/v4/admin/cabinets/bundle/status` | **[NEW]** 사물함 상태/LentType 일괄 변경 (피시너 전용 구역 설정, 월말 일괄 반납). 대여 중인 사물함의 상태를 바꾸려면 `endActiveLents: true` 를 명시해야 하며, 없는 ID 또는 미명시 대여 중 사물함이 하나라도 있으면 아무것도 바꾸지 않고 전체 거부합니다(404/409, 문제 사물함 목록 포함). 응답에는 변경된 사물함과 종료된 대여/사용자 요약이 담깁니다. `reason`(작업 사유, 255자 이하)은 선택이지만 `endActiveLents: true`일 때는 필수이며, 감사 로그에 함께 남고, 성공한 작업은 변경 전/후 값이 `admin_action_log` / `admin_action_log_item` 테이블에 영구 기록됩니다. |
 | `GET` | `/v4/admin/action-logs` | 관리자 작업 감사 기록 목록(최신순, 페이지 크기 최대 100). 각 기록의 항목 수와, 이미 되돌려졌다면 `undoneByBatchId`를 담습니다. |
 | `GET` | `/v4/admin/action-logs/{batchId}` | 감사 기록 상세. 요청 원문과 대상별 변경 전/후 값을 담습니다. 없는 batchId는 404. |
+| `POST` | `/v4/admin/action-logs/{batchId}/undo` | 사물함 일괄 변경(`CABINET_BULK_STATUS_UPDATE`)을 되돌립니다. 본문 `{"reason": "..."}`은 필수(255자 이하)입니다. 로그의 변경 전 값으로 사물함 상태·LentType·메모를 복구하고 종료된 대여를 다시 엽니다. 그 사이 바뀐 것이 하나라도 있으면 아무것도 바꾸지 않고 전체 거부(409)하며 충돌을 한 번에 모두 알려 줍니다: `CABINET_CHANGED`, `LENT_CHANGED`, `CABINET_OCCUPIED`, `USER_HAS_ACTIVE_LENT`, `LENT_EXPIRED`(만료된 대여는 되살리지 않음), `RESERVED`, `USER_INACTIVE`, `ALREADY_UNDONE`. 한 작업은 한 번만 되돌릴 수 있고 Undo 기록은 다시 되돌릴 수 없습니다. Undo 자체도 감사 기록(`CABINET_BULK_STATUS_UNDO`)으로 남습니다. |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/force-return` | 관리자 권한 강제 반납 |
 | `GET` | `/v4/admin/cabinets/pending` | 수동 반납 승인 대기 목록 조회 |
 | `GET` | `/v4/admin/returns/photos` | **[NEW]** 반납 완료된 사물함 사진 조회 (Audit) |

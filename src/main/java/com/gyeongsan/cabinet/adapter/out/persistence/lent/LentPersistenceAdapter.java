@@ -48,6 +48,11 @@ public class LentPersistenceAdapter implements LentRepositoryPort {
     }
 
     @Override
+    public List<LentHistory> findAllByIds(List<Long> ids) {
+        return lentRepository.findAllWithUserAndCabinetByIds(ids);
+    }
+
+    @Override
     public List<LentHistory> findAllActiveLentByUserIds(List<Long> userIds) {
         return lentRepository.findAllActiveLentByUserIds(userIds);
     }
