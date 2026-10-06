@@ -56,6 +56,8 @@ public enum ErrorCode {
             HttpStatus.FORBIDDEN, "LENT_010", "라피신 전용 사물함은 피시너만 사용할 수 있습니다."),
     PISCINER_EXTENSION_RESTRICTED(HttpStatus.FORBIDDEN, "LENT_011", "피시너는 대여 기간을 연장할 수 없습니다."),
 
+    RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LENT_012", "취소할 예약이 없습니다."),
+
     ADMIN_ACTION_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "ADMIN_LOG_001", "관리자 작업 기록을 찾을 수 없습니다.");
 
     private final HttpStatus status;

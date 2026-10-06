@@ -35,6 +35,13 @@ public class LentController {
                 new MessageResponse("✅ " + visibleNum + "번 사물함 예약 완료! (15분간 선점)"));
     }
 
+    @DeleteMapping("/reservation")
+    public ApiResponse<MessageResponse> cancelReservation(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        Integer cancelled = lentUseCase.cancelReservation(userPrincipal.getUserId());
+        return ApiResponse.success(new MessageResponse("✅ " + cancelled + "번 사물함 예약이 취소되었습니다."));
+    }
+
     @PostMapping("/cabinets/{visibleNum}")
     public ApiResponse<MessageResponse> startLentCabinet(
             @PathVariable Integer visibleNum,

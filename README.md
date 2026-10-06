@@ -528,6 +528,7 @@ erDiagram
 ### 9. ⚡ 이사 전용 실시간 예약 (Swap Reservation) [New]
 * **15분 선점(Ticketing):** 사용자가 이사하고 싶은 사물함을 발견하면, **이사 전용 예약**을 통해 **15분간** 해당 사물함을 선점할 수 있습니다.
 * **Redis TTL:** Redis를 활용한 만료 시간 관리로, 예약 후 15분 내에 이사를 완료하지 않으면 예약이 자동 취소되어 다른 사용자가 이용 가능해집니다.
+* **예약은 하나만:** 한 사용자는 예약을 하나만 가질 수 있고, 다른 사물함을 예약하면 기존 예약은 자동 취소됩니다(`DELETE /v4/lent/reservation`으로 직접 취소도 가능). 사물함을 대여하거나 이사하면 내 예약은 함께 정리됩니다. 내 `/me` 응답의 `reservedVisibleNum`, `reservationRemainingSeconds`로 현재 예약과 남은 시간을 볼 수 있습니다.
 
 ### 10. 🍉 수박씨 강화 이벤트 & 독립 상점 (Watermelon Event) [New]
 * **강화 시도 및 확률 매트릭스:** 레벨별 기본 확률에 따라 0강~최대 10강까지 강화 성공/유지/하락/파괴를 롤링합니다.
@@ -798,7 +799,8 @@ sequenceDiagram
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
 | `POST` | `/v4/lent/cabinets/{visibleNum}` | 사물함 대여 시작 |
-| `POST` | `/v4/lent/reservation/{visibleNum}` | **[NEW]** 사물함 예약 (15분 선점, 대여 중이면 이사 예약으로 자동 처리) |
+| `POST` | `/v4/lent/reservation/{visibleNum}` | **[NEW]** 사물함 예약 (15분 선점, 대여 중이면 이사 예약으로 자동 처리). 사용자는 예약을 **하나만** 가지며, 다른 사물함을 다시 예약하면 기존 예약은 자동 취소됩니다. 이미 예약한 사물함을 다시 예약하면 거부(`ALREADY_RESERVED`)하고 시간도 연장되지 않습니다. |
+| `DELETE` | `/v4/lent/reservation` | 내 예약 취소. 예약이 없으면 404(`RESERVATION_NOT_FOUND`). |
 | `POST` | `/v4/lent/check-image` | **[AI]** 반납 사진 사전 검증 (AI 청결도 검사만 선실행) |
 | `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력) |
 | `POST` | `/v4/lent/swap/{newVisibleNum}` | **[Item]** 이사권을 사용해 사물함 이동 |

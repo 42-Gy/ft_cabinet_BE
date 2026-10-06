@@ -35,6 +35,12 @@ public class MyProfileResponseDto {
 
     private String lentStartedAt;
 
+    /** 내가 예약 중인 사물함 번호. 예약이 없으면 null. */
+    private Integer reservedVisibleNum;
+
+    /** 내 예약이 만료되기까지 남은 초. 예약이 없으면 null. */
+    private Long reservationRemainingSeconds;
+
     private String expiredAt;
 
     private List<MyItemDto> myItems;

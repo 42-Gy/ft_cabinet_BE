@@ -484,6 +484,16 @@ public class LentApplicationService implements LentUseCase {
         }
     }
 
+    @Override
+    public Integer cancelReservation(Long userId) {
+        Integer cancelled =
+                reservationPort
+                        .cancelUserReservation(userId)
+                        .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+        log.info("사물함 예약 취소 - User: {}, Cabinet: {}", userId, cancelled);
+        return cancelled;
+    }
+
     private void checkCabinetReservation(Integer visibleNum, Long userId) {
         var reservedUserId = reservationPort.getReservedUserId(visibleNum);
         if (reservedUserId.isPresent() && !reservedUserId.get().equals(userId)) {

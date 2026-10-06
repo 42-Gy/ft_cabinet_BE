@@ -10,6 +10,7 @@ import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
 import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
+import com.gyeongsan.cabinet.domain.lent.port.out.ReservationPort;
 import com.gyeongsan.cabinet.domain.user.model.Attendance;
 import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.port.in.UserUseCase;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -38,6 +40,7 @@ public class UserDomainService implements UserUseCase {
     private final ItemHistoryRepositoryPort itemHistoryRepository;
     private final AttendanceRepositoryPort attendanceRepository;
     private final CoinHistoryRepositoryPort coinHistoryRepository;
+    private final ReservationPort reservationPort;
 
     private static final int MONTHLY_TARGET_MINUTES = 4800;
 
@@ -113,6 +116,21 @@ public class UserDomainService implements UserUseCase {
             autoExtensionEnabled = activeLent.isAutoExtension();
         }
 
+        Integer reservedVisibleNum = null;
+        Long reservationRemainingSeconds = null;
+        try {
+            Optional<Integer> reserved = reservationPort.getUserReservation(userId);
+            Optional<Long> remaining = reservationPort.getUserReservationTtlSeconds(userId);
+            // 두 값을 읽는 사이 예약이 만료되었다면 예약이 없는 것으로 본다.
+            if (reserved.isPresent() && remaining.isPresent()) {
+                reservedVisibleNum = reserved.get();
+                reservationRemainingSeconds = remaining.get();
+            }
+        } catch (RuntimeException e) {
+            // 예약 정보는 보조 정보이므로, 조회에 실패해도 프로필 전체를 막지 않는다.
+            log.warn("내 예약 정보 조회 실패 - User: {}, 원인: {}", userId, e.toString());
+        }
+
         return MyProfileResponseDto.builder()
                 .userId(user.getId())
                 .name(user.getName())
@@ -127,6 +145,8 @@ public class UserDomainService implements UserUseCase {
                 .section(section)
                 .autoExtensionEnabled(autoExtensionEnabled)
                 .lentStartedAt(lentStartedAt)
+                .reservedVisibleNum(reservedVisibleNum)
+                .reservationRemainingSeconds(reservationRemainingSeconds)
                 .expiredAt(expiredAt)
                 .previousPassword(previousPassword)
                 .myItems(itemDtos)

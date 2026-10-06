@@ -286,4 +286,39 @@ class LentReservationRedisTest {
         assertThat(reservationPort.getReservedUserId(101)).isEmpty();
         assertThat(reservationPort.getUserReservation(USER_ID)).isEmpty();
     }
+
+    // ---------- 예약 취소 ----------
+
+    @Test
+    @DisplayName("내 예약을 취소하면 취소한 번호를 돌려주고, 사물함이 다시 비어 두 키가 모두 지워진다")
+    void cancelReservation_clearsBothKeys() {
+        service.makeReservation(USER_ID, 201);
+
+        assertThat(service.cancelReservation(USER_ID)).isEqualTo(201);
+
+        assertThat(reservationPort.getReservedUserId(201)).isEmpty();
+        assertThat(reservationPort.getUserReservation(USER_ID)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("취소할 예약이 없으면 RESERVATION_NOT_FOUND 이다")
+    void cancelReservation_noReservation() {
+        assertThatThrownBy(() -> service.cancelReservation(USER_ID))
+                .isInstanceOfSatisfying(
+                        ServiceException.class,
+                        e ->
+                                assertThat(e.getErrorCode())
+                                        .isEqualTo(ErrorCode.RESERVATION_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("예약을 취소한 뒤에는 다른 사용자가 그 사물함을 예약할 수 있다")
+    void cancelReservation_freesCabinetForOthers() {
+        service.makeReservation(USER_ID, 201);
+        service.cancelReservation(USER_ID);
+
+        assertThat(reservationPort.reserveReplacing(201, 77L, 15).status())
+                .isEqualTo(
+                        com.gyeongsan.cabinet.domain.lent.model.ReservationOutcome.Status.RESERVED);
+    }
 }
