@@ -475,6 +475,8 @@ class ChatbotRetrievalEvaluationTest {
                 report.append(report(candidate.id(), candidate.required(), "개발 세트", devResult));
                 report.append(
                         report(candidate.id(), candidate.required(), "보류 세트(보고용)", holdoutResult));
+                // 자동 답변 규칙(T, M)은 두 세트의 같은 칸을 나란히 보고 고른다.
+                report.append(commonGrid(candidate.id(), devResult, holdoutResult));
                 if (candidate.required()) {
                     report.append(
                             String.format(Locale.ROOT, "#### %s — 변형 수 학습곡선%n%n", candidate.id()));
@@ -504,6 +506,9 @@ class ChatbotRetrievalEvaluationTest {
                 }
             }
         }
+
+        // 공통 격자가 리포트에 실제로 들어갔는지(함수만 만들고 호출을 빠뜨리는 일을 막는다).
+        assertThat(report.toString()).contains("공통 격자(같은 T, M)").contains("합산(개발+보류)");
 
         Path out = Path.of("build/chatbot-eval/report.md");
         Files.createDirectories(out.getParent());
