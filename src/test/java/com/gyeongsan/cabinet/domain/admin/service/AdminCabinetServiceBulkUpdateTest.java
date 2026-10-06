@@ -214,6 +214,31 @@ class AdminCabinetServiceBulkUpdateTest {
                 request(List.of(1L, 2L), CabinetStatus.AVAILABLE, null, null, true), ADMIN);
 
         assertThat(firstLent.getEndedAt()).isNotNull().isEqualTo(secondLent.getEndedAt());
+        // DB(DATETIME(6))가 마이크로초 아래를 잘라내므로, 처음부터 마이크로초로 잘려 있어야 로그와 DB 값이 일치한다.
+        assertThat(firstLent.getEndedAt().getNano() % 1000).isZero();
+    }
+
+    @Test
+    @DisplayName("감사 로그의 발생 시각과 종료 시각은 같은 값이고 마이크로초로 잘려 있다")
+    void auditLog_timestampsAreMicrosecondPrecision() {
+        Cabinet occupied = cabinet(1L, 101, CabinetStatus.FULL);
+        LentHistory lent = lent(10L, occupied, "intra01", 7L);
+        givenLocked(occupied);
+        given(lentRepository.findAllActiveLentByCabinetIds(List.of(1L))).willReturn(List.of(lent));
+
+        adminCabinetService.bulkUpdateCabinetStatus(
+                request(List.of(1L), CabinetStatus.AVAILABLE, null, null, true), ADMIN);
+
+        ArgumentCaptor<AdminActionLog> captor = ArgumentCaptor.forClass(AdminActionLog.class);
+        verify(adminActionLogPort).save(captor.capture());
+        assertThat(captor.getValue().createdAt()).isEqualTo(lent.getEndedAt());
+        assertThat(captor.getValue().createdAt().getNano() % 1000).isZero();
+        var lentItem =
+                captor.getValue().items().stream()
+                        .filter(i -> i.targetType() == AdminActionTargetType.LENT_HISTORY)
+                        .findFirst()
+                        .orElseThrow();
+        assertThat(lentItem.after().get("endedAt")).isEqualTo(lent.getEndedAt().toString());
     }
 
     @Test

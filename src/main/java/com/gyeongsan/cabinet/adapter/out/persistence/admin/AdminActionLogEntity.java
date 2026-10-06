@@ -16,7 +16,10 @@ import org.hibernate.type.SqlTypes;
 @Table(
         name = "ADMIN_ACTION_LOG",
         uniqueConstraints = {
-            @UniqueConstraint(name = "uk_admin_action_log_batch_id", columnNames = "BATCH_ID")
+            @UniqueConstraint(name = "uk_admin_action_log_batch_id", columnNames = "BATCH_ID"),
+            @UniqueConstraint(
+                    name = "uk_admin_action_log_undo_of_batch_id",
+                    columnNames = "UNDO_OF_BATCH_ID")
         },
         indexes = {
             @Index(name = "idx_admin_action_log_actor_created", columnList = "ACTOR_ID, CREATED_AT")
@@ -50,6 +53,9 @@ public class AdminActionLogEntity {
     @Column(name = "REQUEST_JSON", nullable = false, columnDefinition = "MEDIUMTEXT")
     private String requestJson;
 
+    @Column(name = "UNDO_OF_BATCH_ID", length = 36)
+    private String undoOfBatchId;
+
     @Column(name = "CREATED_AT", nullable = false)
     private LocalDateTime createdAt;
 
@@ -64,6 +70,19 @@ public class AdminActionLogEntity {
             String reason,
             String requestJson,
             LocalDateTime createdAt) {
+        this(batchId, actionType, actorId, actorName, reason, requestJson, createdAt, null);
+    }
+
+    AdminActionLogEntity(
+            String batchId,
+            AdminActionType actionType,
+            Long actorId,
+            String actorName,
+            String reason,
+            String requestJson,
+            LocalDateTime createdAt,
+            String undoOfBatchId) {
+        this.undoOfBatchId = undoOfBatchId;
         this.batchId = batchId;
         this.actionType = actionType;
         this.actorId = actorId;

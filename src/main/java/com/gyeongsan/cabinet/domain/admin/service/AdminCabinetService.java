@@ -18,6 +18,7 @@ import com.gyeongsan.cabinet.global.exception.BulkStatusUpdateRejectedException;
 import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -215,7 +216,9 @@ public class AdminCabinetService implements AdminCabinetUseCase {
                     new BulkStatusRejection(missingIds, occupiedCabinets));
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        // DB(DATETIME(6))는 마이크로초까지만 저장하고 나머지는 잘라낸다. 로그에 남기는 시각과 DB 값이 같아야
+        // 나중에 Undo 가 "그 사이 바뀌지 않았다"를 정확히 비교할 수 있으므로, 처음부터 마이크로초로 자른다.
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.MICROS);
         List<BulkStatusUpdateResponse.UpdatedCabinet> updatedCabinets = new ArrayList<>();
         List<BulkStatusUpdateResponse.EndedLent> endedLents = new ArrayList<>();
         List<AdminActionLogItem> logItems = new ArrayList<>();

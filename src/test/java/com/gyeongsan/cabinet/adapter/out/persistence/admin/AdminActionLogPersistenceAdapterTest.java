@@ -85,4 +85,72 @@ class AdminActionLogPersistenceAdapterTest {
         assertThat(lentItem.getBeforeJson()).isNull();
         assertThat(lentItem.getAfterJson()).isNull();
     }
+
+    @Test
+    @DisplayName("저장된 엔티티를 도메인 로그로 읽을 때 JSON 을 Map 으로, 항목은 ID 순으로 복원한다")
+    void findByBatchId_mapsEntityBackToDomainWithParsedJson() {
+        AdminActionLogPersistenceAdapter adapter =
+                new AdminActionLogPersistenceAdapter(repository, new ObjectMapper());
+        LocalDateTime now = LocalDateTime.of(2026, 10, 5, 12, 0, 0);
+        AdminActionLogEntity entity =
+                new AdminActionLogEntity(
+                        "batch-1",
+                        AdminActionType.CABINET_BULK_STATUS_UNDO,
+                        1L,
+                        "admin01",
+                        "되돌림",
+                        "{\"undoOfBatchId\":\"orig\"}",
+                        now,
+                        "orig");
+        AdminActionLogItemEntity second =
+                new AdminActionLogItemEntity(
+                        entity,
+                        AdminActionTargetType.LENT_HISTORY,
+                        9L,
+                        "101",
+                        "{\"endedAt\":\"2026-10-05T12:00:00.123456\",\"userId\":7}",
+                        "{\"endedAt\":null,\"userId\":7}");
+        AdminActionLogItemEntity first =
+                new AdminActionLogItemEntity(
+                        entity,
+                        AdminActionTargetType.CABINET,
+                        7L,
+                        "101",
+                        "{\"status\":\"AVAILABLE\",\"statusNote\":null}",
+                        "{\"status\":\"FULL\",\"statusNote\":null}");
+        org.springframework.test.util.ReflectionTestUtils.setField(first, "id", 1L);
+        org.springframework.test.util.ReflectionTestUtils.setField(second, "id", 2L);
+        // 일부러 뒤섞어 넣어도 ID 순으로 복원되어야 한다.
+        entity.addItem(second);
+        entity.addItem(first);
+        org.mockito.BDDMockito.given(repository.findByBatchId("batch-1"))
+                .willReturn(java.util.Optional.of(entity));
+
+        AdminActionLog log = adapter.findByBatchId("batch-1").orElseThrow();
+
+        assertThat(log.actionType()).isEqualTo(AdminActionType.CABINET_BULK_STATUS_UNDO);
+        assertThat(log.undoOfBatchId()).isEqualTo("orig");
+        assertThat(log.actor()).isEqualTo(new AdminActor(1L, "admin01"));
+        assertThat(log.request()).containsEntry("undoOfBatchId", "orig");
+        assertThat(log.items()).hasSize(2);
+        assertThat(log.items().get(0).targetType()).isEqualTo(AdminActionTargetType.CABINET);
+        assertThat(log.items().get(0).before())
+                .containsEntry("status", "AVAILABLE")
+                .containsEntry("statusNote", null);
+        assertThat(log.items().get(1).before())
+                .containsEntry("endedAt", "2026-10-05T12:00:00.123456");
+        assertThat(((Number) log.items().get(1).before().get("userId")).longValue()).isEqualTo(7L);
+        assertThat(log.items().get(1).after()).containsEntry("endedAt", null);
+    }
+
+    @Test
+    @DisplayName("원본이 없으면 비어 있다")
+    void findByBatchId_missing_isEmpty() {
+        AdminActionLogPersistenceAdapter adapter =
+                new AdminActionLogPersistenceAdapter(repository, new ObjectMapper());
+        org.mockito.BDDMockito.given(repository.findByBatchId("none"))
+                .willReturn(java.util.Optional.empty());
+
+        assertThat(adapter.findByBatchId("none")).isEmpty();
+    }
 }

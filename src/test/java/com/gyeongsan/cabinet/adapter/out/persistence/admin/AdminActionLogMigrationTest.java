@@ -97,8 +97,8 @@ class AdminActionLogMigrationTest {
             // 사람이 1회 수동으로 찍는 baseline 과 같은 효과.
             flyway(mysql).baseline();
             MigrateResult result = flyway(mysql).migrate();
-            assertThat(result.migrationsExecuted).isEqualTo(1);
-            assertThat(flyway(mysql).info().current().getVersion().getVersion()).isEqualTo("2");
+            assertThat(result.migrationsExecuted).isEqualTo(2);
+            assertThat(flyway(mysql).info().current().getVersion().getVersion()).isEqualTo("3");
             // 두 번째 실행은 아무것도 하지 않는다.
             assertThat(flyway(mysql).migrate().migrationsExecuted).isZero();
 
@@ -145,18 +145,64 @@ class AdminActionLogMigrationTest {
         }
     }
 
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.4"})
+    @DisplayName("한 작업은 한 번만 되돌릴 수 있다(undo_of_batch_id UNIQUE), 일반 기록은 NULL 이 여러 개여도 된다")
+    void undoOfBatchIdIsUniquePerOriginal(String image) throws Exception {
+        try (MySQLContainer<?> mysql = newMysql(image)) {
+            mysql.start();
+            flyway(mysql).migrate();
+
+            try (SessionFactory sessionFactory = validatingSessionFactory(mysql)) {
+                persistLog(
+                        sessionFactory, "orig-1", AdminActionType.CABINET_BULK_STATUS_UPDATE, null);
+                persistLog(
+                        sessionFactory, "orig-2", AdminActionType.CABINET_BULK_STATUS_UPDATE, null);
+                persistLog(
+                        sessionFactory,
+                        "undo-1",
+                        AdminActionType.CABINET_BULK_STATUS_UNDO,
+                        "orig-1");
+
+                assertThatThrownBy(
+                                () ->
+                                        persistLog(
+                                                sessionFactory,
+                                                "undo-1b",
+                                                AdminActionType.CABINET_BULK_STATUS_UNDO,
+                                                "orig-1"))
+                        .isInstanceOf(Exception.class);
+                // 다른 원본에 대한 Undo 는 가능하다.
+                persistLog(
+                        sessionFactory,
+                        "undo-2",
+                        AdminActionType.CABINET_BULK_STATUS_UNDO,
+                        "orig-2");
+            }
+        }
+    }
+
     private static void persistSampleLog(SessionFactory sessionFactory) {
+        persistLog(sessionFactory, "batch-0001", AdminActionType.CABINET_BULK_STATUS_UPDATE, null);
+    }
+
+    private static void persistLog(
+            SessionFactory sessionFactory,
+            String batchId,
+            AdminActionType type,
+            String undoOfBatchId) {
         try (Session session = sessionFactory.openSession()) {
             session.beginTransaction();
             AdminActionLogEntity log =
                     new AdminActionLogEntity(
-                            "batch-0001",
-                            AdminActionType.CABINET_BULK_STATUS_UPDATE,
+                            batchId,
+                            type,
                             1L,
                             "admin01",
                             "월말 일괄 반납",
                             "{\"status\":\"AVAILABLE\"}",
-                            LocalDateTime.now());
+                            LocalDateTime.now(),
+                            undoOfBatchId);
             log.addItem(
                     new AdminActionLogItemEntity(
                             log,
