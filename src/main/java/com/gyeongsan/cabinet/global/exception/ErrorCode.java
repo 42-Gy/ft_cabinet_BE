@@ -58,6 +58,8 @@ public enum ErrorCode {
 
     RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "LENT_012", "취소할 예약이 없습니다."),
 
+    REQUEST_IN_PROGRESS(HttpStatus.CONFLICT, "LOCK_001", "현재 처리 중인 요청입니다. 잠시 후 다시 시도해주세요."),
+
     ADMIN_ACTION_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "ADMIN_LOG_001", "관리자 작업 기록을 찾을 수 없습니다.");
 
     private final HttpStatus status;
