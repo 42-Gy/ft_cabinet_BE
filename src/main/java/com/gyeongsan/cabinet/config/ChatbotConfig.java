@@ -4,6 +4,7 @@ import com.gyeongsan.cabinet.adapter.out.embedding.CharNgramEmbeddingAdapter;
 import com.gyeongsan.cabinet.adapter.out.embedding.LazyEmbeddingPort;
 import com.gyeongsan.cabinet.adapter.out.embedding.OnnxEmbeddingAdapter;
 import com.gyeongsan.cabinet.adapter.out.metrics.MicrometerChatbotMetricsAdapter;
+import com.gyeongsan.cabinet.adapter.out.metrics.ProcessRssMetrics;
 import com.gyeongsan.cabinet.application.chatbot.ChatbotService;
 import com.gyeongsan.cabinet.application.chatbot.ChatbotSettings;
 import com.gyeongsan.cabinet.application.chatbot.FaqAdminService;
@@ -36,10 +37,10 @@ public class ChatbotConfig {
 
     @Bean
     public ChatbotSettings chatbotSettings(
-            @Value("${app.chatbot.match-threshold:0.92}") double matchThreshold,
+            @Value("${app.chatbot.match-threshold:0.93}") double matchThreshold,
             @Value("${app.chatbot.suggest-threshold:0.88}") double suggestThreshold,
             @Value("${app.chatbot.max-suggestions:3}") int maxSuggestions,
-            @Value("${app.chatbot.match-margin:0.03}") double matchMargin,
+            @Value("${app.chatbot.match-margin:0.02}") double matchMargin,
             @Value("${app.chatbot.match-alternatives:2}") int matchAlternatives,
             @Value("${app.chatbot.max-question-length:200}") int maxQuestionLength,
             @Value("${app.chatbot.max-concurrent-embeddings:2}") int maxConcurrentEmbeddings,
@@ -97,6 +98,12 @@ public class ChatbotConfig {
                     throw new IllegalArgumentException(
                             "알 수 없는 챗봇 임베딩 방식입니다(onnx 또는 ngram): " + provider);
         };
+    }
+
+    /** 모델이 쓰는 네이티브 메모리까지 보려고 프로세스 RSS 를 지표로 노출한다(챗봇이 켜졌을 때만). */
+    @Bean
+    public ProcessRssMetrics chatbotProcessRssMetrics() {
+        return new ProcessRssMetrics();
     }
 
     @Bean

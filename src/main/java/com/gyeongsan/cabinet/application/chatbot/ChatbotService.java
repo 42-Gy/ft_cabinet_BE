@@ -46,6 +46,7 @@ public class ChatbotService implements AskChatbotUseCase {
             throw new ServiceException(ErrorCode.CHATBOT_NOT_READY);
         }
 
+        long started = System.nanoTime();
         float[] vector = embedQuestion(question);
         // 1·2위 차이를 보려면 최소 2개, 자동 답변의 대안 후보를 위해 1위 + 대안 개수까지 필요하다.
         int limit =
@@ -54,6 +55,7 @@ public class ChatbotService implements AskChatbotUseCase {
 
         ChatbotAnswer answer = decide(hits);
         metrics.recordAsk(answer.result());
+        metrics.recordAskDuration(System.nanoTime() - started);
         log.debug("[Chatbot] 결과={}, 최고 유사도={}", answer.result(), answer.score());
         return answer;
     }

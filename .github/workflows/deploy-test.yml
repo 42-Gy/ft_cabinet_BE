@@ -66,6 +66,10 @@ jobs:
           file: ./Dockerfile
           push: true
           provenance: false
+          # 챗봇 임베딩 모델(e5)을 이미지에 넣는다. chatbot-models.lock 에 고정된 revision/SHA256 과 다르면 빌드가 실패한다.
+          # 모델이 들어가도 챗봇은 CHATBOT_ENABLED=true 를 설정하기 전까지 꺼져 있다(이미지가 약 470MB 커진다).
+          build-args: |
+            CHATBOT_MODEL=e5
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ github.sha }}

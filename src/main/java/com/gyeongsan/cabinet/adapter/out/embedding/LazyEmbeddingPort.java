@@ -6,12 +6,16 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.function.Supplier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 모델을 처음 쓸 때 불러오고, 실패하면 잠시(기본 60초) 쉬었다가 다시 시도한다. 모델 파일이 없거나 네이티브 라이브러리를 못 불러와도 서버는 정상 기동하고 챗봇만 "사용할
  * 수 없음"이 된다.
  */
 public class LazyEmbeddingPort implements EmbeddingPort, AutoCloseable {
+
+    private static final Logger log = LoggerFactory.getLogger(LazyEmbeddingPort.class);
 
     private final String modelId;
     private final Supplier<EmbeddingPort> factory;
@@ -48,7 +52,12 @@ public class LazyEmbeddingPort implements EmbeddingPort, AutoCloseable {
             throw new EmbeddingUnavailableException(lastFailureMessage);
         }
         try {
+            long started = System.nanoTime();
             delegate = factory.get();
+            log.info(
+                    "[Chatbot] 임베딩 모델 로드 완료: {}, {}ms",
+                    modelId,
+                    (System.nanoTime() - started) / 1_000_000);
             lastFailureAt = null;
             lastFailureMessage = null;
             return delegate;

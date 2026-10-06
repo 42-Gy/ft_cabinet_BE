@@ -94,6 +94,13 @@ jobs:
           chmod +x gradlew
           ./gradlew test --tests '*ChatbotGoldenVectorTest' --tests '*ChatbotRetrievalEvaluationTest' -x jacocoTestCoverageVerification --no-daemon -i
 
+      # 메모리·지연 참고치: 러너 CPU 를 2코어로 제한해(Azure B2 와 같은 코어 수) 같은 설정으로 잰다. 서버 실측은 아니다.
+      - name: 📏 메모리·지연 측정 (2코어 제한)
+        env:
+          CHATBOT_EVAL_MODELS_DIR: ${{ github.workspace }}/build/chatbot-models
+        run: |
+          taskset -c 0,1 ./gradlew test --tests '*ChatbotFootprintTest' -x jacocoTestCoverageVerification --no-daemon -i
+
       - name: 📝 요약 작성
         if: always()
         run: |
@@ -101,6 +108,8 @@ jobs:
             echo "## 챗봇 모델 평가"
             echo
             if [ -f build/chatbot-eval/golden.md ]; then cat build/chatbot-eval/golden.md; else echo "(정합성 리포트가 생성되지 않았습니다)"; fi
+            echo
+            if [ -f build/chatbot-eval/footprint.md ]; then cat build/chatbot-eval/footprint.md; fi
             echo
             if [ -f build/chatbot-eval/report.md ]; then cat build/chatbot-eval/report.md; else echo "(리포트가 생성되지 않았습니다)"; fi
             echo
@@ -118,5 +127,6 @@ jobs:
           path: |
             build/chatbot-eval/report.md
             build/chatbot-eval/golden.md
+            build/chatbot-eval/footprint.md
             build/chatbot-models/pin.txt
           if-no-files-found: warn

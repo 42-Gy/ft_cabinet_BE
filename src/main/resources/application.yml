@@ -178,14 +178,16 @@ app:
   # 질문은 서버 밖으로 나가지 않고, 원문은 저장하지 않는다(결과별 건수만 지표로 집계).
   chatbot:
     enabled: ${CHATBOT_ENABLED:false}
-    # 임계값은 모델마다 다르다. 아래 기본값은 e5(multilingual-e5-small) 기준 잠정값이다(점수가 0.84~0.96 에 몰리는 모델).
+    # 임계값은 모델마다 다르다. 아래 기본값은 e5(multilingual-e5-small)·FAQ 26개/변형 180개 기준으로 평가의 공통 격자(개발+보류 세트의
+    # 같은 T, M 칸)에서 골랐다: T=0.93, M=0.02 는 두 세트 모두 범위 밖 수락 0%, 합산 커버리지 35.9%·1위 정답률 94.3%
+    # (개발 26.4%/87.0%, 보류 43.5%/97.9%). 평가 질문이 같은 저자의 것이라 실제 분포에서는 더 낮을 수 있다.
     #  - suggest-threshold: 이 이상이면 "비슷한 질문" 후보를 보여 준다(사용자가 눌러 확정하므로 틀린 후보의 피해가 작다).
     #  - match-threshold + match-margin: 1위 점수가 이 이상이고 2위와 차이도 이 이상일 때만 답변을 바로 보여 준다.
     #  - match-alternatives: 자동 답변과 함께 돌려줄 "혹시 이 질문인가요?" 대안 후보 수.
     # 모델이나 FAQ 를 바꾸면 GitHub Actions 의 챗봇 평가(공통 격자)로 다시 맞춘다. ngram(개발용)은 점수대가 낮아 별도 값이 필요하다.
-    match-threshold: ${CHATBOT_MATCH_THRESHOLD:0.92}
+    match-threshold: ${CHATBOT_MATCH_THRESHOLD:0.93}
     suggest-threshold: ${CHATBOT_SUGGEST_THRESHOLD:0.88}
-    match-margin: ${CHATBOT_MATCH_MARGIN:0.03}
+    match-margin: ${CHATBOT_MATCH_MARGIN:0.02}
     match-alternatives: ${CHATBOT_MATCH_ALTERNATIVES:2}
     max-suggestions: 3
     max-question-length: 200

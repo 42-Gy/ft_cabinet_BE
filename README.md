@@ -577,7 +577,7 @@ erDiagram
 | `CHATBOT_ENABLED` | `false` | `true` 여야 컨트롤러·인덱스·스케줄러가 켜진다 |
 | `CHATBOT_MODEL_DIR` | `/app/chatbot-model` | `model.onnx`, `tokenizer.json`, `model.properties` 가 있는 디렉터리(Docker 빌드가 채운다) |
 | `CHATBOT_MODEL_ID`, `CHATBOT_EMBEDDING_PREFIX`, `CHATBOT_MAX_TOKENS` | 비움 | 비워 두면 `model.properties` 를 따른다(e5 의 `query: ` 접두어 누락 방지). 값을 넣으면 그 값이 우선 |
-| `CHATBOT_MATCH_THRESHOLD` / `CHATBOT_MATCH_MARGIN` | `0.92` / `0.03` | **자동 답변(MATCHED)** 조건: 1위 유사도가 T 이상이고 1·2위 차이도 M 이상. e5 는 점수가 0.84~0.96 에 몰려서 절대 점수보다 1·2위 차이가 정답을 더 잘 가려낸다. 잠정값이며 평가의 공통 격자로 확정한다 |
+| `CHATBOT_MATCH_THRESHOLD` / `CHATBOT_MATCH_MARGIN` | `0.93` / `0.02` | **자동 답변(MATCHED)** 조건: 1위 유사도가 T 이상이고 1·2위 차이도 M 이상. e5 는 점수가 0.84~0.96 에 몰려서 절대 점수보다 1·2위 차이가 정답을 더 잘 가려낸다(정답 구분력 AUROC: 점수 0.59~0.75, margin 0.74~0.90). 평가의 공통 격자에서 두 세트 모두 범위 밖 수락 0%인 칸 중 골랐다(합산 커버리지 35.9%, 1위 정답률 94.3%). 모델이나 FAQ 를 바꾸면 다시 맞춘다 |
 | `CHATBOT_SUGGEST_THRESHOLD` | `0.88` | **후보 제안** 하한. 이 이상이면 비슷한 질문 후보(최대 3개)를 보여 주고, 사용자가 눌러 확정한다(틀린 후보의 피해가 작다). 근접 도메인 범위 밖 질문("사물함 크기")에도 후보가 나갈 수 있는 것은 감수한다 |
 | `CHATBOT_MATCH_ALTERNATIVES` | `2` | 자동 답변과 함께 "혹시 이 질문인가요?" 대안 후보를 최대 몇 개 돌려줄지(후보 하한 이상인 2위부터). 0 이면 끔 |
 | `CHATBOT_EMBEDDING_THREADS` | `2` | ONNX 스레드 수 |

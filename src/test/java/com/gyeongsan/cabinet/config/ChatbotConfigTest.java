@@ -68,9 +68,9 @@ class ChatbotConfigTest {
                             assertThat(context).hasNotFailed();
                             assertThat(context).hasSingleBean(ChatbotService.class);
                             ChatbotSettings settings = context.getBean(ChatbotSettings.class);
-                            assertThat(settings.matchThreshold()).isEqualTo(0.92);
+                            assertThat(settings.matchThreshold()).isEqualTo(0.93);
                             assertThat(settings.suggestThreshold()).isEqualTo(0.88);
-                            assertThat(settings.matchMargin()).isEqualTo(0.03);
+                            assertThat(settings.matchMargin()).isEqualTo(0.02);
                             assertThat(settings.matchAlternatives()).isEqualTo(2);
                             assertThat(settings.maxQuestionLength()).isEqualTo(200);
                             assertThat(context.getBean(EmbeddingPort.class).modelId())

@@ -6,4 +6,7 @@ import com.gyeongsan.cabinet.domain.chatbot.model.ChatbotAnswer;
 public interface ChatbotMetricsPort {
 
     void recordAsk(ChatbotAnswer.Result result);
+
+    /** 질문 하나를 처리하는 데 걸린 시간(임베딩 + 검색). 지연 분포(p50/p95/p99)를 보려는 것이며 질문 내용은 담지 않는다. */
+    default void recordAskDuration(long nanos) {}
 }
