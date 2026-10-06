@@ -122,7 +122,12 @@ public class LentApplicationService implements LentUseCase {
             MultipartFile file,
             Boolean forceReturn,
             String reason) {
-        log.info("AI 반납 시도 - User: {}, Force: {}, Reason: {}", userId, forceReturn, reason);
+        // 사유는 사용자가 직접 쓴 글이라 로그에 남기지 않는다(작성 여부만 남긴다).
+        log.info(
+                "AI 반납 시도 - User: {}, Force: {}, 사유 작성: {}",
+                userId,
+                forceReturn,
+                reason != null && !reason.isBlank());
 
         boolean isAiSuccess = false;
         try {

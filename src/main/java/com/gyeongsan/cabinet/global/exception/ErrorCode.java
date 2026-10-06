@@ -63,6 +63,7 @@ public enum ErrorCode {
     CHATBOT_INVALID_QUESTION(HttpStatus.BAD_REQUEST, "CHATBOT_001", "질문을 입력해 주세요. (최대 200자)"),
     CHATBOT_NOT_READY(
             HttpStatus.SERVICE_UNAVAILABLE, "CHATBOT_002", "챗봇을 지금은 사용할 수 없습니다. 잠시 후 다시 시도해 주세요."),
+    CHATBOT_INVALID_INTENT(HttpStatus.BAD_REQUEST, "CHATBOT_005", "지원하지 않는 조회 종류입니다."),
     FAQ_NOT_FOUND(HttpStatus.NOT_FOUND, "CHATBOT_003", "FAQ 를 찾을 수 없습니다."),
     FAQ_INVALID(HttpStatus.BAD_REQUEST, "CHATBOT_004", "FAQ 내용이 올바르지 않습니다."),
 

@@ -2,6 +2,7 @@ package com.gyeongsan.cabinet.application.chatbot;
 
 import com.gyeongsan.cabinet.domain.chatbot.model.ChatbotAnswer;
 import com.gyeongsan.cabinet.domain.chatbot.model.EmbeddingUnavailableException;
+import com.gyeongsan.cabinet.domain.chatbot.model.PersonalIntent;
 import com.gyeongsan.cabinet.domain.chatbot.port.in.AskChatbotUseCase;
 import com.gyeongsan.cabinet.domain.chatbot.port.out.ChatbotMetricsPort;
 import com.gyeongsan.cabinet.domain.chatbot.port.out.EmbeddingPort;
@@ -23,12 +24,24 @@ public class ChatbotService implements AskChatbotUseCase {
     private final ChatbotMetricsPort metrics;
     private final ChatbotSettings settings;
     private final Semaphore embeddingGate;
+    private final PersonalIntentRouter personalRouter;
 
     public ChatbotService(
             FaqIndexManager indexManager,
             EmbeddingPort embedding,
             ChatbotMetricsPort metrics,
             ChatbotSettings settings) {
+        this(indexManager, embedding, metrics, settings, null);
+    }
+
+    /** personalRouter 가 있으면 "내 정보" 질문에 개인화 칩을 함께 제안한다(없으면 기존 동작 그대로). */
+    public ChatbotService(
+            FaqIndexManager indexManager,
+            EmbeddingPort embedding,
+            ChatbotMetricsPort metrics,
+            ChatbotSettings settings,
+            PersonalIntentRouter personalRouter) {
+        this.personalRouter = personalRouter;
         this.indexManager = indexManager;
         this.embedding = embedding;
         this.metrics = metrics;
@@ -54,10 +67,31 @@ public class ChatbotService implements AskChatbotUseCase {
         List<FaqIndex.Hit> hits = indexManager.current().search(vector, limit);
 
         ChatbotAnswer answer = decide(hits);
+        PersonalIntent action = personalAction(vector, hits);
+        if (action != null) {
+            answer = answer.withPersonalAction(action);
+            metrics.recordPersonal(action, "chip_shown");
+        }
         metrics.recordAsk(answer.result());
         metrics.recordAskDuration(System.nanoTime() - started);
         log.debug("[Chatbot] 결과={}, 최고 유사도={}", answer.result(), answer.score());
         return answer;
+    }
+
+    /**
+     * 질문이 "내 정보" 질문처럼 보이면 칩을 제안한다. FAQ 후보 하한과 같은 기준(suggest-threshold)을 넘고 가장 비슷한 FAQ 만큼 가까울 때만
+     * 붙인다. 칩은 제안일 뿐이라 틀려도 사용자가 누르지 않으면 아무 일도 없다.
+     */
+    private PersonalIntent personalAction(float[] vector, List<FaqIndex.Hit> hits) {
+        if (personalRouter == null) {
+            return null;
+        }
+        double bestFaq = hits.isEmpty() ? 0 : hits.get(0).score();
+        return personalRouter
+                .route(vector)
+                .filter(h -> h.score() >= settings.suggestThreshold() && h.score() >= bestFaq)
+                .map(PersonalIntentRouter.Hit::intent)
+                .orElse(null);
     }
 
     private ChatbotAnswer decide(List<FaqIndex.Hit> hits) {

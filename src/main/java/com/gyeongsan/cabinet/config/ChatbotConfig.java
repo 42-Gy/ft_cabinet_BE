@@ -10,6 +10,7 @@ import com.gyeongsan.cabinet.application.chatbot.ChatbotSettings;
 import com.gyeongsan.cabinet.application.chatbot.FaqAdminService;
 import com.gyeongsan.cabinet.application.chatbot.FaqIndexManager;
 import com.gyeongsan.cabinet.application.chatbot.FaqSeeder;
+import com.gyeongsan.cabinet.application.chatbot.PersonalIntentRouter;
 import com.gyeongsan.cabinet.domain.chatbot.port.out.ChatbotMetricsPort;
 import com.gyeongsan.cabinet.domain.chatbot.port.out.EmbeddingPort;
 import com.gyeongsan.cabinet.domain.chatbot.port.out.FaqRepositoryPort;
@@ -22,6 +23,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Properties;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -122,8 +124,15 @@ public class ChatbotConfig {
             FaqIndexManager indexManager,
             EmbeddingPort chatbotEmbeddingPort,
             ChatbotMetricsPort metrics,
-            ChatbotSettings settings) {
-        return new ChatbotService(indexManager, chatbotEmbeddingPort, metrics, settings);
+            ChatbotSettings settings,
+            ObjectProvider<PersonalIntentRouter> personalRouter) {
+        // 개인화가 꺼져 있으면 라우터 빈이 없고, 칩 제안 없이 기존 FAQ 동작 그대로다.
+        return new ChatbotService(
+                indexManager,
+                chatbotEmbeddingPort,
+                metrics,
+                settings,
+                personalRouter.getIfAvailable());
     }
 
     @Bean

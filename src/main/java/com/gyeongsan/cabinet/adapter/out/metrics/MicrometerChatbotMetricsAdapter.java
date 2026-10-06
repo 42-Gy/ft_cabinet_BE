@@ -1,6 +1,7 @@
 package com.gyeongsan.cabinet.adapter.out.metrics;
 
 import com.gyeongsan.cabinet.domain.chatbot.model.ChatbotAnswer;
+import com.gyeongsan.cabinet.domain.chatbot.model.PersonalIntent;
 import com.gyeongsan.cabinet.domain.chatbot.port.out.ChatbotMetricsPort;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -25,5 +26,16 @@ public class MicrometerChatbotMetricsAdapter implements ChatbotMetricsPort {
     @Override
     public void recordAsk(ChatbotAnswer.Result result) {
         registry.counter("chatbot.ask", "result", result.name().toLowerCase()).increment();
+    }
+
+    @Override
+    public void recordPersonal(PersonalIntent intent, String outcome) {
+        registry.counter(
+                        "chatbot.personal",
+                        "intent",
+                        intent.name().toLowerCase(),
+                        "outcome",
+                        outcome)
+                .increment();
     }
 }

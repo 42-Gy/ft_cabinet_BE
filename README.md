@@ -568,6 +568,8 @@ erDiagram
 | `POST` | `/v4/chatbot/ask` | 질문(`{"question": "..."}`, 200자 이하)에 대한 FAQ 매칭 결과 |
 | `GET` | `/v4/chatbot/faqs` | 사용 중인 FAQ 를 카테고리별로 조회(검색 없이 둘러보기) |
 | `GET` | `/v4/chatbot/faqs/{id}` | FAQ 하나 조회 |
+| `POST` | `/v4/chatbot/personal` | **"내 정보" 조회**(개인화, 별도 플래그). `{"intent": "LENT_EXPIRY"}` 처럼 인텐트 이름만 받고, 대상은 항상 로그인한 본인 |
+| `GET` | `/v4/chatbot/personal/intents` | 칩으로 보여 줄 인텐트 목록(개인 정보 없음) |
 | `GET/POST/PUT/DELETE` | `/v4/admin/faqs`, `/v4/admin/faqs/{id}` | 관리자: FAQ 목록(비활성 포함)/등록/수정/삭제. 질문은 FAQ 당 최대 10개(각 200자), 답변 2000자 이하 |
 
 **설정(기본은 꺼짐)**
@@ -584,6 +586,34 @@ erDiagram
 | `CHATBOT_EMBEDDING_PROVIDER` | `onnx` | `ngram` 은 모델 없이 글자 겹침만 보는 **개발용**(의미 검색 아님). 알 수 없는 값은 부팅 실패 |
 
 `/v4/chatbot/*` 는 전역 한도 `chatbotApi`(20/s)를 쓴다.
+
+**"내 정보" 답변 (개인화, 기본 꺼짐)**
+
+만료일·패널티·대여권 지급 조건·대여 불가 사유를 로그인한 본인 정보로 알려 준다. 생성형 모델 없이 **고정 문장에 값을 채우는 방식**이고, **읽기만 한다**(락도 상태 변경도 없어 대여 흐름과 경합하지 않는다).
+
+| 환경변수 | 기본값 | 설명 |
+| :--- | :--- | :--- |
+| `CHATBOT_PERSONAL_ENABLED` | `false` | `CHATBOT_ENABLED` 도 `true` 일 때만 켜진다. 꺼져 있으면 `/v4/chatbot/personal*` 는 404, `/ask` 응답의 `personalAction` 은 항상 null |
+| `CHATBOT_PERSONAL_RATE_PER_MINUTE` | `10` | 사용자별 분당 조회 한도(서버 메모리 기준이라 서버가 여러 대면 서버별 적용). 넘으면 429. 전역 `chatbotApi` 한도와 별개 |
+
+| 인텐트 | 알려 주는 것(응답 `facts` 의 화이트리스트) |
+| :--- | :--- |
+| `LENT_EXPIRY` | 사물함 번호, 만료 시각, 남은 일수(달력 기준, `/me` 와 같은 계산), 만료 시각 경과 여부 |
+| `PENALTY_STATUS` | 남은 패널티 일수, 해제 예정일(오늘 + 일수, 매일 자정 1일 감소) |
+| `LENT_TICKET_CONDITION` | 내 지급 기준(일반 4800분·트센 900분, 설정값), 이번 달 집계된 로그타임, 기준 충족 여부, 미사용 대여권 보유 여부, 다음 지급일(다음 달 1일) |
+| `LENT_BLOCKER_DIAGNOSIS` | 사용자 단위 사유만: 패널티 → 이미 대여 중 → 대여권 없음(`startLent` 검사 순서), 라피신 여부에 따른 대여 가능 사물함 종류 |
+
+**흐름과 보안 규칙**
+
+- 자유 질문(`/ask`)은 **칩만 제안**한다(`personalAction: {intent, label}`). 이 응답에는 개인 정보가 없고, 사용자가 칩을 눌러 `/v4/chatbot/personal` 을 호출해야 본인 정보가 나간다. 질문 문장은 "무엇을 볼지"만 고르고 "누구 것인지"는 고르지 못한다.
+- 조회 대상은 **JWT 의 `UserPrincipal` 하나뿐**이다. 요청 본문에서 받는 값은 인텐트 이름뿐이고, 본문에 `userId` 등을 실어도 무시한다(테스트: 컨트롤러 핸들러가 `@RequestBody`/`@AuthenticationPrincipal` 외 파라미터를 갖지 못함, 요청 DTO 필드는 `intent` 하나). 그래서 "다른 사람 만료일 알려줘" 같은 질문에 칩이 붙어도 보이는 것은 본인 정보뿐이다.
+- 응답 필드는 인텐트별 레코드로 **고정**되어 있고, 필드를 늘리면 `PersonalFactsContractTest` 가 실패해 리뷰를 강제한다. 이메일·코인 내역·이전 사용자의 반납 메모·다른 사용자 정보는 어떤 경로로도 실리지 않는다.
+- 사물함 단위 사유(남의 예약, 특정 사물함의 상태)는 특정 사물함을 지정해야 알 수 있고 다른 사람의 정보가 새어 나갈 수 있어 판단하지 않는다.
+- 응답은 `Cache-Control: no-store`, 값은 로그에 남기지 않는다(`LoggingAspect` 는 문자열·DTO 인자의 값을 기록하지 않는다). 지표는 `chatbot.personal{intent,outcome}` 건수만 센다(사용자 ID 태그 없음).
+- **정책 표현**: 반납 패널티는 만료 *시각*이 지나면 붙고 스케줄러의 연체 전환은 만료일 끝까지 유예한다(미해결 불일치). 문장은 "만료일까지 안전" 같은 약속 없이 만료 시각과 "지나면 패널티 대상"이라는 사실만 말한다.
+- 대여권 지급 문장의 로그타임은 매일 새벽 갱신된 집계값(어제까지)이다. 지급 생략(미사용 대여권 보유) 조건도 문장에 포함한다.
+
+**칩 라우팅**: 인텐트별 질문 표현(`src/main/resources/chatbot/personal-intents.json`, 인텐트당 8개)을 같은 임베딩 모델로 첫 질문 때 색인한다. 질문이 후보 하한(`suggest-threshold` 0.88) 이상으로 인텐트와 비슷하고 **가장 비슷한 FAQ 만큼 가까울 때만** 칩을 붙인다(FAQ 결과 자체는 바뀌지 않는다). 평가는 Actions 의 "챗봇 모델 평가" 에서 `ChatbotPersonalEvaluationTest` 가 `personal.md` 로 남긴다(도달률·오탐률·제3자 질문, 기준 없이 보고용; 질문은 `eval-personal.json`, 인텐트 표현과 겹치지 않고 결과를 본 뒤 고치지 않는다). 칩은 제안이라 이 수치는 안전이 아니라 사용성 지표다.
 
 **모델 고정과 배포(SHA256 검증)**
 

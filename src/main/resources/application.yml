@@ -190,6 +190,11 @@ app:
     match-margin: ${CHATBOT_MATCH_MARGIN:0.02}
     match-alternatives: ${CHATBOT_MATCH_ALTERNATIVES:2}
     max-suggestions: 3
+    # "내 정보" 답변(만료일, 패널티, 대여권 조건, 대여 불가 진단). 기본 꺼짐. 켜려면 CHATBOT_ENABLED 도 true 여야 한다.
+    # 질문은 칩만 제안하고, 개인 정보는 칩을 눌러 호출하는 /v4/chatbot/personal 에서만 본인 것으로 조회한다.
+    personal:
+      enabled: ${CHATBOT_PERSONAL_ENABLED:false}
+      rate-limit-per-minute: ${CHATBOT_PERSONAL_RATE_PER_MINUTE:10}
     max-question-length: 200
     max-concurrent-embeddings: 2
     reload-interval-ms: 30000
