@@ -60,10 +60,8 @@ public class LentApplicationService implements LentUseCase {
 
         checkCabinetReservation(visibleNum, userId);
 
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+        // 같은 유저의 동시 요청(다른 사물함 두 개 등)을 직렬화한다. 락 순서는 항상 사용자 -> 사물함이다.
+        User user = lockUser(userId);
 
         if (user.getPenaltyDays() > 0) {
             throw new ServiceException(ErrorCode.PENALTY_USER);
@@ -245,10 +243,8 @@ public class LentApplicationService implements LentUseCase {
     public void manualRenew(Long userId) {
         log.info("수동 연장(대여권 사용) 시도 - User: {}", userId);
 
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+        // 같은 대여권으로 연장이 두 번 적용되지 않도록 같은 유저의 동시 요청을 직렬화한다.
+        User user = lockUser(userId);
 
         if (user.getPenaltyDays() > 0) {
             throw new ServiceException(ErrorCode.PENALTY_USER);
@@ -308,8 +304,6 @@ public class LentApplicationService implements LentUseCase {
 
         String photoUrl = imageUploadPort.uploadImage(userId, file);
 
-        checkCabinetReservation(newVisibleNum, userId);
-
         transactionTemplate.execute(
                 status -> {
                     processSwapTransaction(
@@ -325,10 +319,9 @@ public class LentApplicationService implements LentUseCase {
             Boolean forceReturn,
             String reason,
             String photoUrl) {
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+        // 같은 유저의 동시 이사를 직렬화한다. 이 트랜잭션의 첫 DB 조회여야 하고(그래야 이후 조회가 앞 요청의 커밋을 본다),
+        // 락 순서는 사용자 -> 사물함이다.
+        User user = lockUser(userId);
 
         LentHistory oldLent =
                 lentRepository
@@ -351,6 +344,10 @@ public class LentApplicationService implements LentUseCase {
                 cabinetRepository
                         .findByVisibleNumWithLock(newVisibleNum)
                         .orElseThrow(() -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));
+
+        // 사물함 행 락을 잡은 뒤에 예약을 확인한다. 예약(makeReservation)도 같은 행 락 안에서 Redis 에 쓰므로,
+        // 확인과 이사 사이에 다른 사람이 예약을 끼워 넣을 수 없다.
+        checkCabinetReservation(newVisibleNum, userId);
 
         if (newCabinet.getStatus() != CabinetStatus.AVAILABLE) {
             throw new ServiceException(ErrorCode.INVALID_CABINET_STATUS);
@@ -499,6 +496,16 @@ public class LentApplicationService implements LentUseCase {
                         .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
         log.info("사물함 예약 취소 - User: {}, Cabinet: {}", userId, cancelled);
         return cancelled;
+    }
+
+    /**
+     * 사용자 행을 비관적 락으로 가져온다. 같은 유저의 대여/연장/이사 요청이 동시에 들어와도 한 번에 하나씩만 진행된다. 이 호출은 트랜잭션의 첫 DB 조회로 둘 것:
+     * REPEATABLE READ 에서는 락을 얻은 뒤의 조회부터 앞 요청의 커밋 결과가 보인다.
+     */
+    private User lockUser(Long userId) {
+        return userRepository
+                .findByIdWithLock(userId)
+                .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
     }
 
     private void checkCabinetReservation(Integer visibleNum, Long userId) {

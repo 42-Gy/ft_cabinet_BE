@@ -107,6 +107,7 @@ class LentReservationRedisTest {
 
         User user = user(USER_ID, "intra09");
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(userRepository.findByIdWithLock(USER_ID)).thenReturn(Optional.of(user));
         when(lentRepository.findByUserIdAndEndedAtIsNull(USER_ID)).thenReturn(Optional.empty());
         for (int n : new int[] {101, 102, 201, 202}) {
             availableCabinet(n);
