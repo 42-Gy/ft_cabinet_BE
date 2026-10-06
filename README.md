@@ -586,9 +586,12 @@ erDiagram
 **모델 고정과 배포(SHA256 검증)**
 
 1. `chatbot-models.lock` 에 후보 모델(`minilm` = paraphrase-multilingual-MiniLM-L12-v2, `e5` = multilingual-e5-small)의 저장소·revision·파일 경로·SHA256 을 적는다. 처음에는 `PENDING` 이다.
-2. GitHub Actions 의 **"챗봇 모델 평가 / 고정"**(수동 실행)이 두 모델을 내려받아 평가 질문 세트(`src/test/resources/chatbot/eval-set.json`, 범위 안 87개 + 범위 밖 20개)로 top-1/top-3 정확도와 임계값 후보를 표로 보여 주고, lock 파일에 옮겨 적을 `meta|…`/`file|…` 줄을 출력한다.
+2. GitHub Actions 의 **"챗봇 모델 평가 / 고정"**(수동 실행)이 두 모델을 내려받아 다음을 요약(Job summary)에 보여 주고, lock 파일에 옮겨 적을 `meta|…`/`file|…` 줄을 출력한다. 기본은 기준을 적용하지 않아(`enforce=false`) 표만 보고 빨간불이 뜨지 않는다.
+   - **구현 정합성**: 같은 모델 저장소의 원본 가중치를 sentence-transformers(파이썬)로 돌린 정답 벡터(`golden.json`)와 Java 어댑터의 임베딩을 같은 문장 31개로 비교한다(코사인). 평가 점수가 낮을 때 "모델이 약한 것"과 "구현이 틀린 것"을 가르는 첫 번째 확인이다. 1.0 에 가까워야 한다.
+   - **검색 품질**: 개발 세트(`eval-set.json`)와 보류 세트(`eval-holdout.json`)의 top-1/top-3, 임계값별 표(0.05 단위 + 점수가 몰린 구간 0.01 단위), 점수·margin 이 정답을 가려내는 신호인지(AUROC), 자동 답변 규칙(점수 ≥ T 그리고 margin ≥ M) 격자, 틀린 질문 전체와 혼동 쌍, FAQ 당 변형 수에 따른 학습곡선.
+   - **평가 질문의 한계**: 모두 FAQ 를 쓴 사람이 만들었고 실제 학생 질문이 아니다(챗봇은 질문 원문을 수집하지 않는 설계). 수치는 모델·설정 사이의 상대 비교로만 읽는다. 보류 세트는 FAQ 변형·개발 세트와 겹치지 않게 따로 쓴 보고용이며, **보류 세트 결과를 보고 FAQ 변형이나 임계값을 고치지 않는다**(테스트가 세 집합이 서로 겹치지 않는지 확인한다).
 3. 모델을 고르고 출력된 줄로 lock 파일을 고쳐 커밋하면, 이후 `docker build --build-arg CHATBOT_MODEL=<id> .` 는 **고정된 revision 의 파일만 받고 SHA256 이 다르거나 `PENDING` 이 남아 있으면 실패**한다. `CHATBOT_MODEL` 을 주지 않으면(기본) 아무것도 받지 않으며 기존 빌드와 같다.
-4. 평가 기준: 후보 모델은 top-1 `CHATBOT_EVAL_MIN_TOP1`(기본 0.80) 이상이어야 하고, "범위 밖 오답 수락률 5% 이하 · 정밀도 95% 이상 · 커버리지 50% 이상"인 임계값이 존재해야 한다. 로컬에서는 `CHATBOT_EVAL_MODELS_DIR` 아래에 `<id>/model.onnx`, `tokenizer.json`, `model.properties` 를 두고 `./gradlew test --tests '*ChatbotRetrievalEvaluationTest'` 로 같은 평가를 돌린다(모델이 없으면 ngram 기준선만 계산).
+4. 평가 기준(`CHATBOT_EVAL_ENFORCE=true`, 로컬 기본값. 개발 세트에 적용): 후보 모델은 top-1 `CHATBOT_EVAL_MIN_TOP1`(기본 0.80) 이상이어야 하고, "범위 밖 오답 수락률 5% 이하 · 정밀도 95% 이상 · 커버리지 50% 이상"인 임계값이 존재해야 한다. 로컬에서는 `CHATBOT_EVAL_MODELS_DIR` 아래에 `<id>/model.onnx`, `tokenizer.json`, `model.properties`(정합성 검사는 `golden.json` 도, `scripts/chatbot/golden_vectors.py` 로 생성)를 두고 `./gradlew test --tests '*ChatbotRetrievalEvaluationTest' --tests '*ChatbotGoldenVectorTest'` 로 같은 평가를 돌린다(모델이 없으면 ngram 기준선만 계산).
 
 **운영 반영 순서**: ① V5 는 새 테이블 두 개를 만들고 엔티티가 항상 등록되므로 `ddl-auto: validate` 인 운영에서는 Flyway 롤아웃(baseline → `FLYWAY_ENABLED=true` → 배포)을 먼저 해야 한다 ② 모델을 고정하고 `CHATBOT_MODEL` 빌드 인자를 배포 워크플로우에 넣는다 ③ `CHATBOT_ENABLED=true` 와 임계값을 설정한다 ④ `docs/chatbot/FAQ_REVIEW.md` 를 검토한 뒤 관리자 API 로 답변을 고친다.
 

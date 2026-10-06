@@ -3,7 +3,8 @@ name: 🤖 챗봇 모델 평가 / 고정
 # 챗봇 임베딩 모델(minilm, e5)을 Hugging Face 에서 내려받아 평가 질문 세트로 비교하고,
 # lock 파일(chatbot-models.lock)에 고정할 revision/SHA256 을 출력한다. 수동 실행 전용이다.
 #
-#  1) 이 작업을 실행한다 → 요약(Job summary)에 모델별 정확도 표와 "lock 파일에 고정할 값"이 나온다.
+#  1) 이 작업을 실행한다 → 요약(Job summary)에 구현 정합성(Java vs 정답 벡터), 모델별 정확도 표,
+#     "lock 파일에 고정할 값"이 나온다. 기본은 기준을 적용하지 않아(enforce=false) 표만 보고 빨간불이 뜨지 않는다.
 #  2) 더 나은 모델을 고르고, 출력된 meta/file 줄로 chatbot-models.lock 을 고쳐 커밋한다.
 #  3) 표의 임계값 후보를 보고 CHATBOT_MATCH_THRESHOLD 등을 정한다.
 # 이 작업은 운영 비밀을 쓰지 않는다(공개 모델 다운로드만).
@@ -16,9 +17,14 @@ on:
         required: false
         default: 'minilm e5'
       min_top1:
-        description: '후보 모델이 넘어야 하는 top-1 정확도(0~1)'
+        description: '기준 적용 시 후보 모델이 넘어야 하는 top-1 정확도(0~1)'
         required: false
         default: '0.80'
+      enforce:
+        description: '기준 미달이면 실패시킬지(탐색 단계에서는 끄고 표만 본다)'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -39,6 +45,18 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      # 정답 벡터를 만드는 파이썬 참조 구현(sentence-transformers, CPU). Java 어댑터와 구현이 겹치지 않는 기준이다.
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 📦 참조 구현 설치 (CPU torch + sentence-transformers)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install sentence-transformers
+
       # resolve 모드: PENDING 인 revision 은 현재 커밋으로 풀고, SHA256 은 계산해서 출력한다.
       # 이미 고정된 값이 있으면 그 값과 다를 때 실패한다.
       - name: 📦 모델 내려받기 (resolve)
@@ -55,19 +73,34 @@ jobs:
             echo >> build/chatbot-models/pin.txt
           done
 
-      - name: 🧪 평가 실행
+      # 같은 모델 저장소의 원본 가중치로 정답 벡터를 만든다(모델 파일이 아니라 저장소 revision 기준).
+      - name: 🎯 정답 벡터 생성
+        env:
+          MODELS: ${{ inputs.models }}
+        run: |
+          set -euo pipefail
+          for id in $MODELS; do
+            python scripts/chatbot/golden_vectors.py \
+              --model-dir "build/chatbot-models/$id" \
+              --texts src/test/resources/chatbot/golden-texts.json
+          done
+
+      - name: 🧪 평가 실행 (구현 정합성 + 검색 품질)
         env:
           CHATBOT_EVAL_MODELS_DIR: ${{ github.workspace }}/build/chatbot-models
           CHATBOT_EVAL_MIN_TOP1: ${{ inputs.min_top1 }}
+          CHATBOT_EVAL_ENFORCE: ${{ inputs.enforce }}
         run: |
           chmod +x gradlew
-          ./gradlew test --tests '*ChatbotRetrievalEvaluationTest' --no-daemon -i
+          ./gradlew test --tests '*ChatbotGoldenVectorTest' --tests '*ChatbotRetrievalEvaluationTest' --no-daemon -i
 
       - name: 📝 요약 작성
         if: always()
         run: |
           {
             echo "## 챗봇 모델 평가"
+            echo
+            if [ -f build/chatbot-eval/golden.md ]; then cat build/chatbot-eval/golden.md; else echo "(정합성 리포트가 생성되지 않았습니다)"; fi
             echo
             if [ -f build/chatbot-eval/report.md ]; then cat build/chatbot-eval/report.md; else echo "(리포트가 생성되지 않았습니다)"; fi
             echo
@@ -84,5 +117,6 @@ jobs:
           name: chatbot-eval-report
           path: |
             build/chatbot-eval/report.md
+            build/chatbot-eval/golden.md
             build/chatbot-models/pin.txt
           if-no-files-found: warn
