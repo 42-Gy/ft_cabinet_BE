@@ -24,6 +24,7 @@ import com.gyeongsan.cabinet.domain.cabinet.model.Cabinet;
 import com.gyeongsan.cabinet.domain.cabinet.model.CabinetStatus;
 import com.gyeongsan.cabinet.domain.cabinet.model.LentType;
 import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
+import com.gyeongsan.cabinet.domain.lent.model.ReservationOutcome;
 import com.gyeongsan.cabinet.domain.lent.port.out.ReservationPort;
 import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.model.UserRole;
@@ -80,6 +81,25 @@ class AdminBulkUndoRoundTripMysqlTest {
                     .filter(e -> e.getValue().equals(userId))
                     .map(Map.Entry::getKey)
                     .findFirst();
+        }
+
+        @Override
+        public ReservationOutcome reserveReplacing(
+                Integer visibleNum, Long userId, long ttlMinutes) {
+            reservations.put(visibleNum, userId);
+            return new ReservationOutcome(ReservationOutcome.Status.RESERVED, null);
+        }
+
+        @Override
+        public Optional<Long> getUserReservationTtlSeconds(Long userId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Integer> cancelUserReservation(Long userId) {
+            Optional<Integer> mine = getUserReservation(userId);
+            mine.ifPresent(reservations::remove);
+            return mine;
         }
 
         @Override
