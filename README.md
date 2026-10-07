@@ -433,6 +433,12 @@ erDiagram
     }
 ```
 
+### 스키마 관리 (Flyway)
+
+- 스키마의 단일 출처는 `src/main/resources/db/migration/` 이다. **V1** 은 운영 DB(`cabi`)의 `mysqldump --no-data` 를 `scripts/db/sanitize_baseline.py` 로 정제한 베이스라인(12개 테이블, `idx_cabinet_visible_num` 유니크 인덱스 포함), **V2~V5** 는 이후 추가분(관리자 감사 로그, `user.ft_grade`, FAQ)이다.
+- 새 DB 는 `FLYWAY_ENABLED=true` 로 부팅하면 V1~V5 가 순서대로 적용된다. **운영처럼 이미 스키마가 있는 DB 는 사람이 `baseline 1` 을 한 번 수동으로 찍어야 하며, `baselineOnMigrate` 는 쓰지 않는다.** V1 파일에는 `CREATE TABLE` 만 둔다(`FlywayBaselineV1GuardTest` 가 막음).
+- 운영 적용 절차, 테스트 서버(`ddl-auto` update → validate) 전환, 이력 상태별 대처는 [`docs/db/FLYWAY_BASELINE.md`](docs/db/FLYWAY_BASELINE.md) 를 따른다.
+
 <br>
 
 ## 📜 Version History (개발 연혁)

@@ -10,7 +10,13 @@ import org.testcontainers.utility.DockerImageName;
 public class MariaDbDriverMySqlContainer extends MySQLContainer<MariaDbDriverMySqlContainer> {
 
     public MariaDbDriverMySqlContainer(String image) {
-        super(DockerImageName.parse(image));
+        super(compatible(image));
+    }
+
+    /** mariadb 이미지(로컬 docker-compose 가 쓰는 종류)도 MySQL 컨테이너로 다룰 수 있게 호환 이미지로 선언한다. */
+    private static DockerImageName compatible(String image) {
+        DockerImageName name = DockerImageName.parse(image);
+        return image.startsWith("mariadb") ? name.asCompatibleSubstituteFor("mysql") : name;
     }
 
     @Override

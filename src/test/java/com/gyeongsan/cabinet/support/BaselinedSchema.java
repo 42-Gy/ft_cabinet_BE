@@ -3,15 +3,17 @@ package com.gyeongsan.cabinet.support;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import org.flywaydb.core.Flyway;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.testcontainers.containers.MySQLContainer;
 
 /**
  * 운영 DB 와 같은 출발점을 흉내 낸다: 이미 테이블이 있는 DB 에 사람이 baseline(v1)을 한 번 찍은 상태.
  *
- * <p>마이그레이션은 기존 테이블을 건드린다(예: V4 는 {@code user} 에 컬럼 추가). 그래서 실제 베이스라인 덤프 대신 그 마이그레이션이 참조하는 최소한의
- * 테이블만 만든다. baselineOnMigrate 는 켜지 않는다(규칙 4).
+ * <p>운영 {@code mysqldump --no-data} 를 정제한 실제 베이스라인({@code V1__baseline.sql})을 JDBC 로 직접 실행해 기존 테이블을
+ * 만든다. Flyway 가 아니라 직접 실행하는 이유: 운영에서도 V1 은 Flyway 가 실행하지 않고(사람이 baseline 만 찍음) 이미 존재하는 스키마이기 때문이다.
+ * baselineOnMigrate 는 켜지 않는다(규칙 4).
  */
 public final class BaselinedSchema {
 
@@ -19,11 +21,9 @@ public final class BaselinedSchema {
 
     public static void createExistingTables(MySQLContainer<?> mysql) throws SQLException {
         try (Connection c =
-                        DriverManager.getConnection(
-                                mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword());
-                Statement s = c.createStatement()) {
-            s.execute("CREATE TABLE cabinet (id BIGINT PRIMARY KEY)");
-            s.execute("CREATE TABLE `user` (id BIGINT PRIMARY KEY, name VARCHAR(32) NOT NULL)");
+                DriverManager.getConnection(
+                        mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())) {
+            ScriptUtils.executeSqlScript(c, new ClassPathResource("db/migration/V1__baseline.sql"));
         }
     }
 
