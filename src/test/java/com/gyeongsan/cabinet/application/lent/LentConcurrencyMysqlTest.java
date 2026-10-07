@@ -221,15 +221,15 @@ class LentConcurrencyMysqlTest {
     }
 
     /**
-     * image 끝에 "+index" 를 붙이면 CABINET.VISIBLE_NUM 에 유니크 인덱스를 만든 스키마로 돌린다. 엔티티에 인덱스 정의가 없어 Hibernate
-     * 가 만든 스키마(기본)에서는 {@code WHERE visible_num = ? FOR UPDATE} 가 PK 순으로 테이블을 훑으며 행을 잠그지만, 인덱스가 있는
-     * 스키마에서는 해당 행만 잠근다. 운영 스키마가 어느 쪽인지 알 수 없어(덤프 없음) 두 형태 모두에서 락 순서가 안전한지 확인한다.
+     * 기본은 엔티티가 선언한 {@code idx_cabinet_visible_num}(유니크)이 있는 스키마(운영과 같음)다. image 끝에 "-noindex" 를 붙이면
+     * 그 인덱스를 지운 스키마로 돌린다 — 인덱스가 없으면 {@code WHERE visible_num = ? FOR UPDATE} 가 PK 순으로 테이블을 훑으며 모든
+     * 행을 잠가 락 순서가 달라지므로, 인덱스가 없는 환경(과거 테스트 서버, 인덱스를 걸기 전 운영)에서도 락 순서가 안전한지 확인한다.
      */
     private static void withContext(String imageSpec, Consumer<Fixture> body) throws Exception {
-        boolean indexed = imageSpec.endsWith("+index");
+        boolean noIndex = imageSpec.endsWith("-noindex");
         String image =
-                indexed
-                        ? imageSpec.substring(0, imageSpec.length() - "+index".length())
+                noIndex
+                        ? imageSpec.substring(0, imageSpec.length() - "-noindex".length())
                         : imageSpec;
         try (MariaDbDriverMySqlContainer mysql = new MariaDbDriverMySqlContainer(image)) {
             mysql.start();
@@ -257,11 +257,10 @@ class LentConcurrencyMysqlTest {
                             context -> {
                                 assertThat(context).hasNotFailed();
                                 try {
-                                    if (indexed) {
+                                    if (noIndex) {
                                         context.getBean(JdbcTemplate.class)
                                                 .execute(
-                                                        "CREATE UNIQUE INDEX uk_cabinet_visible_num"
-                                                                + " ON cabinet (visible_num)");
+                                                        "DROP INDEX idx_cabinet_visible_num ON cabinet");
                                     }
                                     body.accept(new Fixture(context));
                                 } catch (Throwable t) {
@@ -813,7 +812,7 @@ class LentConcurrencyMysqlTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4-noindex"})
     @DisplayName("반납 중에 관리자가 같은 사물함을 고장·라피신 전용으로 바꿔도 그 변경이 반납에 덮어써지지 않는다")
     void return_vsAdminStatusChange(String image) throws Exception {
         withContext(
@@ -869,7 +868,7 @@ class LentConcurrencyMysqlTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4-noindex"})
     @DisplayName("수동 반납(AI 검사 실패 후 강제 반납) 중에 관리자가 사물함 대여 유형을 바꿔도 그 변경이 덮어써지지 않는다")
     void manualReturn_vsAdminStatusChange(String image) throws Exception {
         withContext(
@@ -924,7 +923,7 @@ class LentConcurrencyMysqlTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4-noindex"})
     @DisplayName("같은 유저의 반납과 이사가 동시에 와도 데드락·서버 오류 없이 어느 한 순서대로 끝난다(대여가 바뀐 경우 반납은 새 사물함으로 다시 시도한다)")
     void return_vsSwapOfSameUser(String image) throws Exception {
         withContext(
@@ -981,7 +980,7 @@ class LentConcurrencyMysqlTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4-noindex"})
     @DisplayName("이사 중에 관리자가 옛 사물함을 고장·라피신 전용으로 바꿔도 그 변경이 이사에 덮어써지지 않는다")
     void swap_vsAdminChangeOfOldCabinet(String image) throws Exception {
         withContext(
@@ -1040,7 +1039,7 @@ class LentConcurrencyMysqlTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4-noindex"})
     @DisplayName("두 유저가 서로의 사물함으로 동시에 이사하려 해도 데드락 없이 둘 다 '사용 중' 오류로 끝난다(사물함 락은 ID 오름차순)")
     void swap_crossingSwapsDoNotDeadlock(String image) throws Exception {
         withContext(

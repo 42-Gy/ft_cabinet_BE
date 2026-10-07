@@ -7,7 +7,14 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Entity
-@Table(name = "CABINET")
+@Table(
+        name = "CABINET",
+        indexes = {
+            // 운영 DB 에 직접 걸려 있는 유니크 인덱스(2026-10-07)를 코드에도 기록한다. 이 인덱스가 없으면 번호로 거는 행 락
+            // (findByVisibleNumWithLock)이 PK 순으로 테이블 전체를 훑으며 모든 행을 잠근다. 이름은 운영과 같게 맞춰,
+            // ddl-auto=update 환경(테스트 서버)에서는 없을 때만 만들어지고 운영(validate)에는 영향이 없다.
+            @Index(name = "idx_cabinet_visible_num", columnList = "VISIBLE_NUM", unique = true)
+        })
 @Getter
 @ToString
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
