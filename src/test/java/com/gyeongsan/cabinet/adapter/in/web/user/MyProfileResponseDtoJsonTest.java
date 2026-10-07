@@ -59,4 +59,35 @@ class MyProfileResponseDtoJsonTest {
                             assertThat(json.has("isPisciner")).isFalse();
                         });
     }
+
+    @Test
+    @DisplayName("/me JSON 에 대여 시작·만료 시각이 ISO 문자열로 나가고 기존 표시용 문자열 키도 그대로다")
+    void serializesIsoTimestampsAlongsideLegacyStrings() {
+        new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class))
+                .run(
+                        context -> {
+                            JsonNode json =
+                                    context.getBean(ObjectMapper.class)
+                                            .valueToTree(
+                                                    MyProfileResponseDto.builder()
+                                                            .lentStartedAt("09월 07일 10:00")
+                                                            .lentStartedAtIso(
+                                                                    java.time.LocalDateTime.of(
+                                                                            2026, 9, 7, 10, 0))
+                                                            .expiredAt("10월 08일 10:00")
+                                                            .expiredAtIso(
+                                                                    java.time.LocalDateTime.of(
+                                                                            2026, 10, 8, 10, 0))
+                                                            .build());
+
+                            assertThat(json.get("lentStartedAtIso").asText())
+                                    .isEqualTo("2026-09-07T10:00:00");
+                            assertThat(json.get("expiredAtIso").asText())
+                                    .isEqualTo("2026-10-08T10:00:00");
+                            assertThat(json.get("lentStartedAt").asText())
+                                    .isEqualTo("09월 07일 10:00");
+                            assertThat(json.get("expiredAt").asText()).isEqualTo("10월 08일 10:00");
+                        });
+    }
 }

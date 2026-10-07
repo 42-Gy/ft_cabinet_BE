@@ -534,9 +534,9 @@ erDiagram
 
 ### 잔여기간 표기 기준
 
-- `daysRemaining`은 **달력 날짜 기준**이다(만료일 − 오늘). 시각은 보지 않는다. `0`은 만료일 당일, 음수는 만료일이 지난 일수. `/me`, 반납 응답, 사물함 목록(`daysRemaining`)이 모두 같은 기준이다.
+- `daysRemaining`은 **달력 날짜 기준**이다(만료일 − 오늘). 시각은 보지 않는다. `0`은 만료일 당일, 음수는 만료일이 지난 일수. `/me`, 반납 응답, 사물함 목록·상세(`daysRemaining`)가 모두 같은 기준이다. 사물함 상세는 대여 중이 아니면 `null`이다(목록은 0으로 채운다).
 - `overdue`는 반납 시 패널티 부과와 같은 판정(`now > expiredAt`, 시각 포함)이다. 그래서 만료일 당일(`daysRemaining == 0`)이어도 만료 시각이 지났으면 `overdue == true`일 수 있다.
-- `expiredAt`(`MM월 dd일 HH:mm`)은 기존 프론트 호환을 위해 그대로 두며, 새 화면은 `expiredAtIso`를 쓴다.
+- `expiredAt`(`MM월 dd일 HH:mm`)은 기존 프론트 호환을 위해 그대로 두며, 새 화면은 `expiredAtIso`를 쓴다. 대여 시작 시각도 같은 방식이라 `/me` 의 `lentStartedAt`(문자열)은 유지하고 `lentStartedAtIso`(ISO)를 병행한다. ISO 값은 서버 시간대(Asia/Seoul)의 오프셋 없는 시각이다.
 
 ### 월간 대여권 지급 기준 (트센)
 
@@ -882,7 +882,7 @@ sequenceDiagram
 ### 2. 👤 유저 (User)
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
-| `GET` | `/v4/users/me` | 내 정보 (현재 대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회. 대여 중이면 `expiredAtIso`(ISO 만료 시각), `daysRemaining`, `overdue` 포함 (`expiredAt`은 표시용 문자열로 유지). `isTranscender`(트센 여부) 포함 |
+| `GET` | `/v4/users/me` | 내 정보 (현재 대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회. 대여 중이면 `expiredAtIso`(ISO 만료 시각), `lentStartedAtIso`(ISO 대여 시작 시각), `daysRemaining`, `overdue` 포함 (`expiredAt`, `lentStartedAt`은 표시용 문자열로 유지). `isTranscender`(트센 여부) 포함 |
 | `POST` | `/v4/users/attendance` | **[NEW]** 수동 출석 체크 (코인 획득) |
 | `GET` | `/v4/users/attendance` | 이번 달 출석 현황 조회 |
 

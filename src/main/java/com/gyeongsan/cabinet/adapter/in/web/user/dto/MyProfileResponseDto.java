@@ -38,7 +38,11 @@ public class MyProfileResponseDto {
 
     private String previousPassword;
 
+    /** 표시용 대여 시작 시각("MM월 dd일 HH:mm", 연도 없음). 새 화면은 {@link #lentStartedAtIso}를 쓴다. */
     private String lentStartedAt;
+
+    /** 대여 시작 시각(ISO-8601, 서버 시간대 Asia/Seoul 의 오프셋 없는 값). 대여 중이 아니면 null. */
+    private LocalDateTime lentStartedAtIso;
 
     /** 내가 예약 중인 사물함 번호. 예약이 없으면 null. */
     private Integer reservedVisibleNum;

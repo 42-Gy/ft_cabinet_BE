@@ -81,6 +81,23 @@ class UserDomainServiceExpiryTest {
     }
 
     @Test
+    @DisplayName("대여 중이면 ISO 대여 시작 시각을 주고 기존 표시용 문자열도 그대로 둔다")
+    void activeLentExposesStartedAtIso() {
+        LocalDateTime expiredAt = LocalDate.now().plusDays(7).atTime(14, 23, 11);
+        activeLentExpiringAt(expiredAt);
+        LocalDateTime startedAt = expiredAt.minusDays(31);
+
+        MyProfileResponseDto profile = service.getMyProfile(USER_ID);
+
+        assertThat(profile.getLentStartedAtIso()).isEqualTo(startedAt);
+        // 호환: 기존 필드는 형식 그대로다.
+        assertThat(profile.getLentStartedAt())
+                .isEqualTo(
+                        startedAt.format(
+                                java.time.format.DateTimeFormatter.ofPattern("MM월 dd일 HH:mm")));
+    }
+
+    @Test
     @DisplayName("연체 중이면 남은 일수가 음수이고 overdue 가 true 다")
     void overdueLent() {
         activeLentExpiringAt(LocalDate.now().minusDays(3).atTime(9, 0));
@@ -102,5 +119,7 @@ class UserDomainServiceExpiryTest {
         assertThat(profile.getDaysRemaining()).isNull();
         assertThat(profile.getOverdue()).isNull();
         assertThat(profile.getExpiredAt()).isNull();
+        assertThat(profile.getLentStartedAtIso()).isNull();
+        assertThat(profile.getLentStartedAt()).isNull();
     }
 }

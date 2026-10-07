@@ -139,6 +139,10 @@ public class CabinetDomainService implements CabinetQueryUseCase {
         String curName = (activeLent != null) ? activeLent.getUser().getName() : null;
         LocalDateTime curStart = (activeLent != null) ? activeLent.getStartedAt() : null;
         LocalDateTime curEnd = (activeLent != null) ? activeLent.getExpiredAt() : null;
+        Long daysRemaining =
+                (activeLent != null && curEnd != null)
+                        ? (long) activeLent.calculateRemainingDays(LocalDate.now())
+                        : null;
 
         String prevName = (previousLent != null) ? previousLent.getUser().getName() : "-";
         LocalDateTime prevEnd = (previousLent != null) ? previousLent.getEndedAt() : null;
@@ -167,6 +171,7 @@ public class CabinetDomainService implements CabinetQueryUseCase {
                 .lentUserName(curName)
                 .lentStartedAt(curStart)
                 .lentExpiredAt(curEnd)
+                .daysRemaining(daysRemaining)
                 .previousUserName(prevName)
                 .previousEndedAt(prevEnd)
                 .isReservedByMe(isReservedByMe)

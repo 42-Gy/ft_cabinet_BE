@@ -86,6 +86,7 @@ public class UserDomainService implements UserUseCase {
         Integer visibleNum = null;
         String section = null;
         String lentStartedAt = null;
+        LocalDateTime lentStartedAtIso = null;
         String expiredAt = null;
         LocalDateTime expiredAtIso = null;
         Integer daysRemaining = null;
@@ -100,6 +101,7 @@ public class UserDomainService implements UserUseCase {
             section = cabinet.getSection();
 
             lentStartedAt = activeLent.getStartedAt().format(formatter);
+            lentStartedAtIso = activeLent.getStartedAt();
             expiredAt = activeLent.getExpiredAt().format(formatter);
 
             LocalDateTime now = LocalDateTime.now();
@@ -156,6 +158,7 @@ public class UserDomainService implements UserUseCase {
                 .section(section)
                 .autoExtensionEnabled(autoExtensionEnabled)
                 .lentStartedAt(lentStartedAt)
+                .lentStartedAtIso(lentStartedAtIso)
                 .reservedVisibleNum(reservedVisibleNum)
                 .reservationRemainingSeconds(reservationRemainingSeconds)
                 .expiredAt(expiredAt)
