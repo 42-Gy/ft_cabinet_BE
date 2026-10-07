@@ -46,6 +46,8 @@ public class SlackNoticeConfig {
             throw new IllegalStateException(
                     "SLACK_NOTICE_FORWARD_ENABLED=true 이면 KAKAO_NOTIFY_ENABLED=true(와 KAKAO_TOKEN_ENC_KEY)도 필요합니다.");
         }
+        // revoked_at 같은 LocalDateTime 기록이 동의 등록(consented_at)과 같은 시간대(서버 기본 Asia/Seoul)로 찍히도록
+        // UTC 가 아니라 기본 시간대 시계를 쓴다.
         return new SlackNoticeForwardService(
                 channelPort,
                 cursorPort,
@@ -53,6 +55,6 @@ public class SlackNoticeConfig {
                 kakaoPort,
                 cipherPort,
                 settings,
-                Clock.systemUTC());
+                Clock.systemDefaultZone());
     }
 }

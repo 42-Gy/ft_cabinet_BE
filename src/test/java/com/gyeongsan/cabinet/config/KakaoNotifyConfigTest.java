@@ -171,4 +171,32 @@ class KakaoNotifyConfigTest {
                         "FRONTEND_URL=")
                 .run(context -> assertThat(context).hasFailed());
     }
+
+    @Test
+    @DisplayName(
+            "공지 포워더의 시계는 서버 기본 시간대(Asia/Seoul)를 따른다 — UTC 면 revoked_at 이 consented_at 과 9시간 어긋난다")
+    void noticeForwarderClockFollowsDefaultTimeZone() {
+        java.util.TimeZone original = java.util.TimeZone.getDefault();
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Seoul"));
+        try {
+            runner().withPropertyValues(
+                            "KAKAO_NOTIFY_ENABLED=true",
+                            "KAKAO_TOKEN_ENC_KEY=" + key(),
+                            "SLACK_NOTICE_FORWARD_ENABLED=true",
+                            "SLACK_NOTICE_CHANNEL_ID=C0NOTICE",
+                            "FRONTEND_URL=https://front.example")
+                    .run(
+                            context -> {
+                                Object service = context.getBean(ForwardSlackNoticesUseCase.class);
+                                java.time.Clock clock =
+                                        (java.time.Clock)
+                                                org.springframework.test.util.ReflectionTestUtils
+                                                        .getField(service, "clock");
+                                assertThat(clock.getZone())
+                                        .isEqualTo(java.time.ZoneId.of("Asia/Seoul"));
+                            });
+        } finally {
+            java.util.TimeZone.setDefault(original);
+        }
+    }
 }
