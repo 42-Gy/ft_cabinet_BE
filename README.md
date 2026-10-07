@@ -560,6 +560,18 @@ erDiagram
 - **설정(기본은 꺼짐)**: `SLACK_REPORT_FORWARD_ENABLED=true`, `SLACK_REPORT_CHANNEL_ID`(채널 ID). 켠 상태에서 채널 ID 가 없으면 부팅이 실패한다. **수신자는 설정이 아니라 DB 에서 매번 조회**하므로 권한 변경이 바로 반영된다(슬랙 사용자명이 인트라 ID(`User.name`)와 같아야 DM 이 간다). 수신자가 0명이면 부팅은 되고 경고 로그만 남기며, 그 글은 **커서를 옮기지 않고 보류**했다가 관리자가 생기면 다음 주기에 전달한다(수신자 조회가 실패했을 때도 같다). 예전 `SLACK_REPORT_RECIPIENTS` 는 더 이상 읽지 않는다. 선택: `SLACK_REPORT_POLL_INTERVAL_MS`(기본 60000).
 - **Slack 앱 준비(사람이 해야 함)**: 봇 토큰 앱에 `channels:history`(비공개 채널은 `groups:history`) 권한을 추가해 재설치하고, 채널에 봇을 초대한다. `chat:write` 등 기존 DM 권한은 그대로 쓴다.
 
+### 슬랙 공지 → 카카오톡 알림 (Kakao Notify)
+
+- 슬랙 공지 채널에 새 글이 올라오면, **카카오 `talk_message` 동의를 해 두고 알림을 켠 유저**에게 카카오톡 "나에게 보내기"로 그 내용을 전달한다. 수신 대상 = (동의 유효) AND (알림 스위치 켜짐)이며, 발송 직전에 둘 다 다시 확인한다.
+- **동의 등록**(`POST /v4/users/me/kakao-notify/consent {authorizationCode}`): 로그인용 카카오 연동(`/v4/auth/link/kakao`)은 그대로 두고, `talk_message` 동의만 따로 받는다. 프론트가 `scope=talk_message` 로 카카오 동의 화면을 띄워 받은 인가 코드를 보낸다(`redirect_uri` 는 계정 연동 때와 같아야 한다). 서버는 ① 로그인용 카카오 연동이 있는지(없으면 거부) ② 돌아온 카카오 회원 번호가 연동한 계정과 같은지(다르면 거부, 받은 토큰은 버림) ③ `talk_message` 범위가 있는지 확인한 뒤 refresh_token 을 저장한다.
+- **경로가 `/v4/auth/**` 가 아닌 이유**: 보안 설정에서 `/v4/auth/**` 는 인증 없이 열려 있다(컨트롤러가 로그인 상태를 직접 가정). 보안 설정을 바꾸지 않고 로그인한 본인에게만 열리게 하려고 `/v4/users/me/kakao-notify/**`(인증 필요)에 두었다. 대상 유저는 JWT 에서만 얻는다.
+- **상태·스위치**: `GET /v4/users/me/kakao-notify`(`consented`, `alarmEnabled`, `receiving`), `PUT /v4/users/me/kakao-notify/alarm {enabled}`(켜려면 유효한 동의가 있어야 하며, 끄는 것은 항상 가능). 알림 스위치는 `USER.KAKAO_ALARM`(기본 꺼짐)이고 **첫 동의(또는 해지 후 재동의) 때 켜진다**. 이미 유효한 동의를 다시 받아도 유저가 꺼 둔 스위치는 되돌리지 않는다.
+- **토큰 저장**: 로그인용 `OAUTH_LINK` 와 분리된 `KAKAO_NOTIFY_CONSENT`(Flyway V6)에 **AES-256-GCM 으로 암호화한 refresh_token** 만 저장한다(access_token 은 저장하지 않고 보낼 때마다 refresh_token 으로 새로 받는다). 암호문은 유저 ID 에 묶여 있어 다른 유저 행에 옮겨 붙이면 복호화되지 않는다. 카카오가 새 refresh_token 을 주면(회전) 조건부 갱신으로 저장한다.
+- **해지 처리**: refresh_token 갱신이 `invalid_grant` 로 거절되거나(유저가 카카오에서 동의 해지·토큰 만료) 발송이 동의 항목 부족(-402)으로 거절되면 `revoked_at` 을 찍고 그 뒤로 대상에서 뺀다(사용한 토큰이 그대로일 때만 — 그 사이 유저가 다시 동의했다면 새 동의를 해지하지 않는다). 카카오 일시 장애는 해지하지 않고 그 사람만 건너뛴다. 복호화 실패(키 분실·변경)도 해지하지 않고 건너뛰며, 유저가 다시 동의하면 새 키로 덮어쓴다.
+- **전달 파이프라인**: 오류제보 포워더와 같은 구조다. 폴링(기본 60초, ShedLock `slackNoticeForwardTask`), 채널별 Redis 커서(`slack:notice:cursor:{channelId}`, 오류제보 커서와 키가 다름)로 중복 방지, 커서가 없으면 과거 글은 보내지 않고 지금부터 시작, 시스템 메시지 제외, 5건 초과 시 최근 5건 + 요약 한 줄. 슬랙 표기(`<@U..>`, `<url|이름>`, `<!channel>`)는 평문으로 풀고 카카오 한도(200자)에 맞춰 자른다. 수신 대상이 0명이거나 조회에 실패하면 경고만 남기고 **커서를 옮기지 않아 공지가 사라지지 않게** 하되, 24시간(`max-hold-hours`)이 지난 공지는 새 수신자에게 쏟아내지 않도록 경고와 함께 건너뛴다. 개별 발송 실패는 로그만 남기고 다음 사람으로 넘어간다.
+- **설정(둘 다 기본 꺼짐)**: `KAKAO_NOTIFY_ENABLED=true` + `KAKAO_TOKEN_ENC_KEY`(base64 32바이트, 예: `openssl rand -base64 32`, 없거나 형식이 틀리면 부팅 실패) 가 동의/스위치 API 를 켠다. `SLACK_NOTICE_FORWARD_ENABLED=true` + `SLACK_NOTICE_CHANNEL_ID` 가 공지 전달을 켠다(`KAKAO_NOTIFY_ENABLED` 가 꺼져 있으면 부팅 실패). 선택: `SLACK_NOTICE_POLL_INTERVAL_MS`(기본 60000), `SLACK_NOTICE_LINK_URL`(카톡 메시지를 눌렀을 때 열리는 주소, 기본 `FRONTEND_URL`, 카카오 앱에 등록된 도메인이어야 함).
+- **운영 주의**: ① **`KAKAO_TOKEN_ENC_KEY` 를 잃으면 저장된 동의가 전부 무효**가 된다(복호화 불가 → 발송 대상에서 사실상 빠지고, 유저가 다시 동의해야 함). 키를 안전한 곳에 따로 보관하고 코드·로그·DB 에 남기지 말 것. ② 키를 바꾸는 것도 같은 효과다(키 교체 절차는 아직 없음). ③ V6 은 `user` 테이블에 컬럼을 추가하고 새 테이블을 만들므로 `ddl-auto: validate` 인 운영은 Flyway 롤아웃 순서(baseline → `FLYWAY_ENABLED=true` → 배포)를 먼저 따라야 한다(기능을 꺼 둬도 필요). ④ Kakao 개발자 앱에 `talk_message` 동의항목과 메시지 링크 도메인 등록이 필요하다.
+
 ### FAQ 챗봇 (Tier 1: 의미 검색 FAQ 매칭)
 
 - 질문을 임베딩(문장 벡터)으로 바꿔 미리 써 둔 FAQ 질문들과 코사인 유사도로 비교하고, **가장 비슷한 FAQ 의 정해진 답변을 그대로 돌려준다**. 문장을 생성하는 LLM 은 쓰지 않으므로 답변이 지어내질 일이 없다.

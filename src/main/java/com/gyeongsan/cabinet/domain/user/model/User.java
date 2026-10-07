@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "USER")
@@ -68,6 +69,12 @@ public class User {
     @Column(name = "PUSH_ALARM")
     private boolean pushAlarm = false;
 
+    /** 슬랙 공지를 카카오톡으로 받을지. 카카오 talk_message 동의가 유효해야 실제로 발송된다. 첫 동의 때 켜진다. */
+    @Builder.Default
+    @Column(name = "KAKAO_ALARM", nullable = false)
+    @ColumnDefault("false")
+    private boolean kakaoAlarm = false;
+
     @Builder.Default
     @Column(name = "IS_PISCINER", nullable = false)
     private boolean isPisciner = false;
@@ -102,6 +109,10 @@ public class User {
 
     public static User of(String name, String email, LocalDateTime blackholedAt, UserRole role) {
         return new User(name, email, blackholedAt, role, false);
+    }
+
+    public void updateKakaoAlarm(boolean enabled) {
+        this.kakaoAlarm = enabled;
     }
 
     public void updateBlackholedAt(LocalDateTime blackholedAt) {

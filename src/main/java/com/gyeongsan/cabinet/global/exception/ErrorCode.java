@@ -51,6 +51,22 @@ public enum ErrorCode {
     OAUTH_ALREADY_LINKED(HttpStatus.CONFLICT, "OAUTH_001", "이 카카오 계정은 이미 다른 42 계정에 연동되어 있습니다."),
     OAUTH_ALREADY_LINKED_BY_USER(HttpStatus.CONFLICT, "OAUTH_002", "이미 카카오 계정이 연동되어 있습니다."),
 
+    KAKAO_NOTIFY_LINK_REQUIRED(
+            HttpStatus.CONFLICT, "KAKAO_NOTIFY_001", "먼저 카카오 계정을 연동(로그인 연동)한 뒤 알림 동의를 진행해 주세요."),
+    KAKAO_NOTIFY_ACCOUNT_MISMATCH(
+            HttpStatus.CONFLICT,
+            "KAKAO_NOTIFY_002",
+            "연동된 카카오 계정과 다른 계정으로 동의했습니다. 연동한 계정으로 다시 시도해 주세요."),
+    KAKAO_NOTIFY_SCOPE_MISSING(
+            HttpStatus.BAD_REQUEST,
+            "KAKAO_NOTIFY_003",
+            "카카오톡 메시지 전송(talk_message) 동의가 확인되지 않았습니다. 동의 화면에서 항목을 체크해 주세요."),
+    KAKAO_NOTIFY_CODE_INVALID(
+            HttpStatus.BAD_REQUEST, "KAKAO_NOTIFY_004", "인가 코드가 만료됐거나 이미 사용됐습니다. 처음부터 다시 동의해 주세요."),
+    KAKAO_NOTIFY_UNAVAILABLE(
+            HttpStatus.BAD_GATEWAY, "KAKAO_NOTIFY_005", "카카오와 통신하지 못했습니다. 잠시 후 다시 시도해 주세요."),
+    KAKAO_NOTIFY_CONSENT_REQUIRED(HttpStatus.CONFLICT, "KAKAO_NOTIFY_006", "카카오톡 알림 동의가 먼저 필요합니다."),
+
     PISCINER_CABINET_RESTRICTED(HttpStatus.FORBIDDEN, "LENT_009", "피시너는 라피신 전용 사물함만 사용할 수 있습니다."),
     NON_PISCINER_LAPISCINE_RESTRICTED(
             HttpStatus.FORBIDDEN, "LENT_010", "라피신 전용 사물함은 피시너만 사용할 수 있습니다."),

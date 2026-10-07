@@ -86,7 +86,7 @@ class FlywayBootWiringTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
-    @DisplayName("FLYWAY_ENABLED=true 와 운영 yml 설정으로 부팅하면 Flyway 가 V2~V5 를 적용한 뒤 JPA(validate)가 뜬다")
+    @DisplayName("FLYWAY_ENABLED=true 와 운영 yml 설정으로 부팅하면 Flyway 가 V2~V6 를 적용한 뒤 JPA(validate)가 뜬다")
     void bootsWithFlywayEnabled_usingRealApplicationYml(String image) throws Exception {
         try (MariaDbDriverMySqlContainer mysql = new MariaDbDriverMySqlContainer(image)) {
             mysql.start();
@@ -118,7 +118,8 @@ class FlywayBootWiringTest {
                                                         + rs.getInt("success"));
                                     }
                                     assertThat(applied)
-                                            .containsExactly("1:1", "2:1", "3:1", "4:1", "5:1");
+                                            .containsExactly(
+                                                    "1:1", "2:1", "3:1", "4:1", "5:1", "6:1");
                                 }
                             });
         }

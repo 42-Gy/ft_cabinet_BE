@@ -27,7 +27,7 @@ import org.springframework.context.annotation.Configuration;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * 운영 베이스라인(V1)과 V2~V5 가 실제 MySQL 8.0/8.4 에서 어떻게 맞물리는지, 그리고 그 스키마가 모든 엔티티와 {@code ddl-auto=validate}
+ * 운영 베이스라인(V1)과 V2~V6 가 실제 MySQL 8.0/8.4 에서 어떻게 맞물리는지, 그리고 그 스키마가 모든 엔티티와 {@code ddl-auto=validate}
  * 로 맞는지 확인한다. 테스트 서버를 update 에서 validate 로 바꿔도 되는지의 근거가 되는 테스트다. Docker 가 없으면 건너뛴다.
  */
 @Testcontainers(disabledWithoutDocker = true)
@@ -89,16 +89,17 @@ class FlywayBaselineMysqlTest {
 
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mariadb:10.6"})
-    @DisplayName("새 DB(로컬 compose 의 mariadb:10.6 포함): V1~V5 가 순서대로 적용되고 모든 엔티티가 validate 를 통과한다")
+    @DisplayName("새 DB(로컬 compose 의 mariadb:10.6 포함): V1~V6 가 순서대로 적용되고 모든 엔티티가 validate 를 통과한다")
     void freshDatabaseMigratesAndValidates(String image) throws Exception {
         try (MariaDbDriverMySqlContainer mysql = new MariaDbDriverMySqlContainer(image)) {
             mysql.start();
 
             MigrateResult result = flyway(mysql).migrate();
 
-            assertThat(result.migrationsExecuted).isEqualTo(5);
+            assertThat(result.migrationsExecuted).isEqualTo(6);
             assertThat(history(mysql))
-                    .containsExactly("1:SQL:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1");
+                    .containsExactly(
+                            "1:SQL:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1");
             assertEntitiesValidate(mysql);
         }
     }
@@ -106,7 +107,7 @@ class FlywayBaselineMysqlTest {
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
     @DisplayName(
-            "운영 경로: 기존 스키마에 baseline(1)만 찍으면 V1 은 실행되지 않고(데이터 보존) V2~V5 만 적용되며, 엔티티가 validate 를 통과한다")
+            "운영 경로: 기존 스키마에 baseline(1)만 찍으면 V1 은 실행되지 않고(데이터 보존) V2~V6 만 적용되며, 엔티티가 validate 를 통과한다")
     void productionPathSkipsV1AndKeepsData(String image) throws Exception {
         try (MariaDbDriverMySqlContainer mysql = new MariaDbDriverMySqlContainer(image)) {
             mysql.start();
@@ -121,9 +122,10 @@ class FlywayBaselineMysqlTest {
             flyway.baseline();
             MigrateResult result = flyway.migrate();
 
-            assertThat(result.migrationsExecuted).isEqualTo(4);
+            assertThat(result.migrationsExecuted).isEqualTo(5);
             assertThat(history(mysql))
-                    .containsExactly("1:BASELINE:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1");
+                    .containsExactly(
+                            "1:BASELINE:1", "2:SQL:1", "3:SQL:1", "4:SQL:1", "5:SQL:1", "6:SQL:1");
             // V1 이 실행됐다면 (CREATE TABLE 충돌로 실패하거나, DROP 이 있었다면 데이터가 사라졌을 것이다.)
             try (Connection c = connect(mysql);
                     Statement s = c.createStatement();
@@ -175,11 +177,11 @@ class FlywayBaselineMysqlTest {
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {"mysql:8.4"})
     @DisplayName(
-            "테스트 서버(ddl-auto=update 로 이미 V5 까지 반영된 스키마, 이력 없음): baseline(5)로 맞추면 적용할 것이 없고, baseline(1)은 V2 에서 안전하게 실패한다")
+            "테스트 서버(ddl-auto=update 로 이미 V6 까지 반영된 스키마, 이력 없음): baseline(6)로 맞추면 적용할 것이 없고, baseline(1)은 V2 에서 안전하게 실패한다")
     void updateBuiltSchemaNeedsBaselineAtLatestVersion(String image) throws Exception {
         try (MariaDbDriverMySqlContainer mysql = new MariaDbDriverMySqlContainer(image)) {
             mysql.start();
-            flyway(mysql).migrate(); // V1~V5 까지 반영된 완성 스키마
+            flyway(mysql).migrate(); // V1~V6 까지 반영된 완성 스키마
             try (Connection c = connect(mysql);
                     Statement s = c.createStatement()) {
                 s.execute("DROP TABLE flyway_schema_history"); // update 로 만든 DB 처럼 이력이 없는 상태
@@ -200,7 +202,7 @@ class FlywayBaselineMysqlTest {
                             .dataSource(
                                     mysql.getJdbcUrl(), mysql.getUsername(), mysql.getPassword())
                             .locations("classpath:db/migration")
-                            .baselineVersion("5")
+                            .baselineVersion("6")
                             .baselineOnMigrate(false)
                             .cleanDisabled(true)
                             .load();

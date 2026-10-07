@@ -174,6 +174,21 @@ app:
     channel-id: ${SLACK_REPORT_CHANNEL_ID:}
     poll-interval-ms: ${SLACK_REPORT_POLL_INTERVAL_MS:60000}
     max-per-poll: 20
+  # 슬랙 공지 → 카카오톡 "나에게 보내기" 알림. 둘 다 기본은 꺼짐.
+  #  - kakao-notify: 동의 등록(talk_message)·알림 스위치 API. 켜려면 KAKAO_NOTIFY_ENABLED=true 와 토큰 암호화 키 KAKAO_TOKEN_ENC_KEY
+  #    (base64 32바이트, 예: `openssl rand -base64 32`)가 필요하다(키가 없거나 형식이 틀리면 부팅 실패). 키를 잃으면 저장된 동의를 전부 다시 받아야 한다.
+  #  - slack-notice: 공지 채널 폴링·전달. 켜려면 SLACK_NOTICE_FORWARD_ENABLED=true, SLACK_NOTICE_CHANNEL_ID, 그리고 KAKAO_NOTIFY_ENABLED=true 가 필요하다.
+  #    link-url 은 카톡 메시지를 눌렀을 때 열리는 주소로 기본은 FRONTEND_URL 이며, 카카오 개발자 앱에 등록된 웹 도메인이어야 한다.
+  kakao-notify:
+    enabled: ${KAKAO_NOTIFY_ENABLED:false}
+    enc-key: ${KAKAO_TOKEN_ENC_KEY:}
+  slack-notice:
+    enabled: ${SLACK_NOTICE_FORWARD_ENABLED:false}
+    channel-id: ${SLACK_NOTICE_CHANNEL_ID:}
+    poll-interval-ms: ${SLACK_NOTICE_POLL_INTERVAL_MS:60000}
+    link-url: ${SLACK_NOTICE_LINK_URL:${FRONTEND_URL:}}
+    max-per-poll: 5
+    max-hold-hours: 24
   # FAQ 챗봇(의미 검색, 서버 내부 임베딩). 기본은 꺼짐. 켜려면 CHATBOT_ENABLED=true 와 모델 파일이 필요하다(없어도 서버는 뜨고 챗봇만 503).
   # 질문은 서버 밖으로 나가지 않고, 원문은 저장하지 않는다(결과별 건수만 지표로 집계).
   chatbot:
