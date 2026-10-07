@@ -30,8 +30,8 @@ HEADER = """\
 -- V1: 운영 DB(cabi) 스키마 베이스라인.
 --
 -- 운영 DB 의 `mysqldump --no-data` 를 scripts/db/sanitize_baseline.py 로 정제한 것이다.
--- 이 파일은 '새 DB 를 처음부터 만들 때'만 실행된다. 운영 DB 는 사람이 한 번
--- `flyway baseline -baselineVersion=1` 로 이 버전을 '이미 적용됨'으로 표시하므로 실행되지 않는다.
+-- 이 파일은 새 DB 를 처음부터 만들 때만 실행된다. 운영 DB 는 사람이 한 번
+-- `flyway baseline -baselineVersion=1` 로 이 버전을 이미 적용됨으로 표시하므로 실행되지 않는다.
 -- (baselineOnMigrate 는 사용하지 않는다. docs/db/FLYWAY_BASELINE.md 참고)
 --
 -- 주의: 이 파일에는 CREATE TABLE 만 둔다. DROP/DELETE/TRUNCATE/INSERT 를 넣지 말 것
