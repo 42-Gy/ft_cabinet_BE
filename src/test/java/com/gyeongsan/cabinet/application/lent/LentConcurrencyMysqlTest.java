@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.gyeongsan.cabinet.adapter.in.web.admin.dto.CabinetStatusRequest;
 import com.gyeongsan.cabinet.adapter.out.cache.redis.ReservationRedisAdapter;
 import com.gyeongsan.cabinet.adapter.out.persistence.cabinet.CabinetRepository;
 import com.gyeongsan.cabinet.adapter.out.persistence.item.ItemHistoryRepository;
@@ -13,6 +14,9 @@ import com.gyeongsan.cabinet.adapter.out.persistence.item.ItemRepository;
 import com.gyeongsan.cabinet.adapter.out.persistence.lent.LentRepository;
 import com.gyeongsan.cabinet.adapter.out.persistence.user.UserRepository;
 import com.gyeongsan.cabinet.common.lock.DistributedLockAop;
+import com.gyeongsan.cabinet.domain.admin.port.in.AdminCabinetUseCase;
+import com.gyeongsan.cabinet.domain.admin.port.out.AdminActionLogPort;
+import com.gyeongsan.cabinet.domain.admin.service.AdminCabinetService;
 import com.gyeongsan.cabinet.domain.cabinet.model.Cabinet;
 import com.gyeongsan.cabinet.domain.cabinet.model.CabinetStatus;
 import com.gyeongsan.cabinet.domain.cabinet.model.LentType;
@@ -34,6 +38,8 @@ import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
 import com.gyeongsan.cabinet.support.MariaDbDriverMySqlContainer;
 import com.gyeongsan.cabinet.support.RedisTestSupport;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +48,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -80,6 +87,15 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class LentConcurrencyMysqlTest {
 
     private static final int TRIALS = 25;
+
+    /**
+     * 활성 대여를 읽은 직후 이만큼 기다리게 해서 "읽은 뒤 쓰기 전" 구간을 넓힌다(0 이면 꺼짐). 반납과 관리자 변경이 겹치는 경합을 우연에 맡기지 않고 재현하려는
+     * 테스트용 훅이다.
+     */
+    private static volatile long lentReadDelayMillis = 0;
+
+    /** AI 청결 검사 결과. false 로 두고 forceReturn=true 로 부르면 수동 반납 경로를 탄다. */
+    private static final AtomicBoolean AI_OK = new AtomicBoolean(true);
 
     private static GenericContainer<?> redis;
     private static LettuceConnectionFactory redisFactory;
@@ -145,7 +161,7 @@ class LentConcurrencyMysqlTest {
         @Bean
         AiCheckPort aiCheckPort() {
             AiCheckPort port = mock(AiCheckPort.class);
-            when(port.checkItem(any())).thenReturn(true);
+            when(port.checkItem(any())).thenAnswer(invocation -> AI_OK.get());
             return port;
         }
 
@@ -154,6 +170,12 @@ class LentConcurrencyMysqlTest {
             ImageUploadPort port = mock(ImageUploadPort.class);
             when(port.uploadImage(any(), any())).thenReturn("https://photo.example/test.jpg");
             return port;
+        }
+
+        @Bean
+        AdminCabinetService adminCabinetService(
+                CabinetRepositoryPort cabinets, LentRepositoryPort lents) {
+            return new AdminCabinetService(cabinets, lents, mock(AdminActionLogPort.class));
         }
 
         @Bean
@@ -169,13 +191,33 @@ class LentConcurrencyMysqlTest {
             return new LentApplicationService(
                     users,
                     cabinets,
-                    lents,
+                    withReadDelay(lents),
                     itemHistories,
                     reservations,
                     aiCheckPort,
                     imageUploadPort,
                     transactionTemplate);
         }
+    }
+
+    private static LentRepositoryPort withReadDelay(LentRepositoryPort target) {
+        return (LentRepositoryPort)
+                Proxy.newProxyInstance(
+                        LentRepositoryPort.class.getClassLoader(),
+                        new Class<?>[] {LentRepositoryPort.class},
+                        (proxy, method, args) -> {
+                            Object result;
+                            try {
+                                result = method.invoke(target, args);
+                            } catch (InvocationTargetException e) {
+                                throw e.getCause();
+                            }
+                            if (lentReadDelayMillis > 0
+                                    && method.getName().equals("findByUserIdAndEndedAtIsNull")) {
+                                Thread.sleep(lentReadDelayMillis);
+                            }
+                            return result;
+                        });
     }
 
     private static void withContext(String image, Consumer<Fixture> body) throws Exception {
@@ -232,6 +274,8 @@ class LentConcurrencyMysqlTest {
         final ItemHistoryRepository itemHistories;
         final Item lentItem;
         final Item swapItem;
+        final Item penaltyItem;
+        final AdminCabinetUseCase admin;
         int seq = 0;
 
         Fixture(ApplicationContext ctx) {
@@ -246,6 +290,50 @@ class LentConcurrencyMysqlTest {
             itemHistories = ctx.getBean(ItemHistoryRepository.class);
             lentItem = tx.execute(s -> items.save(new Item("대여권", ItemType.LENT, 0L, "t")));
             swapItem = tx.execute(s -> items.save(new Item("이사권", ItemType.SWAP, 0L, "t")));
+            penaltyItem =
+                    tx.execute(
+                            s ->
+                                    items.save(
+                                            new Item(
+                                                    "패널티 감면권",
+                                                    ItemType.PENALTY_EXEMPTION,
+                                                    0L,
+                                                    "t")));
+            admin = ctx.getBean(AdminCabinetUseCase.class);
+        }
+
+        void setPenalty(Long userId, int days) {
+            tx.execute(
+                    s -> {
+                        User user = users.findById(userId).orElseThrow();
+                        user.updatePenaltyDays(days);
+                        users.save(user);
+                        return null;
+                    });
+        }
+
+        int penaltyDays(Long userId) {
+            return jdbc.queryForObject(
+                    "SELECT penalty_days FROM user WHERE id = ?", Integer.class, userId);
+        }
+
+        int endedLents(Long userId) {
+            return jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM lent_history WHERE user_id = ? AND ended_at IS NOT NULL",
+                    Integer.class,
+                    userId);
+        }
+
+        String cabinetStatus(int visibleNum) {
+            return jdbc.queryForObject(
+                    "SELECT status FROM cabinet WHERE visible_num = ?", String.class, visibleNum);
+        }
+
+        String cabinetLentType(int visibleNum) {
+            return jdbc.queryForObject(
+                    "SELECT lent_type FROM cabinet WHERE visible_num = ?",
+                    String.class,
+                    visibleNum);
         }
 
         Long newUser(Item... tickets) {
@@ -546,6 +634,333 @@ class LentConcurrencyMysqlTest {
                             .isEqualTo(ErrorCode.CABINET_ALREADY_RESERVED);
                     assertThat(f.activeLents(swapper)).isEqualTo(1);
                     assertThat(f.usedTickets(swapper, ItemType.SWAP)).isZero();
+                });
+    }
+
+    // ---- 반납 경로와 패널티 감면 (사물함 행 락 / 사용자 행 락) ----
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @DisplayName("감면권 1장으로 감면을 동시에 두 번 요청하면, 한 번만 적용되고 다른 요청은 감면권 없음 오류다(서버 오류가 아니다)")
+    void usePenaltyExemption_oneTicketTwice(String image) throws Exception {
+        withContext(
+                image,
+                f -> {
+                    for (int n = 0; n < TRIALS; n++) {
+                        Long userId = f.newUser(f.penaltyItem);
+                        f.setPenalty(userId, 5);
+
+                        List<String> results;
+                        try {
+                            results =
+                                    runConcurrently(
+                                            List.of(
+                                                    () -> {
+                                                        f.service.usePenaltyExemption(userId);
+                                                        return null;
+                                                    },
+                                                    () -> {
+                                                        f.service.usePenaltyExemption(userId);
+                                                        return null;
+                                                    }));
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+
+                        assertThat(results).as("trial %d", n).containsOnlyOnce("OK");
+                        assertThat(results)
+                                .as("trial %d", n)
+                                .contains(ErrorCode.PENALTY_EXEMPTION_TICKET_NOT_FOUND.name());
+                        assertThat(f.penaltyDays(userId)).as("trial %d", n).isEqualTo(4);
+                        assertThat(f.usedTickets(userId, ItemType.PENALTY_EXEMPTION)).isEqualTo(1);
+                    }
+                });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @DisplayName("감면권 2장으로 동시에 두 번 요청하면 둘 다 성공하고 패널티가 2일 줄어든다(한 요청이 실패하면 안 된다)")
+    void usePenaltyExemption_twoTicketsTwice(String image) throws Exception {
+        withContext(
+                image,
+                f -> {
+                    for (int n = 0; n < TRIALS; n++) {
+                        Long userId = f.newUser(f.penaltyItem, f.penaltyItem);
+                        f.setPenalty(userId, 5);
+
+                        List<String> results;
+                        try {
+                            results =
+                                    runConcurrently(
+                                            List.of(
+                                                    () -> {
+                                                        f.service.usePenaltyExemption(userId);
+                                                        return null;
+                                                    },
+                                                    () -> {
+                                                        f.service.usePenaltyExemption(userId);
+                                                        return null;
+                                                    }));
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+
+                        assertThat(results).as("trial %d", n).containsExactly("OK", "OK");
+                        assertThat(f.penaltyDays(userId)).as("trial %d", n).isEqualTo(3);
+                        assertThat(f.usedTickets(userId, ItemType.PENALTY_EXEMPTION)).isEqualTo(2);
+                    }
+                });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.4"})
+    @DisplayName("패널티가 1일 남았을 때 감면권 2장으로 동시에 두 번 요청하면, 한 번만 쓰이고 감면권 한 장은 그대로 남는다")
+    void usePenaltyExemption_lastPenaltyDay(String image) throws Exception {
+        withContext(
+                image,
+                f -> {
+                    for (int n = 0; n < TRIALS; n++) {
+                        Long userId = f.newUser(f.penaltyItem, f.penaltyItem);
+                        f.setPenalty(userId, 1);
+
+                        List<String> results;
+                        try {
+                            results =
+                                    runConcurrently(
+                                            List.of(
+                                                    () -> {
+                                                        f.service.usePenaltyExemption(userId);
+                                                        return null;
+                                                    },
+                                                    () -> {
+                                                        f.service.usePenaltyExemption(userId);
+                                                        return null;
+                                                    }));
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+
+                        assertThat(results).as("trial %d", n).containsOnlyOnce("OK");
+                        assertThat(results)
+                                .as("trial %d", n)
+                                .contains(ErrorCode.PENALTY_NOT_FOUND.name());
+                        assertThat(f.penaltyDays(userId)).as("trial %d", n).isZero();
+                        assertThat(f.usedTickets(userId, ItemType.PENALTY_EXEMPTION)).isEqualTo(1);
+                    }
+                });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @DisplayName("같은 유저의 반납이 동시에 두 번 들어와도 한 번만 처리되고, 연체 패널티도 한 번만 붙는다")
+    void return_sameUserTwice(String image) throws Exception {
+        withContext(
+                image,
+                f -> {
+                    AI_OK.set(true);
+                    for (int n = 0; n < TRIALS; n++) {
+                        Long userId = f.newUser();
+                        int cabinet = f.newCabinet(CabinetStatus.FULL);
+                        // 2일 연체: 패널티 6일
+                        f.rent(userId, cabinet, LocalDateTime.now().minusDays(2));
+
+                        List<String> results;
+                        try {
+                            results =
+                                    runConcurrently(
+                                            List.of(
+                                                    () -> {
+                                                        f.service.endLent(
+                                                                userId, "1234", file(), false,
+                                                                null);
+                                                        return null;
+                                                    },
+                                                    () -> {
+                                                        f.service.endLent(
+                                                                userId, "1234", file(), false,
+                                                                null);
+                                                        return null;
+                                                    }));
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+
+                        assertThat(results).as("trial %d", n).containsOnlyOnce("OK");
+                        assertThat(results)
+                                .as("trial %d", n)
+                                .contains(ErrorCode.LENT_NOT_FOUND.name());
+                        assertThat(f.penaltyDays(userId)).as("trial %d", n).isEqualTo(6);
+                        assertThat(f.endedLents(userId)).as("trial %d", n).isEqualTo(1);
+                        assertThat(f.cabinetStatus(cabinet)).isEqualTo("AVAILABLE");
+                    }
+                });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @DisplayName("반납 중에 관리자가 같은 사물함을 고장·라피신 전용으로 바꿔도 그 변경이 반납에 덮어써지지 않는다")
+    void return_vsAdminStatusChange(String image) throws Exception {
+        withContext(
+                image,
+                f -> {
+                    AI_OK.set(true);
+                    lentReadDelayMillis = 400;
+                    try {
+                        for (int n = 0; n < 5; n++) {
+                            Long userId = f.newUser();
+                            int cabinet = f.newCabinet(CabinetStatus.FULL);
+                            f.rent(userId, cabinet, LocalDateTime.now().plusDays(10));
+
+                            List<String> results;
+                            try {
+                                results =
+                                        runConcurrently(
+                                                List.of(
+                                                        () -> {
+                                                            f.service.endLent(
+                                                                    userId, "1234", file(), false,
+                                                                    null);
+                                                            return null;
+                                                        },
+                                                        () -> {
+                                                            // 반납이 대여를 읽은 뒤, 쓰기 전에 끼어든다.
+                                                            Thread.sleep(150);
+                                                            f.admin.updateCabinetStatus(
+                                                                    cabinet,
+                                                                    new CabinetStatusRequest(
+                                                                            CabinetStatus.BROKEN,
+                                                                            LentType.LAPISCINE,
+                                                                            "고장"));
+                                                            return null;
+                                                        }));
+                            } catch (Exception e) {
+                                throw new IllegalStateException(e);
+                            }
+
+                            assertThat(results).as("trial %d", n).containsExactly("OK", "OK");
+                            assertThat(f.endedLents(userId)).as("trial %d", n).isEqualTo(1);
+                            assertThat(f.cabinetStatus(cabinet))
+                                    .as("trial %d: 관리자가 정한 고장 상태가 반납에 덮어써짐", n)
+                                    .isEqualTo("BROKEN");
+                            assertThat(f.cabinetLentType(cabinet))
+                                    .as("trial %d: 관리자가 정한 대여 유형이 반납에 덮어써짐", n)
+                                    .isEqualTo("LAPISCINE");
+                        }
+                    } finally {
+                        lentReadDelayMillis = 0;
+                    }
+                });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @DisplayName("수동 반납(AI 검사 실패 후 강제 반납) 중에 관리자가 사물함 대여 유형을 바꿔도 그 변경이 덮어써지지 않는다")
+    void manualReturn_vsAdminStatusChange(String image) throws Exception {
+        withContext(
+                image,
+                f -> {
+                    AI_OK.set(false);
+                    lentReadDelayMillis = 400;
+                    try {
+                        for (int n = 0; n < 5; n++) {
+                            Long userId = f.newUser();
+                            int cabinet = f.newCabinet(CabinetStatus.FULL);
+                            f.rent(userId, cabinet, LocalDateTime.now().plusDays(10));
+
+                            List<String> results;
+                            try {
+                                results =
+                                        runConcurrently(
+                                                List.of(
+                                                        () -> {
+                                                            f.service.endLent(
+                                                                    userId, "1234", file(), true,
+                                                                    "AI 오류");
+                                                            return null;
+                                                        },
+                                                        () -> {
+                                                            Thread.sleep(150);
+                                                            f.admin.updateCabinetStatus(
+                                                                    cabinet,
+                                                                    new CabinetStatusRequest(
+                                                                            CabinetStatus.BROKEN,
+                                                                            LentType.LAPISCINE,
+                                                                            "고장"));
+                                                            return null;
+                                                        }));
+                            } catch (Exception e) {
+                                throw new IllegalStateException(e);
+                            }
+
+                            assertThat(results).as("trial %d", n).containsExactly("OK", "OK");
+                            assertThat(f.endedLents(userId)).as("trial %d", n).isEqualTo(1);
+                            // 수동 반납은 사물함을 PENDING 으로 두므로 상태는 순서에 따라 BROKEN/PENDING 둘 다 정상이다.
+                            // 그러나 관리자가 바꾼 대여 유형은 어느 순서에서도 남아야 한다.
+                            assertThat(f.cabinetLentType(cabinet))
+                                    .as("trial %d: 관리자가 정한 대여 유형이 수동 반납에 덮어써짐", n)
+                                    .isEqualTo("LAPISCINE");
+                        }
+                    } finally {
+                        lentReadDelayMillis = 0;
+                        AI_OK.set(true);
+                    }
+                });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @DisplayName("같은 유저의 반납과 이사가 동시에 와도 데드락·서버 오류 없이 어느 한 순서대로 끝난다(대여가 바뀐 경우 반납은 새 사물함으로 다시 시도한다)")
+    void return_vsSwapOfSameUser(String image) throws Exception {
+        withContext(
+                image,
+                f -> {
+                    AI_OK.set(true);
+                    for (int n = 0; n < 15; n++) {
+                        Long userId = f.newUser(f.swapItem);
+                        int old = f.newCabinet(CabinetStatus.FULL);
+                        f.rent(userId, old, LocalDateTime.now().plusDays(10));
+                        int target = f.newCabinet(CabinetStatus.AVAILABLE);
+
+                        List<String> results;
+                        try {
+                            results =
+                                    runConcurrently(
+                                            List.of(
+                                                    () -> {
+                                                        f.service.endLent(
+                                                                userId, "1234", file(), false,
+                                                                null);
+                                                        return null;
+                                                    },
+                                                    () -> {
+                                                        f.service.useSwap(
+                                                                userId, target, "1234", file(),
+                                                                false, null);
+                                                        return null;
+                                                    }));
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+
+                        // 반납은 항상 성공하고, 이사는 성공하거나(그 뒤 새 사물함을 반납) 대여가 없어 실패한다.
+                        assertThat(results.get(0)).as("trial %d %s", n, results).isEqualTo("OK");
+                        assertThat(results.get(1))
+                                .as("trial %d %s", n, results)
+                                .isIn("OK", ErrorCode.LENT_NOT_FOUND.name());
+                        assertThat(f.activeLents(userId)).as("trial %d %s", n, results).isZero();
+                        if ("OK".equals(results.get(1))) {
+                            assertThat(f.endedLents(userId)).as("trial %d", n).isEqualTo(2);
+                            assertThat(f.cabinetStatus(target))
+                                    .as("trial %d", n)
+                                    .isEqualTo("AVAILABLE");
+                        } else {
+                            assertThat(f.endedLents(userId)).as("trial %d", n).isEqualTo(1);
+                            assertThat(f.cabinetStatus(target))
+                                    .as("trial %d", n)
+                                    .isEqualTo("AVAILABLE");
+                        }
+                        assertThat(f.cabinetStatus(old)).as("trial %d", n).isEqualTo("AVAILABLE");
+                    }
                 });
     }
 }

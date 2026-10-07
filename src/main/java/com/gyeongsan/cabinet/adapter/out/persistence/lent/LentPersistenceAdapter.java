@@ -22,6 +22,11 @@ public class LentPersistenceAdapter implements LentRepositoryPort {
     }
 
     @Override
+    public Optional<Long> findActiveCabinetIdByUserId(Long userId) {
+        return lentRepository.findActiveCabinetIdByUserId(userId);
+    }
+
+    @Override
     public Optional<LentHistory> findByCabinetIdAndEndedAtIsNull(Long cabinetId) {
         return lentRepository.findByCabinetIdAndEndedAtIsNull(cabinetId);
     }

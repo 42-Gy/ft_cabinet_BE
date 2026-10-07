@@ -22,6 +22,7 @@ import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,6 +46,9 @@ public class LentApplicationService implements LentUseCase {
     private final TransactionTemplate transactionTemplate;
 
     private static final long RESERVATION_TTL_MINUTES = 15;
+
+    /** 반납 중 대여가 다른 사물함으로 바뀌는 경우의 재시도 한도(정상 흐름에서는 1번이면 끝난다). */
+    private static final int MAX_RETURN_LOCK_ATTEMPTS = 3;
 
     @Value("${cabinet.policy.lent-term}")
     private int lentTerm;
@@ -146,8 +150,9 @@ public class LentApplicationService implements LentUseCase {
         boolean doManualReturn = !isAiSuccess && forceReturn;
         String photoUrl = imageUploadPort.uploadImage(userId, file);
 
-        return transactionTemplate.execute(
-                status -> {
+        return returnWithLocks(
+                userId,
+                () -> {
                     if (doManualReturn) {
                         String returnReason =
                                 (reason != null && !reason.isBlank())
@@ -157,6 +162,58 @@ public class LentApplicationService implements LentUseCase {
                     }
                     return processReturnTransaction(userId, previousPassword, photoUrl);
                 });
+    }
+
+    /**
+     * 반납 트랜잭션을 사용자 행 락 -> 사물함 행 락 순서로 잠근 뒤 실행한다. 사용자 락은 같은 유저의 동시 반납·연장·이사를 직렬화하고, 사물함 락은 관리자의 상태
+     * 변경( {@code findByIdWithLock})·Undo 와 겹쳐 사물함 행을 서로 덮어쓰는 것을 막는다. 락 순서는 대여·이사·Undo 와 같은 사용자 ->
+     * 사물함이다(반대로 잡는 경로가 하나라도 있으면 데드락이 난다).
+     *
+     * <p>사물함 ID 는 락 전에 알아야 하는데 대여 행을 락 전에 읽으면 스냅샷이 잡혀 락 뒤에도 옛 값이 보이므로, ID 만 트랜잭션 밖에서 가볍게 읽는다. 그 사이
+     * 이사 등으로 대여가 다른 사물함으로 바뀌었으면(락을 잡은 뒤 확인) 처음부터 다시 한다.
+     */
+    private LentReturnResult returnWithLocks(Long userId, Supplier<LentReturnResult> body) {
+        for (int attempt = 0; attempt < MAX_RETURN_LOCK_ATTEMPTS; attempt++) {
+            Long cabinetId =
+                    lentRepository
+                            .findActiveCabinetIdByUserId(userId)
+                            .orElseThrow(() -> new ServiceException(ErrorCode.LENT_NOT_FOUND));
+            try {
+                return transactionTemplate.execute(
+                        status -> {
+                            // 이 트랜잭션의 첫 DB 조회여야 한다(REPEATABLE READ 스냅샷 때문).
+                            lockUser(userId);
+                            cabinetRepository
+                                    .findByIdWithLock(cabinetId)
+                                    .orElseThrow(
+                                            () ->
+                                                    new ServiceException(
+                                                            ErrorCode.CABINET_NOT_FOUND));
+
+                            Long lockedCabinetId =
+                                    lentRepository
+                                            .findActiveCabinetIdByUserId(userId)
+                                            .orElseThrow(
+                                                    () ->
+                                                            new ServiceException(
+                                                                    ErrorCode.LENT_NOT_FOUND));
+                            if (!lockedCabinetId.equals(cabinetId)) {
+                                throw new ReturnTargetChangedException();
+                            }
+                            return body.get();
+                        });
+            } catch (ReturnTargetChangedException e) {
+                log.info("반납 대상 사물함이 바뀌어 다시 시도합니다 - User: {}", userId);
+            }
+        }
+        throw new ServiceException(ErrorCode.REQUEST_IN_PROGRESS);
+    }
+
+    /** 락을 잡는 사이 사용자의 대여가 다른 사물함으로 바뀐 경우. 반납을 처음부터 다시 시도하는 신호로만 쓴다. */
+    private static final class ReturnTargetChangedException extends RuntimeException {
+        ReturnTargetChangedException() {
+            super(null, null, false, false);
+        }
     }
 
     public LentReturnResult endLentManual(
@@ -404,10 +461,8 @@ public class LentApplicationService implements LentUseCase {
     @Override
     @Transactional
     public void usePenaltyExemption(Long userId) {
-        User user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
+        // 같은 유저의 동시 감면을 직렬화한다(감면권과 패널티 일수를 함께 바꾸므로). 이 트랜잭션의 첫 DB 조회여야 한다.
+        User user = lockUser(userId);
 
         if (user.getPenaltyDays() <= 0) {
             throw new ServiceException(ErrorCode.PENALTY_NOT_FOUND);
