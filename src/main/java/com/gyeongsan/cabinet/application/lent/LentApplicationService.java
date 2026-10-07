@@ -22,6 +22,7 @@ import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -366,12 +367,86 @@ public class LentApplicationService implements LentUseCase {
 
         String photoUrl = imageUploadPort.uploadImage(userId, file);
 
-        transactionTemplate.execute(
-                status -> {
-                    processSwapTransaction(
-                            userId, newVisibleNum, previousPassword, forceReturn, reason, photoUrl);
-                    return null;
-                });
+        swapWithLocks(
+                userId,
+                newVisibleNum,
+                lockedNewCabinet ->
+                        doSwap(
+                                userId,
+                                newVisibleNum,
+                                previousPassword,
+                                forceReturn,
+                                reason,
+                                photoUrl,
+                                lockedNewCabinet));
+    }
+
+    /**
+     * 이사 트랜잭션을 사용자 행 락 -> 옛·새 사물함 행 락 순서로 잠근 뒤 실행한다. 새 사물함만 잠그던 때는 옛 사물함을 관리자의 상태 변경과 서로 덮어썼다(반납과
+     * 같은 결함).
+     *
+     * <p>사물함 두 개를 잠그므로 <b>ID 오름차순</b>으로 잡는다. 관리자 일괄 변경·Undo 도 오름차순이라, 서로의 옛·새 사물함으로 동시에 이사하는 두
+     * 유저(A: a->b, B: b->a)도 같은 순서로 잠가 데드락이 나지 않는다. ID 를 락 전에 알아야 하는데 대여 행을 락 전에 읽으면 스냅샷이 잡혀 락 뒤에도 옛
+     * 값이 보이므로, 옛 사물함 ID(스칼라)와 새 사물함 ID 를 트랜잭션 밖에서 읽고 락 뒤에 옛 사물함이 그대로인지 확인한다(바뀌었으면 다시 시도). 둘 중 하나라도
+     * 없으면 락 없이 본 흐름으로 보내 기존 오류 순서(대여 없음, 사물함 없음)를 그대로 유지한다.
+     */
+    private void swapWithLocks(Long userId, Integer newVisibleNum, Consumer<Cabinet> body) {
+        for (int attempt = 0; attempt < MAX_RETURN_LOCK_ATTEMPTS; attempt++) {
+            Long oldCabinetId = lentRepository.findActiveCabinetIdByUserId(userId).orElse(null);
+            Long newCabinetId =
+                    cabinetRepository
+                            .findByVisibleNum(newVisibleNum)
+                            .map(Cabinet::getId)
+                            .orElse(null);
+            try {
+                transactionTemplate.execute(
+                        status -> {
+                            // 이 트랜잭션의 첫 DB 조회여야 한다(REPEATABLE READ 스냅샷 때문).
+                            lockUser(userId);
+                            Cabinet lockedNewCabinet = null;
+                            if (oldCabinetId != null && newCabinetId != null) {
+                                lockedNewCabinet =
+                                        lockCabinetsInIdOrder(oldCabinetId, newCabinetId);
+                                Long lockedOldCabinetId =
+                                        lentRepository
+                                                .findActiveCabinetIdByUserId(userId)
+                                                .orElse(null);
+                                if (!oldCabinetId.equals(lockedOldCabinetId)
+                                        || !newVisibleNum.equals(
+                                                lockedNewCabinet.getVisibleNum())) {
+                                    throw new ReturnTargetChangedException();
+                                }
+                            }
+                            body.accept(lockedNewCabinet);
+                            return null;
+                        });
+                return;
+            } catch (ReturnTargetChangedException e) {
+                log.info("이사 대상 사물함이 바뀌어 다시 시도합니다 - User: {}", userId);
+            }
+        }
+        throw new ServiceException(ErrorCode.REQUEST_IN_PROGRESS);
+    }
+
+    /**
+     * 사물함 행 락을 PK(ID) 오름차순으로 잡고 두 번째 인자(새 사물함)의 엔티티를 돌려준다.
+     *
+     * <p>PK 로 잠근 사물함을 같은 트랜잭션에서 {@code findByVisibleNumWithLock} 으로 <b>다시 찾으면 안 된다</b>. {@code
+     * VISIBLE_NUM} 에 인덱스가 없는 스키마(엔티티에 인덱스 정의가 없어 Hibernate 가 만든 테스트·데모 DB)에서는 그 쿼리가 PK 순으로 테이블을 훑으며
+     * 지나가는 모든 행을 잠가서, 다른 트랜잭션이 쥔 낮은 ID 행을 기다리다 교착이 난다(실제로 재현됨). 그래서 이미 잠근 엔티티를 그대로 넘겨 쓴다.
+     */
+    private Cabinet lockCabinetsInIdOrder(Long oldId, Long newId) {
+        Cabinet locked = null;
+        for (Long id : java.util.stream.Stream.of(oldId, newId).distinct().sorted().toList()) {
+            Cabinet cabinet =
+                    cabinetRepository
+                            .findByIdWithLock(id)
+                            .orElseThrow(() -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));
+            if (id.equals(newId)) {
+                locked = cabinet;
+            }
+        }
+        return locked;
     }
 
     protected void processSwapTransaction(
@@ -381,6 +456,18 @@ public class LentApplicationService implements LentUseCase {
             Boolean forceReturn,
             String reason,
             String photoUrl) {
+        doSwap(userId, newVisibleNum, previousPassword, forceReturn, reason, photoUrl, null);
+    }
+
+    /** lockedNewCabinet 이 있으면 이미 행 락을 잡은 새 사물함이고, 없으면(null) 여기서 번호로 찾아 잠근다. */
+    private void doSwap(
+            Long userId,
+            Integer newVisibleNum,
+            String previousPassword,
+            Boolean forceReturn,
+            String reason,
+            String photoUrl,
+            Cabinet lockedNewCabinet) {
         // 같은 유저의 동시 이사를 직렬화한다. 이 트랜잭션의 첫 DB 조회여야 하고(그래야 이후 조회가 앞 요청의 커밋을 본다),
         // 락 순서는 사용자 -> 사물함이다.
         User user = lockUser(userId);
@@ -403,9 +490,12 @@ public class LentApplicationService implements LentUseCase {
         }
 
         Cabinet newCabinet =
-                cabinetRepository
-                        .findByVisibleNumWithLock(newVisibleNum)
-                        .orElseThrow(() -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));
+                lockedNewCabinet != null
+                        ? lockedNewCabinet
+                        : cabinetRepository
+                                .findByVisibleNumWithLock(newVisibleNum)
+                                .orElseThrow(
+                                        () -> new ServiceException(ErrorCode.CABINET_NOT_FOUND));
 
         // 사물함 행 락을 잡은 뒤에 예약을 확인한다. 예약(makeReservation)도 같은 행 락 안에서 Redis 에 쓰므로,
         // 확인과 이사 사이에 다른 사람이 예약을 끼워 넣을 수 없다.

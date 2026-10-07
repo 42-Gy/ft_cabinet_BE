@@ -220,7 +220,17 @@ class LentConcurrencyMysqlTest {
                         });
     }
 
-    private static void withContext(String image, Consumer<Fixture> body) throws Exception {
+    /**
+     * image 끝에 "+index" 를 붙이면 CABINET.VISIBLE_NUM 에 유니크 인덱스를 만든 스키마로 돌린다. 엔티티에 인덱스 정의가 없어 Hibernate
+     * 가 만든 스키마(기본)에서는 {@code WHERE visible_num = ? FOR UPDATE} 가 PK 순으로 테이블을 훑으며 행을 잠그지만, 인덱스가 있는
+     * 스키마에서는 해당 행만 잠근다. 운영 스키마가 어느 쪽인지 알 수 없어(덤프 없음) 두 형태 모두에서 락 순서가 안전한지 확인한다.
+     */
+    private static void withContext(String imageSpec, Consumer<Fixture> body) throws Exception {
+        boolean indexed = imageSpec.endsWith("+index");
+        String image =
+                indexed
+                        ? imageSpec.substring(0, imageSpec.length() - "+index".length())
+                        : imageSpec;
         try (MariaDbDriverMySqlContainer mysql = new MariaDbDriverMySqlContainer(image)) {
             mysql.start();
             redisTemplate.getConnectionFactory().getConnection().serverCommands().flushAll();
@@ -247,6 +257,12 @@ class LentConcurrencyMysqlTest {
                             context -> {
                                 assertThat(context).hasNotFailed();
                                 try {
+                                    if (indexed) {
+                                        context.getBean(JdbcTemplate.class)
+                                                .execute(
+                                                        "CREATE UNIQUE INDEX uk_cabinet_visible_num"
+                                                                + " ON cabinet (visible_num)");
+                                    }
                                     body.accept(new Fixture(context));
                                 } catch (Throwable t) {
                                     failure[0] = t;
@@ -797,7 +813,7 @@ class LentConcurrencyMysqlTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
     @DisplayName("반납 중에 관리자가 같은 사물함을 고장·라피신 전용으로 바꿔도 그 변경이 반납에 덮어써지지 않는다")
     void return_vsAdminStatusChange(String image) throws Exception {
         withContext(
@@ -853,7 +869,7 @@ class LentConcurrencyMysqlTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
     @DisplayName("수동 반납(AI 검사 실패 후 강제 반납) 중에 관리자가 사물함 대여 유형을 바꿔도 그 변경이 덮어써지지 않는다")
     void manualReturn_vsAdminStatusChange(String image) throws Exception {
         withContext(
@@ -908,7 +924,7 @@ class LentConcurrencyMysqlTest {
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"mysql:8.0", "mysql:8.4"})
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
     @DisplayName("같은 유저의 반납과 이사가 동시에 와도 데드락·서버 오류 없이 어느 한 순서대로 끝난다(대여가 바뀐 경우 반납은 새 사물함으로 다시 시도한다)")
     void return_vsSwapOfSameUser(String image) throws Exception {
         withContext(
@@ -960,6 +976,115 @@ class LentConcurrencyMysqlTest {
                                     .isEqualTo("AVAILABLE");
                         }
                         assertThat(f.cabinetStatus(old)).as("trial %d", n).isEqualTo("AVAILABLE");
+                    }
+                });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
+    @DisplayName("이사 중에 관리자가 옛 사물함을 고장·라피신 전용으로 바꿔도 그 변경이 이사에 덮어써지지 않는다")
+    void swap_vsAdminChangeOfOldCabinet(String image) throws Exception {
+        withContext(
+                image,
+                f -> {
+                    AI_OK.set(true);
+                    lentReadDelayMillis = 400;
+                    try {
+                        for (int n = 0; n < 5; n++) {
+                            Long userId = f.newUser(f.swapItem);
+                            int old = f.newCabinet(CabinetStatus.FULL);
+                            f.rent(userId, old, LocalDateTime.now().plusDays(10));
+                            int target = f.newCabinet(CabinetStatus.AVAILABLE);
+
+                            List<String> results;
+                            try {
+                                results =
+                                        runConcurrently(
+                                                List.of(
+                                                        () -> {
+                                                            f.service.useSwap(
+                                                                    userId, target, "1234", file(),
+                                                                    false, null);
+                                                            return null;
+                                                        },
+                                                        () -> {
+                                                            // 이사가 대여를 읽은 뒤, 옛 사물함을 쓰기 전에 끼어든다.
+                                                            Thread.sleep(150);
+                                                            f.admin.updateCabinetStatus(
+                                                                    old,
+                                                                    new CabinetStatusRequest(
+                                                                            CabinetStatus.BROKEN,
+                                                                            LentType.LAPISCINE,
+                                                                            "고장"));
+                                                            return null;
+                                                        }));
+                            } catch (Exception e) {
+                                throw new IllegalStateException(e);
+                            }
+
+                            assertThat(results).as("trial %d", n).containsExactly("OK", "OK");
+                            assertThat(f.activeLents(userId)).as("trial %d", n).isEqualTo(1);
+                            assertThat(f.endedLents(userId)).as("trial %d", n).isEqualTo(1);
+                            assertThat(f.cabinetStatus(target)).as("trial %d", n).isEqualTo("FULL");
+                            assertThat(f.cabinetStatus(old))
+                                    .as("trial %d: 관리자가 정한 고장 상태가 이사에 덮어써짐", n)
+                                    .isEqualTo("BROKEN");
+                            assertThat(f.cabinetLentType(old))
+                                    .as("trial %d: 관리자가 정한 대여 유형이 이사에 덮어써짐", n)
+                                    .isEqualTo("LAPISCINE");
+                        }
+                    } finally {
+                        lentReadDelayMillis = 0;
+                    }
+                });
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @ValueSource(strings = {"mysql:8.0", "mysql:8.4", "mysql:8.4+index"})
+    @DisplayName("두 유저가 서로의 사물함으로 동시에 이사하려 해도 데드락 없이 둘 다 '사용 중' 오류로 끝난다(사물함 락은 ID 오름차순)")
+    void swap_crossingSwapsDoNotDeadlock(String image) throws Exception {
+        withContext(
+                image,
+                f -> {
+                    AI_OK.set(true);
+                    for (int n = 0; n < TRIALS; n++) {
+                        Long a = f.newUser(f.swapItem);
+                        Long b = f.newUser(f.swapItem);
+                        int cabinetA = f.newCabinet(CabinetStatus.FULL);
+                        int cabinetB = f.newCabinet(CabinetStatus.FULL);
+                        f.rent(a, cabinetA, LocalDateTime.now().plusDays(10));
+                        f.rent(b, cabinetB, LocalDateTime.now().plusDays(10));
+
+                        List<String> results;
+                        try {
+                            results =
+                                    runConcurrently(
+                                            List.of(
+                                                    () -> {
+                                                        f.service.useSwap(
+                                                                a, cabinetB, "1234", file(), false,
+                                                                null);
+                                                        return null;
+                                                    },
+                                                    () -> {
+                                                        f.service.useSwap(
+                                                                b, cabinetA, "1234", file(), false,
+                                                                null);
+                                                        return null;
+                                                    }));
+                        } catch (Exception e) {
+                            throw new IllegalStateException(e);
+                        }
+
+                        assertThat(results)
+                                .as("trial %d", n)
+                                .containsExactly(
+                                        ErrorCode.INVALID_CABINET_STATUS.name(),
+                                        ErrorCode.INVALID_CABINET_STATUS.name());
+                        assertThat(f.activeLents(a)).isEqualTo(1);
+                        assertThat(f.activeLents(b)).isEqualTo(1);
+                        assertThat(f.usedTickets(a, ItemType.SWAP)).isZero();
+                        assertThat(f.usedTickets(b, ItemType.SWAP)).isZero();
                     }
                 });
     }
