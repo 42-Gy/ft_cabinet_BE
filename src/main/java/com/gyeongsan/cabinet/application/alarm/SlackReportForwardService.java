@@ -6,6 +6,7 @@ import com.gyeongsan.cabinet.domain.alarm.model.SlackHistory;
 import com.gyeongsan.cabinet.domain.alarm.port.in.ForwardSlackReportsUseCase;
 import com.gyeongsan.cabinet.domain.alarm.port.out.AlarmPort;
 import com.gyeongsan.cabinet.domain.alarm.port.out.ReportCursorPort;
+import com.gyeongsan.cabinet.domain.alarm.port.out.ReportRecipientPort;
 import com.gyeongsan.cabinet.domain.alarm.port.out.SlackChannelPort;
 import java.time.Clock;
 import java.time.Instant;
@@ -17,7 +18,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 /**
- * 사물함 오류제보 채널의 새 글을 관리자에게 DM 으로 전달한다. 내용은 거르지 않고, 시스템 메시지(입퇴장 등)만 제외한다.
+ * 사물함 오류제보 채널의 새 글을 관리자(ADMIN, MASTER 권한 유저 전원)에게 DM 으로 전달한다. 내용은 거르지 않고, 시스템 메시지(입퇴장 등)만 제외한다.
+ *
+ * <p>수신자는 전달할 글이 있을 때만 DB 에서 읽는다(조용한 주기에는 DB 를 건드리지 않는다). 수신자가 없거나 조회에 실패하면 경고만 남기고 커서를 옮기지 않아, 다음
+ * 주기에 같은 글을 다시 시도한다(관리자가 생기면 그때 전달되고, 글이 조용히 사라지지 않는다).
  *
  * <p>중복 전달은 "마지막으로 확인한 메시지 ts" 커서로 막는다. 커서가 없으면(처음 켠 경우) 과거 글을 전달하지 않고 채널의 가장 최근 글에서 시작한다. 전달이 실패해도
  * 오류는 로그로만 남기고(AlarmPort 는 성공 여부를 알려주지 않는다) 다음 글로 넘어간다.
@@ -33,6 +37,7 @@ public class SlackReportForwardService implements ForwardSlackReportsUseCase {
     private final SlackChannelPort channelPort;
     private final ReportCursorPort cursorPort;
     private final AlarmPort alarmPort;
+    private final ReportRecipientPort recipientPort;
     private final SlackReportSettings settings;
     private final Clock clock;
 
@@ -69,15 +74,25 @@ public class SlackReportForwardService implements ForwardSlackReportsUseCase {
 
         List<SlackChannelMessage> forwardable =
                 all.stream().filter(m -> !m.isSystemMessage()).toList();
+        if (forwardable.isEmpty()) {
+            // 시스템 메시지뿐이면 보낼 것이 없으니 수신자 조회 없이 커서만 옮긴다.
+            saveCursor(channelId, all.get(all.size() - 1).ts());
+            return;
+        }
+
+        List<String> recipients = loadRecipients();
+        if (recipients.isEmpty()) {
+            return;
+        }
         int skipped = Math.max(0, forwardable.size() - settings.maxPerPoll());
         List<SlackChannelMessage> toForward = forwardable.subList(skipped, forwardable.size());
 
         if (skipped > 0 || (history.truncated() && !forwardable.isEmpty())) {
-            sendToRecipients(summaryText(skipped, history.truncated()));
+            sendToRecipients(recipients, summaryText(skipped, history.truncated()));
         }
 
         for (SlackChannelMessage message : toForward) {
-            sendToRecipients(buildText(channelId, message));
+            sendToRecipients(recipients, buildText(channelId, message));
             saveCursor(channelId, message.ts());
         }
 
@@ -112,8 +127,23 @@ public class SlackReportForwardService implements ForwardSlackReportsUseCase {
         }
     }
 
-    private void sendToRecipients(String text) {
-        for (String recipient : settings.recipients()) {
+    /** 수신자를 못 구하면 빈 목록(이번 주기는 건너뜀). 부팅을 막지 않고 경고만 남긴다. */
+    private List<String> loadRecipients() {
+        try {
+            List<String> recipients = recipientPort.findRecipientIntraIds();
+            if (recipients.isEmpty()) {
+                log.warn(
+                        "[SlackReport] 수신자(ADMIN/MASTER 권한 유저)가 없어 전달을 보류합니다. 관리자가 생기면 다음 주기에 전달됩니다.");
+            }
+            return recipients;
+        } catch (RuntimeException e) {
+            log.warn("[SlackReport] 수신자를 조회하지 못해 이번 주기를 건너뜁니다: {}", e.toString());
+            return List.of();
+        }
+    }
+
+    private void sendToRecipients(List<String> recipients, String text) {
+        for (String recipient : recipients) {
             try {
                 alarmPort.sendDm(recipient, text);
             } catch (RuntimeException e) {

@@ -7,6 +7,7 @@ import com.gyeongsan.cabinet.domain.alarm.model.SlackChannelMessage;
 import com.gyeongsan.cabinet.domain.alarm.model.SlackHistory;
 import com.gyeongsan.cabinet.domain.alarm.port.out.AlarmPort;
 import com.gyeongsan.cabinet.domain.alarm.port.out.ReportCursorPort;
+import com.gyeongsan.cabinet.domain.alarm.port.out.ReportRecipientPort;
 import com.gyeongsan.cabinet.domain.alarm.port.out.SlackChannelPort;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -99,7 +100,23 @@ class SlackReportForwardServiceTest {
         }
     }
 
+    static class FakeRecipients implements ReportRecipientPort {
+        List<String> ids = new ArrayList<>(List.of("admin1", "admin2"));
+        boolean fail;
+        int calls;
+
+        @Override
+        public List<String> findRecipientIntraIds() {
+            calls++;
+            if (fail) {
+                throw new IllegalStateException("db down");
+            }
+            return List.copyOf(ids);
+        }
+    }
+
     private FakeChannel channel;
+    private FakeRecipients recipients;
     private FakeCursor cursor;
     private RecordingAlarm alarm;
     private SlackReportForwardService service;
@@ -109,8 +126,8 @@ class SlackReportForwardServiceTest {
         channel = new FakeChannel();
         cursor = new FakeCursor();
         alarm = new RecordingAlarm();
-        service =
-                serviceWith(new SlackReportSettings(CHANNEL, List.of("admin1", "admin2"), 20, 100));
+        recipients = new FakeRecipients();
+        service = serviceWith(new SlackReportSettings(CHANNEL, 20, 100));
     }
 
     private SlackReportForwardService serviceWith(SlackReportSettings settings) {
@@ -118,6 +135,7 @@ class SlackReportForwardServiceTest {
                 channel,
                 cursor,
                 alarm,
+                recipients,
                 settings,
                 Clock.fixed(Instant.ofEpochSecond(1_700_000_500L), ZoneOffset.UTC));
     }
@@ -259,7 +277,8 @@ class SlackReportForwardServiceTest {
     @Test
     @DisplayName("한 번에 너무 많이 쌓였으면 최근 글만 전달하고 오래된 글은 요약 한 줄로 대신한다")
     void capsBacklogWithSummary() {
-        service = serviceWith(new SlackReportSettings(CHANNEL, List.of("admin1"), 3, 100));
+        service = serviceWith(new SlackReportSettings(CHANNEL, 3, 100));
+        recipients.ids = new ArrayList<>(List.of("admin1"));
         cursor.store.put(CHANNEL, "1700000000.000000");
         for (int i = 1; i <= 10; i++) {
             channel.messages.add(msg("17000001%02d.000100".formatted(i), "글" + i));
@@ -360,16 +379,73 @@ class SlackReportForwardServiceTest {
     }
 
     @Test
-    @DisplayName("설정 검증: 채널 ID 나 수신자가 없거나 한도가 0 이하이면 거부한다")
+    @DisplayName("수신자가 0명이면 예외 없이 경고만 남기고, 커서를 옮기지 않아 글이 사라지지 않는다")
+    void noRecipientsHoldsReportsWithoutLosingThem() {
+        cursor.store.put(CHANNEL, "1700000000.000000");
+        channel.messages.add(msg("1700000100.000100", "관리자 없을 때 온 글"));
+        recipients.ids = new ArrayList<>();
+
+        service.forwardNewReports();
+
+        assertThat(alarm.sent).isEmpty();
+        assertThat(cursor.store).containsEntry(CHANNEL, "1700000000.000000");
+
+        // 관리자가 생기면 같은 글이 그때 전달된다.
+        recipients.ids = new ArrayList<>(List.of("admin3"));
+        service.forwardNewReports();
+        assertThat(alarm.sent).extracting(RecordingAlarm.Sent::to).containsExactly("admin3");
+        assertThat(alarm.sent.get(0).text()).contains("관리자 없을 때 온 글");
+        assertThat(cursor.store).containsEntry(CHANNEL, "1700000100.000100");
+    }
+
+    @Test
+    @DisplayName("수신자 조회(DB)가 실패해도 예외로 끝나지 않고 커서를 그대로 둔 채 다음 주기에 재시도한다")
+    void recipientLookupFailureKeepsCursor() {
+        cursor.store.put(CHANNEL, "1700000000.000000");
+        channel.messages.add(msg("1700000100.000100", "글"));
+        recipients.fail = true;
+
+        service.forwardNewReports();
+
+        assertThat(alarm.sent).isEmpty();
+        assertThat(cursor.store).containsEntry(CHANNEL, "1700000000.000000");
+
+        recipients.fail = false;
+        service.forwardNewReports();
+        assertThat(alarm.sent).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("새 글이 없거나 시스템 메시지뿐인 주기에는 수신자를 조회하지 않는다(DB 를 매분 건드리지 않는다)")
+    void doesNotQueryRecipientsWhenNothingToSend() {
+        cursor.store.put(CHANNEL, "1700000000.000000");
+
+        service.forwardNewReports(); // 새 글 없음
+        channel.messages.add(system("1700000100.000100", "channel_join"));
+        service.forwardNewReports(); // 시스템 메시지뿐
+
+        assertThat(recipients.calls).isZero();
+        assertThat(cursor.store).containsEntry(CHANNEL, "1700000100.000100");
+    }
+
+    @Test
+    @DisplayName("한 번의 전달에서 수신자는 한 번만 조회한다(글이 여러 개여도)")
+    void queriesRecipientsOncePerRun() {
+        cursor.store.put(CHANNEL, "1700000000.000000");
+        channel.messages.add(msg("1700000100.000100", "하나"));
+        channel.messages.add(msg("1700000200.000100", "둘"));
+
+        service.forwardNewReports();
+
+        assertThat(recipients.calls).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("설정 검증: 채널 ID 가 없거나 한도가 0 이하이면 거부한다")
     void settingsValidation() {
         org.junit.jupiter.api.Assertions.assertThrows(
-                IllegalArgumentException.class,
-                () -> new SlackReportSettings(" ", List.of("a"), 1, 1));
+                IllegalArgumentException.class, () -> new SlackReportSettings(" ", 1, 1));
         org.junit.jupiter.api.Assertions.assertThrows(
-                IllegalArgumentException.class,
-                () -> new SlackReportSettings("C1", List.of(), 1, 1));
-        org.junit.jupiter.api.Assertions.assertThrows(
-                IllegalArgumentException.class,
-                () -> new SlackReportSettings("C1", List.of("a"), 0, 1));
+                IllegalArgumentException.class, () -> new SlackReportSettings("C1", 0, 1));
     }
 }

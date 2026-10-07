@@ -553,11 +553,11 @@ erDiagram
 
 ### 사물함 오류제보 → 관리자 DM 전달 (Slack Report Forwarding)
 
-- 사물함 오류제보/문의 슬랙 채널에 올라온 **새 글을 설정된 관리자에게 DM 으로 그대로 전달**한다(내용은 거르지 않고, 입퇴장·주제 변경 같은 시스템 메시지만 제외). 봇이나 파일이 포함된 글도 전달한다.
+- 사물함 오류제보/문의 슬랙 채널에 올라온 **새 글을 관리자(권한이 `ADMIN` 또는 `MASTER` 인 유저 전원, 탈퇴자 제외)에게 DM 으로 그대로 전달**한다(내용은 거르지 않고, 입퇴장·주제 변경 같은 시스템 메시지만 제외). 봇이나 파일이 포함된 글도 전달한다.
 - **폴링 방식**: 기본 60초마다 `conversations.history` 를 호출한다(ShedLock 으로 서버가 여러 대여도 한 곳만 실행). 채널의 **최상위 메시지만** 다루며 스레드 답글은 전달하지 않는다(답글 수만 표시).
 - **중복 방지**: 채널별로 "마지막으로 확인한 메시지 ts"를 Redis(`slack:report:cursor:{channelId}`)에 저장한다. **커서가 없으면(처음 켠 경우, Redis 초기화 포함) 과거 글은 전달하지 않고 지금부터 시작**한다. 한 번에 20건을 넘게 쌓이면 최근 20건만 전달하고 나머지는 요약 한 줄로 대신한다.
 - 전달 실패는 로그만 남기고 다음 글로 넘어간다(`AlarmPort` 는 성공 여부를 알려주지 않는다).
-- **설정(기본은 꺼짐)**: `SLACK_REPORT_FORWARD_ENABLED=true`, `SLACK_REPORT_CHANNEL_ID`(채널 ID), `SLACK_REPORT_RECIPIENTS`(DM 받을 관리자 인트라 ID, 쉼표 구분 — 슬랙 사용자명이 인트라 ID 와 같아야 함). 켠 상태에서 채널 ID 나 수신자가 없으면 부팅이 실패한다. 선택: `SLACK_REPORT_POLL_INTERVAL_MS`(기본 60000).
+- **설정(기본은 꺼짐)**: `SLACK_REPORT_FORWARD_ENABLED=true`, `SLACK_REPORT_CHANNEL_ID`(채널 ID). 켠 상태에서 채널 ID 가 없으면 부팅이 실패한다. **수신자는 설정이 아니라 DB 에서 매번 조회**하므로 권한 변경이 바로 반영된다(슬랙 사용자명이 인트라 ID(`User.name`)와 같아야 DM 이 간다). 수신자가 0명이면 부팅은 되고 경고 로그만 남기며, 그 글은 **커서를 옮기지 않고 보류**했다가 관리자가 생기면 다음 주기에 전달한다(수신자 조회가 실패했을 때도 같다). 예전 `SLACK_REPORT_RECIPIENTS` 는 더 이상 읽지 않는다. 선택: `SLACK_REPORT_POLL_INTERVAL_MS`(기본 60000).
 - **Slack 앱 준비(사람이 해야 함)**: 봇 토큰 앱에 `channels:history`(비공개 채널은 `groups:history`) 권한을 추가해 재설치하고, 채널에 봇을 초대한다. `chat:write` 등 기존 DM 권한은 그대로 쓴다.
 
 ### FAQ 챗봇 (Tier 1: 의미 검색 FAQ 매칭)

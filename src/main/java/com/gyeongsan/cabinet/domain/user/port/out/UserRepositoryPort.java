@@ -1,6 +1,8 @@
 package com.gyeongsan.cabinet.domain.user.port.out;
 
 import com.gyeongsan.cabinet.domain.user.model.User;
+import com.gyeongsan.cabinet.domain.user.model.UserRole;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -29,4 +31,7 @@ public interface UserRepositoryPort {
     Optional<Long> sumCoins();
 
     List<User> findAllPenaltyUsers();
+
+    /** 주어진 권한 중 하나를 가진, 탈퇴하지 않은(deletedAt 이 없는) 유저. */
+    List<User> findAllActiveByRoleIn(Collection<UserRole> roles);
 }

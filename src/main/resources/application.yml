@@ -167,11 +167,11 @@ app:
     root-url: https://api.intra.42.fr
     token-url: https://api.intra.42.fr/oauth/token
   # 사물함 오류제보 채널의 새 글을 관리자 DM 으로 전달한다. 기본은 꺼짐.
-  # 켜려면 SLACK_REPORT_FORWARD_ENABLED=true 와 채널 ID, 수신자(인트라 ID, 쉼표 구분)가 모두 필요하다(없으면 부팅 실패).
+  # 켜려면 SLACK_REPORT_FORWARD_ENABLED=true 와 채널 ID 가 필요하다(채널 ID 가 없으면 부팅 실패).
+  # 수신자는 설정이 아니라 DB 에서 권한이 ADMIN/MASTER 인 유저 전원이며, 슬랙 사용자명이 인트라 ID 와 같아야 DM 이 간다. 수신자가 없으면 경고만 남기고 보류한다.
   slack-report:
     enabled: ${SLACK_REPORT_FORWARD_ENABLED:false}
     channel-id: ${SLACK_REPORT_CHANNEL_ID:}
-    recipients: ${SLACK_REPORT_RECIPIENTS:}
     poll-interval-ms: ${SLACK_REPORT_POLL_INTERVAL_MS:60000}
     max-per-poll: 20
   # FAQ 챗봇(의미 검색, 서버 내부 임베딩). 기본은 꺼짐. 켜려면 CHATBOT_ENABLED=true 와 모델 파일이 필요하다(없어도 서버는 뜨고 챗봇만 503).

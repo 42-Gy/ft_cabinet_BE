@@ -7,6 +7,7 @@ import com.gyeongsan.cabinet.application.alarm.SlackReportSettings;
 import com.gyeongsan.cabinet.domain.alarm.port.in.ForwardSlackReportsUseCase;
 import com.gyeongsan.cabinet.domain.alarm.port.out.AlarmPort;
 import com.gyeongsan.cabinet.domain.alarm.port.out.ReportCursorPort;
+import com.gyeongsan.cabinet.domain.alarm.port.out.ReportRecipientPort;
 import com.gyeongsan.cabinet.domain.alarm.port.out.SlackChannelPort;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -27,6 +28,7 @@ class SlackReportConfigTest {
                 .withBean(SlackChannelPort.class, () -> mock(SlackChannelPort.class))
                 .withBean(ReportCursorPort.class, () -> mock(ReportCursorPort.class))
                 .withBean(AlarmPort.class, () -> mock(AlarmPort.class))
+                .withBean(ReportRecipientPort.class, () -> mock(ReportRecipientPort.class))
                 .withInitializer(
                         context -> {
                             try {
@@ -55,12 +57,10 @@ class SlackReportConfigTest {
     }
 
     @Test
-    @DisplayName("켜면서 채널 ID 와 수신자를 주면 켜지고, 수신자는 쉼표로 나눠 공백을 정리한다")
-    void enabledWithSettings() {
+    @DisplayName("켜면서 채널 ID 만 주면 켜진다 (수신자는 설정이 아니라 DB 에서 읽으므로 수신자 설정은 필요 없다)")
+    void enabledWithChannelIdOnly() {
         runner().withPropertyValues(
-                        "SLACK_REPORT_FORWARD_ENABLED=true",
-                        "SLACK_REPORT_CHANNEL_ID= C0REPORT ",
-                        "SLACK_REPORT_RECIPIENTS=admin1, admin2 ,,admin1")
+                        "SLACK_REPORT_FORWARD_ENABLED=true", "SLACK_REPORT_CHANNEL_ID= C0REPORT ")
                 .run(
                         context -> {
                             assertThat(context).hasNotFailed();
@@ -68,19 +68,24 @@ class SlackReportConfigTest {
                             SlackReportSettings settings =
                                     context.getBean(SlackReportSettings.class);
                             assertThat(settings.channelId()).isEqualTo("C0REPORT");
-                            assertThat(settings.recipients()).containsExactly("admin1", "admin2");
                             assertThat(settings.maxPerPoll()).isEqualTo(20);
                         });
     }
 
     @Test
-    @DisplayName("켰는데 채널 ID 나 수신자가 없으면 부팅이 실패한다 (조용히 엉뚱한 곳을 읽지 않는다)")
-    void enabledWithoutRequiredSettingsFailsStartup() {
+    @DisplayName("예전 SLACK_REPORT_RECIPIENTS 가 남아 있어도 무시되고 부팅에는 영향이 없다")
+    void legacyRecipientsSettingIsIgnored() {
         runner().withPropertyValues(
-                        "SLACK_REPORT_FORWARD_ENABLED=true", "SLACK_REPORT_RECIPIENTS=admin1")
-                .run(context -> assertThat(context).hasFailed());
-        runner().withPropertyValues(
-                        "SLACK_REPORT_FORWARD_ENABLED=true", "SLACK_REPORT_CHANNEL_ID=C0REPORT")
+                        "SLACK_REPORT_FORWARD_ENABLED=true",
+                        "SLACK_REPORT_CHANNEL_ID=C0REPORT",
+                        "SLACK_REPORT_RECIPIENTS=admin1,admin2")
+                .run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    @DisplayName("켰는데 채널 ID 가 없으면 부팅이 실패한다 (조용히 엉뚱한 곳을 읽지 않는다)")
+    void enabledWithoutChannelIdFailsStartup() {
+        runner().withPropertyValues("SLACK_REPORT_FORWARD_ENABLED=true")
                 .run(context -> assertThat(context).hasFailed());
     }
 }
