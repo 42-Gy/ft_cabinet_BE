@@ -141,6 +141,27 @@ class KakaoNotifyConfigTest {
                             assertThat(settings.channelId()).isEqualTo("C0NOTICE");
                             assertThat(settings.linkUrl()).isEqualTo("https://front.example");
                             assertThat(settings.maxPerPoll()).isEqualTo(5);
+                            assertThat(settings.permalinkEnabled()).as("퍼머링크는 기본 켜짐").isTrue();
+                        });
+    }
+
+    @Test
+    @DisplayName("SLACK_NOTICE_PERMALINK_ENABLED=false 로 퍼머링크를 끌 수 있다")
+    void permalinkCanBeSwitchedOff() {
+        runner().withPropertyValues(
+                        "KAKAO_NOTIFY_ENABLED=true",
+                        "KAKAO_TOKEN_ENC_KEY=" + key(),
+                        "SLACK_NOTICE_FORWARD_ENABLED=true",
+                        "SLACK_NOTICE_CHANNEL_ID=C0NOTICE",
+                        "SLACK_NOTICE_PERMALINK_ENABLED=false",
+                        "FRONTEND_URL=https://front.example")
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            assertThat(
+                                            context.getBean(SlackNoticeSettings.class)
+                                                    .permalinkEnabled())
+                                    .isFalse();
                         });
     }
 

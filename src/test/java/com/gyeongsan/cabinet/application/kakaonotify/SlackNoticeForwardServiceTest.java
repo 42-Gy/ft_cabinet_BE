@@ -63,9 +63,19 @@ class SlackNoticeForwardServiceTest {
             return messages.stream().map(SlackChannelMessage::ts).reduce((a, b) -> b);
         }
 
+        /** ts → 퍼머링크. 비어 있으면 퍼머링크를 못 얻는 상황. */
+        final Map<String, String> permalinks = new HashMap<>();
+
+        RuntimeException permalinkFailure;
+        final List<String> permalinkCalls = new ArrayList<>();
+
         @Override
         public Optional<String> permalink(String channelId, String ts) {
-            return Optional.empty();
+            permalinkCalls.add(channelId + "/" + ts);
+            if (permalinkFailure != null) {
+                throw permalinkFailure;
+            }
+            return Optional.ofNullable(permalinks.get(ts));
         }
     }
 
@@ -605,5 +615,132 @@ class SlackNoticeForwardServiceTest {
         assertThat(recipient.toString()).doesNotContain("secret");
         assertThat(grant.toString()).doesNotContain("secret");
         assertThat(refreshed.toString()).doesNotContain("secret");
+    }
+
+    @Test
+    @DisplayName("공지 카톡은 해당 슬랙 글의 퍼머링크를 열도록 보내고, 퍼머링크는 공지 한 건당 한 번만 조회한다")
+    void linksToSlackPermalink() {
+        addRecipient(1, "a");
+        addRecipient(2, "b");
+        channel.messages.add(msg("1700000100.000100", "공지"));
+        channel.permalinks.put(
+                "1700000100.000100", "https://ws.slack.com/archives/C0NOTICE/p1700000100000100");
+
+        service.forwardNewNotices();
+
+        assertThat(kakao.sent).hasSize(2);
+        assertThat(kakao.sent)
+                .allSatisfy(
+                        s ->
+                                assertThat(s.message().linkUrl())
+                                        .isEqualTo(
+                                                "https://ws.slack.com/archives/C0NOTICE/p1700000100000100"));
+        assertThat(channel.permalinkCalls).as("수신자 수와 무관하게 공지당 한 번").hasSize(1);
+    }
+
+    @Test
+    @DisplayName("공지마다 자기 글의 퍼머링크로 간다")
+    void eachNoticeHasItsOwnLink() {
+        addRecipient(1, "a");
+        channel.messages.add(msg("1700000100.000100", "첫째"));
+        channel.messages.add(msg("1700000200.000100", "둘째"));
+        channel.permalinks.put("1700000100.000100", "https://ws.slack.com/p1");
+        channel.permalinks.put("1700000200.000100", "https://ws.slack.com/p2");
+
+        service.forwardNewNotices();
+
+        assertThat(kakao.sent)
+                .extracting(s -> s.message().linkUrl())
+                .containsExactly("https://ws.slack.com/p1", "https://ws.slack.com/p2");
+    }
+
+    @Test
+    @DisplayName("퍼머링크를 못 얻으면(빈 값) 기본 링크로 폴백하고 발송은 그대로 된다")
+    void fallsBackWhenNoPermalink() {
+        addRecipient(1, "a");
+        channel.messages.add(msg("1700000100.000100", "공지"));
+
+        service.forwardNewNotices();
+
+        assertThat(kakao.sent).hasSize(1);
+        assertThat(kakao.sent.get(0).message().linkUrl()).isEqualTo("https://front.example");
+        assertThat(cursor.store).containsEntry(CHANNEL, "1700000100.000100");
+    }
+
+    @Test
+    @DisplayName("퍼머링크 조회가 예외로 실패해도(네트워크·권한 등) 기본 링크로 폴백하며 발송을 막지 않는다")
+    void fallsBackWhenPermalinkLookupThrows() {
+        addRecipient(1, "a");
+        channel.messages.add(msg("1700000100.000100", "공지"));
+
+        channel.permalinkFailure = new SlackChannelException("missing_scope");
+        service.forwardNewNotices();
+        assertThat(kakao.sent).hasSize(1);
+        assertThat(kakao.sent.get(0).message().linkUrl()).isEqualTo("https://front.example");
+
+        kakao.sent.clear();
+        cursor.store.put(CHANNEL, "1700000000.000000");
+        channel.permalinkFailure = new IllegalStateException("boom");
+        service.forwardNewNotices();
+        assertThat(kakao.sent).hasSize(1);
+        assertThat(kakao.sent.get(0).message().linkUrl()).isEqualTo("https://front.example");
+    }
+
+    @Test
+    @DisplayName("http(s) 주소가 아닌 이상한 값이 오면 쓰지 않고 기본 링크로 폴백한다")
+    void ignoresNonHttpPermalink() {
+        addRecipient(1, "a");
+        channel.messages.add(msg("1700000100.000100", "공지"));
+        channel.permalinks.put("1700000100.000100", "javascript:alert(1)");
+
+        service.forwardNewNotices();
+
+        assertThat(kakao.sent.get(0).message().linkUrl()).isEqualTo("https://front.example");
+    }
+
+    @Test
+    @DisplayName("'이전 N건 생략' 요약은 가리킬 글이 없으니 기본 링크를 쓰고, 그 요약을 위해 퍼머링크를 조회하지 않는다")
+    void summaryUsesDefaultLink() {
+        addRecipient(1, "a");
+        for (int i = 1; i <= 5; i++) {
+            String ts = "17000001%02d.000100".formatted(i);
+            channel.messages.add(msg(ts, "공지" + i));
+            channel.permalinks.put(ts, "https://ws.slack.com/p" + i);
+        }
+
+        service.forwardNewNotices();
+
+        List<FakeKakao.Sent> sent = kakao.sent;
+        assertThat(sent).hasSize(4); // 요약 1 + 최근 3건 (maxPerPoll=3)
+        assertThat(sent.get(0).message().text()).contains("생략");
+        assertThat(sent.get(0).message().linkUrl()).isEqualTo("https://front.example");
+        assertThat(sent.get(1).message().linkUrl()).isEqualTo("https://ws.slack.com/p3");
+        assertThat(channel.permalinkCalls).as("보내는 공지 3건만 조회").hasSize(3);
+    }
+
+    @Test
+    @DisplayName("퍼머링크를 끄면(안전 스위치) 슬랙을 조회하지 않고 항상 기본 링크를 쓴다")
+    void permalinkCanBeDisabled() {
+        service =
+                serviceWith(
+                        new SlackNoticeSettings(CHANNEL, 3, 24, "https://front.example", false));
+        addRecipient(1, "a");
+        channel.messages.add(msg("1700000100.000100", "공지"));
+        channel.permalinks.put("1700000100.000100", "https://ws.slack.com/p1");
+
+        service.forwardNewNotices();
+
+        assertThat(kakao.sent.get(0).message().linkUrl()).isEqualTo("https://front.example");
+        assertThat(channel.permalinkCalls).isEmpty();
+    }
+
+    @Test
+    @DisplayName("수신 대상이 없어 보류되는 주기에는 퍼머링크를 조회하지 않는다(불필요한 슬랙 호출 방지)")
+    void noPermalinkLookupWhenNoRecipients() {
+        channel.messages.add(msg("1700000100.000100", "공지"));
+
+        service.forwardNewNotices();
+
+        assertThat(channel.permalinkCalls).isEmpty();
     }
 }

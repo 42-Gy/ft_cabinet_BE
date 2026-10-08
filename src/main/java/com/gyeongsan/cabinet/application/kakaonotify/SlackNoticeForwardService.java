@@ -119,7 +119,7 @@ public class SlackNoticeForwardService implements ForwardSlackNoticesUseCase {
             sent += sendToAll(recipients, sessions, summaryMessage(skipped, history.truncated()));
         }
         for (SlackChannelMessage message : toForward) {
-            sent += sendToAll(recipients, sessions, noticeMessage(message));
+            sent += sendToAll(recipients, sessions, noticeMessage(channelId, message));
             saveCursor(channelId, message.ts());
         }
         saveCursor(channelId, all.get(all.size() - 1).ts());
@@ -318,7 +318,7 @@ public class SlackNoticeForwardService implements ForwardSlackNoticesUseCase {
                 settings.linkUrl());
     }
 
-    private KakaoMessage noticeMessage(SlackChannelMessage message) {
+    private KakaoMessage noticeMessage(String channelId, SlackChannelMessage message) {
         String body = SlackMrkdwn.toPlainText(message.text());
         if (body.isBlank()) {
             body =
@@ -330,6 +330,33 @@ public class SlackNoticeForwardService implements ForwardSlackNoticesUseCase {
         }
         return new KakaoMessage(
                 SlackMrkdwn.truncate(PREFIX + body, KakaoMessage.MAX_TEXT_LENGTH),
-                settings.linkUrl());
+                linkFor(channelId, message));
+    }
+
+    /**
+     * 카톡 메시지를 눌렀을 때 열릴 주소. 잘린 본문의 전체를 볼 수 있도록 해당 슬랙 글의 퍼머링크를 쓰고, 얻지 못하면(네트워크 오류, 권한 부족, 이상한 값) 기본
+     * 주소로 폴백한다. 어떤 경우에도 발송을 막지 않는다. 공지 한 건당 한 번만 조회한다(수신자 수와 무관).
+     */
+    private String linkFor(String channelId, SlackChannelMessage message) {
+        if (!settings.permalinkEnabled()) {
+            return settings.linkUrl();
+        }
+        try {
+            Optional<String> link = channelPort.permalink(channelId, message.ts());
+            if (link.isPresent() && isHttpUrl(link.get())) {
+                return link.get();
+            }
+            log.warn("[SlackNotice] 슬랙 퍼머링크를 얻지 못해 기본 링크를 씁니다 - ts: {}", message.ts());
+        } catch (RuntimeException e) {
+            log.warn(
+                    "[SlackNotice] 슬랙 퍼머링크 조회 중 오류로 기본 링크를 씁니다 - ts: {}, 원인: {}",
+                    message.ts(),
+                    e.getClass().getSimpleName());
+        }
+        return settings.linkUrl();
+    }
+
+    private static boolean isHttpUrl(String value) {
+        return value.startsWith("https://") || value.startsWith("http://");
     }
 }

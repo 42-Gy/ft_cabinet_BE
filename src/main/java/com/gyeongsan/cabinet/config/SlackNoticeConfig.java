@@ -28,8 +28,10 @@ public class SlackNoticeConfig {
             @Value("${app.slack-notice.channel-id:}") String channelId,
             @Value("${app.slack-notice.max-per-poll:5}") int maxPerPoll,
             @Value("${app.slack-notice.max-hold-hours:24}") int maxHoldHours,
-            @Value("${app.slack-notice.link-url:}") String linkUrl) {
-        return new SlackNoticeSettings(channelId.trim(), maxPerPoll, maxHoldHours, linkUrl.trim());
+            @Value("${app.slack-notice.link-url:}") String linkUrl,
+            @Value("${app.slack-notice.permalink-enabled:true}") boolean permalinkEnabled) {
+        return new SlackNoticeSettings(
+                channelId.trim(), maxPerPoll, maxHoldHours, linkUrl.trim(), permalinkEnabled);
     }
 
     @Bean
