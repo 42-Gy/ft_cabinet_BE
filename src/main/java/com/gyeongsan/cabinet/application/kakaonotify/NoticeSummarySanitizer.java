@@ -14,7 +14,15 @@ final class NoticeSummarySanitizer {
             Pattern.compile(
                     "(?i)(?:https?://|www\\.)\\S+"
                             + "|\\b(?:[a-z0-9-]+\\.)+(?:com|net|org|io|kr|me|co|app|dev|xyz|link|site|info|biz)\\b(?:/\\S*)?");
-    private static final Pattern MD_CHARS = Pattern.compile("[*_`#>~|]+");
+    // '~' 와 '>' 는 한국어 공지에서 시간·날짜 범위(09:00~18:00)와 경로(A동 > B동)로 쓰이므로 여기에 넣지 않는다.
+    private static final Pattern MD_CHARS = Pattern.compile("[*_`#|]+");
+
+    /** 취소선 표시(연속 2개 이상의 '~'). 단독 '~' 는 범위 표기이므로 남긴다. */
+    private static final Pattern STRIKETHROUGH = Pattern.compile("~{2,}");
+
+    /** 행 맨 앞의 인용 표시. 본문 중간의 '>' 는 건드리지 않는다. */
+    private static final Pattern QUOTE = Pattern.compile("(?m)^[ \\t]*>+[ \\t]?");
+
     private static final Pattern BULLET =
             Pattern.compile("(?m)^\\s*(?:[-•·▶▷◆◇■□●○]|\\d+[.)])\\s+");
     private static final Pattern EMOJI =
@@ -39,6 +47,8 @@ final class NoticeSummarySanitizer {
         String text = MD_LINK.matcher(raw).replaceAll("$1");
         text = URL.matcher(text).replaceAll("");
         text = BULLET.matcher(text).replaceAll("");
+        text = QUOTE.matcher(text).replaceAll("");
+        text = STRIKETHROUGH.matcher(text).replaceAll("");
         text = MD_CHARS.matcher(text).replaceAll("");
         text = EMOJI.matcher(text).replaceAll("");
         text = CONTROL.matcher(text).replaceAll("");

@@ -57,4 +57,46 @@ class NoticeSummarySanitizerTest {
         assertThat(NoticeSummarySanitizer.clean(exactly, 50)).contains(exactly);
         assertThat(NoticeSummarySanitizer.clean(exactly + "가", 50)).isEmpty();
     }
+
+    @Test
+    @DisplayName("시간·날짜 범위의 ~ 는 지우지 않는다 (수치 보존)")
+    void keepsTildeInRanges() {
+        assertThat(NoticeSummarySanitizer.clean("09:00~18:00", 150)).contains("09:00~18:00");
+        assertThat(NoticeSummarySanitizer.clean("10/20(월)~10/24(금)", 150))
+                .contains("10/20(월)~10/24(금)");
+        assertThat(NoticeSummarySanitizer.clean("운영 시간은 09:00 ~ 18:00 입니다", 150))
+                .contains("운영 시간은 09:00 ~ 18:00 입니다");
+    }
+
+    @Test
+    @DisplayName("본문 중간의 > 는 유지하고, 행 맨 앞의 인용 > 만 제거한다")
+    void keepsMidLineGreaterThan() {
+        assertThat(NoticeSummarySanitizer.clean("A동 > B동", 150)).contains("A동 > B동");
+        assertThat(NoticeSummarySanitizer.clean("> 인용된 안내", 150)).contains("인용된 안내");
+        assertThat(NoticeSummarySanitizer.clean("> 첫 줄\n> 둘째 줄", 150)).contains("첫 줄 둘째 줄");
+        assertThat(NoticeSummarySanitizer.clean("안내\n>> 중첩 인용\n끝", 150)).contains("안내 중첩 인용 끝");
+        assertThat(NoticeSummarySanitizer.clean("1층 > 2층 > 3층", 150)).contains("1층 > 2층 > 3층");
+    }
+
+    @Test
+    @DisplayName("취소선(연속 ~~)의 표시만 제거하고, 단독 ~ 는 남긴다")
+    void removesOnlyStrikethroughMarkers() {
+        assertThat(NoticeSummarySanitizer.clean("~~취소~~ 텍스트", 150)).contains("취소 텍스트");
+        assertThat(NoticeSummarySanitizer.clean("~~취소~~ 10/20~10/24 진행", 150))
+                .contains("취소 10/20~10/24 진행");
+    }
+
+    @Test
+    @DisplayName("숫자 범위·날짜·시간 표기(10-15, 3/4, 09:00, 1.5)는 건드리지 않는다")
+    void keepsNumericNotation() {
+        String text = "10-15 3/4 09:00 1.5배 2026.10.15 (월) 5~10명 100%";
+        assertThat(NoticeSummarySanitizer.clean(text, 150)).contains(text);
+    }
+
+    @Test
+    @DisplayName("*, _, `, #, | 같은 마크다운 기호는 기존대로 제거된다")
+    void stillRemovesOtherMarkdownChars() {
+        assertThat(NoticeSummarySanitizer.clean("*굵게* _기울임_ `코드` # 제목 a|b", 150))
+                .contains("굵게 기울임 코드 제목 ab");
+    }
 }
