@@ -4,8 +4,6 @@ import com.gyeongsan.cabinet.config.RedisStreamConfig;
 import com.gyeongsan.cabinet.domain.item.model.Item;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.port.out.FtApiPort;
-import com.gyeongsan.cabinet.domain.user.model.FtGradeResolver;
-import com.gyeongsan.cabinet.domain.user.model.FtGradeSnapshot;
 import com.gyeongsan.cabinet.domain.user.port.in.UserUseCase;
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -50,9 +48,6 @@ public class LogtimeStreamListener
             if (totalMinutes < 0) {
                 log.warn("⚠️ [Consumer] {} 로그타임 API 호출 실패. 기존 학습시간을 유지하고 건너뜁니다.", intraId);
             } else {
-                if (isPayDay) {
-                    refreshGradeIfNeeded(userId, intraId, totalMinutes);
-                }
                 userUseCase.processLogtimeTransaction(userId, rewardItem, totalMinutes, isPayDay);
             }
 
@@ -77,26 +72,6 @@ public class LogtimeStreamListener
             } catch (Exception ackEx) {
                 log.error("🚨 [Consumer] ACK 처리 중 추가 에러 발생: {}", ackEx.getMessage());
             }
-        }
-    }
-
-    /**
-     * grade 는 로그인 때만 갱신되므로, 새 기준의 영향을 받는 사용자(트센 기준 이상, 일반 기준 미만의 비-트센)만 지급일에 다시 조회한다. 조회나 저장에 실패해도
-     * 지급 처리는 막지 않고, 저장된 값을 그대로 쓴다(트센으로 확인되지 않으면 일반 기준이라 대여권이 더 나가지는 않는다).
-     */
-    private void refreshGradeIfNeeded(Long userId, String intraId, int totalMinutes) {
-        try {
-            if (!userUseCase.needsGradeRefresh(userId, totalMinutes)) {
-                return;
-            }
-            FtGradeSnapshot snapshot = FtGradeResolver.resolve(ftApiPort.getCursusEntries(intraId));
-            if (!snapshot.parsed()) {
-                log.warn("⚠️ [Consumer] {} grade 재조회 실패. 저장된 값을 유지합니다.", intraId);
-                return;
-            }
-            userUseCase.updateFtGrade(userId, snapshot);
-        } catch (Exception e) {
-            log.warn("⚠️ [Consumer] {} grade 재조회 중 오류. 저장된 값을 유지합니다: {}", intraId, e.getMessage());
         }
     }
 }

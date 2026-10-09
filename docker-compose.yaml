@@ -59,20 +59,6 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
 
-  ai:
-    image: ${AI_IMAGE:-ghcr.io/42-gy/ft_cabinet_ai:latest}
-    container_name: cabi_ai
-    restart: always
-    expose:
-      - "8000"
-    environment:
-      - MODEL_PATH=${AI_MODEL_PATH}
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   backend:
     container_name: cabi_backend
     build: .
@@ -91,19 +77,12 @@ services:
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
       - jwt.secret=${JWT_SECRET}
       - FRONTEND_URL=${FRONTEND_URL}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
-      - KAKAO_CLIENT_ID=${KAKAO_CLIENT_ID}
-      - KAKAO_CLIENT_SECRET=${KAKAO_CLIENT_SECRET}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - AZURE_STORAGE_CONNECTION_STRING=${AZURE_STORAGE_CONNECTION_STRING}
-      - AI_SERVER_URL=${AI_SERVER_URL:-http://ai:8000}
+      - AI_SERVER_URL=${AI_SERVER_URL}
       - COOKIE_SECURE=${COOKIE_SECURE}
       - TZ=Asia/Seoul
     depends_on:
       - mariadb
       - redis
-      - ai
     logging:
       driver: "json-file"
       options:

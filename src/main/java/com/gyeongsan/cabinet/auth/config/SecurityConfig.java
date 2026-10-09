@@ -7,6 +7,7 @@ import com.gyeongsan.cabinet.auth.jwt.JwtTokenProvider;
 import com.gyeongsan.cabinet.auth.oauth.OAuth2SuccessHandler;
 import com.gyeongsan.cabinet.auth.service.CustomOAuth2UserService;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -163,7 +164,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOriginPatterns(AllowedOrigins.resolve(allowedOrigins, frontendUrl));
+        List<String> origins = new ArrayList<>();
+        if (allowedOrigins != null) {
+            origins.addAll(allowedOrigins);
+        }
+        origins.add("https://subak.site");
+        origins.add("https://subak-server-gs-h3dvbebmgqbmfdgx.koreacentral-01.azurewebsites.net");
+        origins.add("http://localhost:5173");
+
+        configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

@@ -3,7 +3,6 @@ package com.gyeongsan.cabinet.domain.auth.service;
 import com.gyeongsan.cabinet.domain.auth.OauthLink;
 import com.gyeongsan.cabinet.domain.auth.dto.OAuthUserInfo;
 import com.gyeongsan.cabinet.domain.auth.port.in.LinkAccountUseCase;
-import com.gyeongsan.cabinet.domain.auth.port.out.LinkRedirectUriPort;
 import com.gyeongsan.cabinet.domain.auth.port.out.OAuthApiClientPort;
 import com.gyeongsan.cabinet.domain.auth.port.out.OauthLinkRepositoryPort;
 import com.gyeongsan.cabinet.domain.user.model.User;
@@ -25,7 +24,6 @@ public class OauthLinkService implements LinkAccountUseCase {
     private final OauthLinkRepositoryPort oauthLinkRepository;
     private final UserRepositoryPort userRepository;
     private final List<OAuthApiClientPort> apiClients;
-    private final LinkRedirectUriPort linkRedirectUriPort;
 
     @Override
     @Transactional
@@ -49,9 +47,14 @@ public class OauthLinkService implements LinkAccountUseCase {
                                         new IllegalArgumentException(
                                                 "지원하지 않는 소셜 로그인 공급자입니다: " + provider));
 
-        String redirectUri = linkRedirectUriPort.getLinkRedirectUri(provider);
+        String customRedirectUri = null;
+        if ("kakao".equalsIgnoreCase(provider)) {
+            customRedirectUri = "https://subak.site/auth/link/callback/kakao";
+        } else if ("google".equalsIgnoreCase(provider)) {
+            customRedirectUri = "https://subak.site/auth/link/callback/google";
+        }
 
-        OAuthUserInfo oauthInfo = apiClient.getOAuthUserInfo(authorizationCode, redirectUri);
+        OAuthUserInfo oauthInfo = apiClient.getOAuthUserInfo(authorizationCode, customRedirectUri);
 
         if (oauthInfo == null
                 || oauthInfo.getProviderId() == null

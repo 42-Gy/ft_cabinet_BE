@@ -1,9 +1,9 @@
 name: Build and Deploy to Azure Web App
 
-# [테스트 포크] master push 자동 배포를 비활성화하고 수동 실행(workflow_dispatch)만 허용한다.
-# 운영 레포로 머지하기 전에 이 트리거 변경은 원복할 것.
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - master
 
 env:
   AZURE_WEBAPP_NAME: 'subak-server-gs'
