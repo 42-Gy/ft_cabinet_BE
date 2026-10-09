@@ -7,7 +7,7 @@ package com.gyeongsan.cabinet.application.kakaonotify;
  * @param maxPerPoll 한 번에 보낼 최대 공지 수. 넘치면 오래된 것은 요약 한 줄로 대체한다
  * @param maxHoldHours 수신자가 없어 보류 중인 공지를 붙잡아 두는 최대 시간. 지나면 오래된 공지를 새 수신자에게 쏟아내지 않도록 건너뛴다
  * @param linkUrl 카톡 메시지를 누르면 열리는 기본 주소(카카오 앱에 등록된 도메인). 요약 메시지와, 퍼머링크를 못 얻었을 때의 폴백에 쓴다
- * @param permalinkEnabled 공지 메시지를 누르면 해당 슬랙 글(퍼머링크)로 가게 할지. 슬랙 도메인을 카카오 앱이 받아 주지 않는 경우 끄는 안전 스위치
+ * @param permalinkEnabled 공지 메시지를 누르면 해당 슬랙 글(퍼머링크)로 가게 할지. 카카오 메시지 링크는 앱에 등록된 도메인이어야 해서 기본은 꺼짐
  */
 public record SlackNoticeSettings(
         String channelId,
@@ -16,9 +16,9 @@ public record SlackNoticeSettings(
         String linkUrl,
         boolean permalinkEnabled) {
 
-    /** 퍼머링크를 켠 기본 설정. */
+    /** 퍼머링크를 끈 기본 설정(링크는 항상 {@code linkUrl}). */
     public SlackNoticeSettings(String channelId, int maxPerPoll, int maxHoldHours, String linkUrl) {
-        this(channelId, maxPerPoll, maxHoldHours, linkUrl, true);
+        this(channelId, maxPerPoll, maxHoldHours, linkUrl, false);
     }
 
     public SlackNoticeSettings {

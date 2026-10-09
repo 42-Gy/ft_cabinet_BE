@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import com.gyeongsan.cabinet.adapter.in.scheduler.kakaonotify.SlackNoticeScheduler;
 import com.gyeongsan.cabinet.adapter.in.web.kakaonotify.KakaoNotifyController;
+import com.gyeongsan.cabinet.adapter.out.external.gemini.GeminiNoticeSummarizerAdapter;
 import com.gyeongsan.cabinet.adapter.out.external.kakao.KakaoNotificationAdapter;
 import com.gyeongsan.cabinet.application.kakaonotify.SlackNoticeSettings;
 import com.gyeongsan.cabinet.domain.alarm.port.out.SlackChannelPort;
@@ -16,6 +17,7 @@ import com.gyeongsan.cabinet.domain.kakaonotify.port.out.KakaoConsentRepositoryP
 import com.gyeongsan.cabinet.domain.kakaonotify.port.out.KakaoLoginLinkPort;
 import com.gyeongsan.cabinet.domain.kakaonotify.port.out.KakaoNotificationPort;
 import com.gyeongsan.cabinet.domain.kakaonotify.port.out.NoticeCursorPort;
+import com.gyeongsan.cabinet.domain.kakaonotify.port.out.NoticeSummarizerPort;
 import com.gyeongsan.cabinet.domain.kakaonotify.port.out.TokenCipherPort;
 import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
 import java.io.IOException;
@@ -141,19 +143,19 @@ class KakaoNotifyConfigTest {
                             assertThat(settings.channelId()).isEqualTo("C0NOTICE");
                             assertThat(settings.linkUrl()).isEqualTo("https://front.example");
                             assertThat(settings.maxPerPoll()).isEqualTo(5);
-                            assertThat(settings.permalinkEnabled()).as("퍼머링크는 기본 켜짐").isTrue();
+                            assertThat(settings.permalinkEnabled()).as("퍼머링크는 기본 꺼짐").isFalse();
                         });
     }
 
     @Test
-    @DisplayName("SLACK_NOTICE_PERMALINK_ENABLED=false 로 퍼머링크를 끌 수 있다")
-    void permalinkCanBeSwitchedOff() {
+    @DisplayName("SLACK_NOTICE_PERMALINK_ENABLED=true 로 퍼머링크를 켤 수 있다(기본은 꺼짐)")
+    void permalinkCanBeSwitchedOn() {
         runner().withPropertyValues(
                         "KAKAO_NOTIFY_ENABLED=true",
                         "KAKAO_TOKEN_ENC_KEY=" + key(),
                         "SLACK_NOTICE_FORWARD_ENABLED=true",
                         "SLACK_NOTICE_CHANNEL_ID=C0NOTICE",
-                        "SLACK_NOTICE_PERMALINK_ENABLED=false",
+                        "SLACK_NOTICE_PERMALINK_ENABLED=true",
                         "FRONTEND_URL=https://front.example")
                 .run(
                         context -> {
@@ -161,7 +163,7 @@ class KakaoNotifyConfigTest {
                             assertThat(
                                             context.getBean(SlackNoticeSettings.class)
                                                     .permalinkEnabled())
-                                    .isFalse();
+                                    .isTrue();
                         });
     }
 
@@ -219,5 +221,124 @@ class KakaoNotifyConfigTest {
         } finally {
             java.util.TimeZone.setDefault(original);
         }
+    }
+
+    private ApplicationContextRunner noticeRunner() {
+        return runner().withPropertyValues(
+                        "KAKAO_NOTIFY_ENABLED=true",
+                        "KAKAO_TOKEN_ENC_KEY=" + key(),
+                        "SLACK_NOTICE_FORWARD_ENABLED=true",
+                        "SLACK_NOTICE_CHANNEL_ID=C0NOTICE",
+                        "FRONTEND_URL=https://front.example");
+    }
+
+    @Test
+    @DisplayName("긴 공지 요약은 기본 꺼짐이다 - 요약을 쓰지 않는 구현이 들어가 호출해도 항상 빈 값이다")
+    void summaryDisabledByDefault() {
+        noticeRunner()
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            NoticeSummarizerPort port = context.getBean(NoticeSummarizerPort.class);
+                            assertThat(port).isNotInstanceOf(GeminiNoticeSummarizerAdapter.class);
+                            assertThat(port.summarize("본문", 150)).isEmpty();
+                        });
+    }
+
+    @Test
+    @DisplayName("요약을 켰는데 GEMINI_API_KEY 가 없으면 부팅은 되고(공지 전달 우선) 요약만 꺼진 채 경고를 남긴다")
+    void summaryEnabledWithoutKeyFallsBack() {
+        org.slf4j.Logger slf4j = org.slf4j.LoggerFactory.getLogger(SlackNoticeConfig.class);
+        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) slf4j;
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            noticeRunner()
+                    .withPropertyValues("SLACK_NOTICE_SUMMARY_ENABLED=true")
+                    .run(
+                            context -> {
+                                assertThat(context).hasNotFailed();
+                                assertThat(context.getBean(NoticeSummarizerPort.class))
+                                        .isNotInstanceOf(GeminiNoticeSummarizerAdapter.class);
+                            });
+            assertThat(appender.list)
+                    .anyMatch(
+                            e ->
+                                    e.getLevel() == ch.qos.logback.classic.Level.WARN
+                                            && e.getFormattedMessage().contains("GEMINI_API_KEY"));
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
+
+    @Test
+    @DisplayName("요약을 켜고 키를 주면 Gemini 요약기가 만들어지고, 기본 모델은 gemini-3.8-flash 이며 toString 에 키가 없다")
+    void summaryEnabledWithKey() {
+        noticeRunner()
+                .withPropertyValues(
+                        "SLACK_NOTICE_SUMMARY_ENABLED=true", "GEMINI_API_KEY=test-key-do-not-leak")
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            NoticeSummarizerPort port = context.getBean(NoticeSummarizerPort.class);
+                            assertThat(port).isInstanceOf(GeminiNoticeSummarizerAdapter.class);
+                            assertThat(port.toString())
+                                    .contains("gemini-3.8-flash")
+                                    .doesNotContain("test-key-do-not-leak");
+                            Object model =
+                                    org.springframework.test.util.ReflectionTestUtils.getField(
+                                            port, "model");
+                            Object timeout =
+                                    org.springframework.test.util.ReflectionTestUtils.getField(
+                                            port, "timeout");
+                            Object thinking =
+                                    org.springframework.test.util.ReflectionTestUtils.getField(
+                                            port, "thinkingLevel");
+                            assertThat(model).isEqualTo("gemini-3.8-flash");
+                            assertThat(timeout).isEqualTo(java.time.Duration.ofSeconds(8));
+                            assertThat(thinking).isEqualTo("low");
+                        });
+    }
+
+    @Test
+    @DisplayName("모델·제한 시간은 환경변수로 바꿀 수 있다")
+    void summaryModelAndTimeoutConfigurable() {
+        noticeRunner()
+                .withPropertyValues(
+                        "SLACK_NOTICE_SUMMARY_ENABLED=true",
+                        "GEMINI_API_KEY=k",
+                        "SLACK_NOTICE_SUMMARY_MODEL=gemini-custom",
+                        "SLACK_NOTICE_SUMMARY_TIMEOUT=3s")
+                .run(
+                        context -> {
+                            assertThat(context).hasNotFailed();
+                            NoticeSummarizerPort port = context.getBean(NoticeSummarizerPort.class);
+                            assertThat(
+                                            org.springframework.test.util.ReflectionTestUtils
+                                                    .getField(port, "model"))
+                                    .isEqualTo("gemini-custom");
+                            assertThat(
+                                            org.springframework.test.util.ReflectionTestUtils
+                                                    .getField(port, "timeout"))
+                                    .isEqualTo(java.time.Duration.ofSeconds(3));
+                        });
+    }
+
+    @Test
+    @DisplayName("모델 이름 형식이 이상하면 부팅이 실패하고 실패 메시지에 키가 나오지 않는다")
+    void invalidModelFailsStartupWithoutLeakingKey() {
+        noticeRunner()
+                .withPropertyValues(
+                        "SLACK_NOTICE_SUMMARY_ENABLED=true",
+                        "GEMINI_API_KEY=test-key-do-not-leak",
+                        "SLACK_NOTICE_SUMMARY_MODEL=bad/model?x=1")
+                .run(
+                        context -> {
+                            assertThat(context).hasFailed();
+                            assertThat(rootMessages(context.getStartupFailure()))
+                                    .doesNotContain("test-key-do-not-leak");
+                        });
     }
 }

@@ -187,8 +187,22 @@ app:
     channel-id: ${SLACK_NOTICE_CHANNEL_ID:}
     poll-interval-ms: ${SLACK_NOTICE_POLL_INTERVAL_MS:60000}
     link-url: ${SLACK_NOTICE_LINK_URL:${FRONTEND_URL:}}
-    # 공지 카톡을 누르면 해당 슬랙 글(퍼머링크)로 가게 한다. 퍼머링크를 못 얻으면 link-url 로 폴백한다. 카카오 앱이 슬랙 도메인 링크를 거절하면 false 로 끈다.
-    permalink-enabled: ${SLACK_NOTICE_PERMALINK_ENABLED:true}
+    # 공지 카톡을 누르면 해당 슬랙 글(퍼머링크)로 가게 한다(켜면 퍼머링크를 못 얻을 때 link-url 로 폴백). 카카오 메시지 링크는 앱에 등록된 도메인이어야 해서 기본은 꺼짐(항상 link-url).
+    permalink-enabled: ${SLACK_NOTICE_PERMALINK_ENABLED:false}
+    # 긴 공지(접두어 포함 200자 초과)를 Gemini 로 요약한다. 기본 꺼짐. 켜도 키가 없거나 호출이 실패/시간 초과/무효면 기존 자르기로 대체한다.
+    # 주의: 켜면 공지 본문이 Google(해외)로 전송된다. 키(GEMINI_API_KEY)는 환경변수로만 주입하고 로그·예외에 남기지 않는다.
+    summary:
+      enabled: ${SLACK_NOTICE_SUMMARY_ENABLED:false}
+      api-key: ${GEMINI_API_KEY:}
+      model: ${SLACK_NOTICE_SUMMARY_MODEL:gemini-3.8-flash}
+      # 생각(thinking) 수준. Gemini 3.x 계열은 thinkingLevel(low/medium/high)을 쓴다. 비우면 보내지 않는다(모델 기본값).
+      thinking-level: ${SLACK_NOTICE_SUMMARY_THINKING_LEVEL:low}
+      timeout: ${SLACK_NOTICE_SUMMARY_TIMEOUT:8s}
+      circuit-breaker:
+        sliding-window-size: 5
+        minimum-calls: 3
+        failure-rate-threshold: 50
+        wait-in-open-state: 10m
     max-per-poll: 5
     max-hold-hours: 24
   # FAQ 챗봇(의미 검색, 서버 내부 임베딩). 기본은 꺼짐. 켜려면 CHATBOT_ENABLED=true 와 모델 파일이 필요하다(없어도 서버는 뜨고 챗봇만 503).

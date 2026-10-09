@@ -15,6 +15,7 @@ import com.gyeongsan.cabinet.domain.kakaonotify.port.in.ForwardSlackNoticesUseCa
 import com.gyeongsan.cabinet.domain.kakaonotify.port.out.KakaoConsentRepositoryPort;
 import com.gyeongsan.cabinet.domain.kakaonotify.port.out.KakaoNotificationPort;
 import com.gyeongsan.cabinet.domain.kakaonotify.port.out.NoticeCursorPort;
+import com.gyeongsan.cabinet.domain.kakaonotify.port.out.NoticeSummarizerPort;
 import com.gyeongsan.cabinet.domain.kakaonotify.port.out.TokenCipherPort;
 import java.time.Clock;
 import java.time.Instant;
@@ -23,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 
 /**
@@ -37,13 +37,17 @@ import lombok.extern.log4j.Log4j2;
  *   <li>개별 발송 실패는 로그만 남기고 다음 사람으로 넘어간다. 카카오가 동의 해지({@code invalid_grant}, 발송 시 -402)로 거절하면 그 동의를 해지
  *       처리해 이후 대상에서 뺀다.
  *   <li>각 수신자는 발송 직전에 동의/알림 스위치를 다시 확인하고, 한 번의 실행에서는 refresh_token 갱신을 사람당 한 번만 한다.
+ *   <li>본문이 카카오 글자 수 제한을 넘을 때만 요약기를 <b>공지 한 건당 한 번</b> 부르고 그 결과를 모든 수신자가 공유한다. 요약이 꺼져 있거나 실패/무효하면
+ *       기존 자르기로 폴백하며 발송을 막지 않는다.
  * </ul>
  */
 @Log4j2
-@RequiredArgsConstructor
 public class SlackNoticeForwardService implements ForwardSlackNoticesUseCase {
 
     private static final String PREFIX = "📢 [공지] ";
+
+    /** 요약문 목표 길이(접두어 제외). 프롬프트에 알려 주는 값이며, 실제 상한은 남은 글자 수다. */
+    private static final int SUMMARY_TARGET_CHARS = 150;
 
     private final SlackChannelPort channelPort;
     private final NoticeCursorPort cursorPort;
@@ -52,6 +56,46 @@ public class SlackNoticeForwardService implements ForwardSlackNoticesUseCase {
     private final TokenCipherPort cipher;
     private final SlackNoticeSettings settings;
     private final Clock clock;
+    private final NoticeSummarizerPort summarizer;
+
+    public SlackNoticeForwardService(
+            SlackChannelPort channelPort,
+            NoticeCursorPort cursorPort,
+            KakaoConsentRepositoryPort consentRepository,
+            KakaoNotificationPort kakao,
+            TokenCipherPort cipher,
+            SlackNoticeSettings settings,
+            Clock clock,
+            NoticeSummarizerPort summarizer) {
+        this.channelPort = channelPort;
+        this.cursorPort = cursorPort;
+        this.consentRepository = consentRepository;
+        this.kakao = kakao;
+        this.cipher = cipher;
+        this.settings = settings;
+        this.clock = clock;
+        this.summarizer = summarizer;
+    }
+
+    /** 요약 없이(기존 자르기만) 동작하는 구성. */
+    public SlackNoticeForwardService(
+            SlackChannelPort channelPort,
+            NoticeCursorPort cursorPort,
+            KakaoConsentRepositoryPort consentRepository,
+            KakaoNotificationPort kakao,
+            TokenCipherPort cipher,
+            SlackNoticeSettings settings,
+            Clock clock) {
+        this(
+                channelPort,
+                cursorPort,
+                consentRepository,
+                kakao,
+                cipher,
+                settings,
+                clock,
+                NoticeSummarizerPort.disabled());
+    }
 
     /** 한 번의 실행 동안 한 수신자의 상태. */
     private static final class Session {
@@ -319,18 +363,61 @@ public class SlackNoticeForwardService implements ForwardSlackNoticesUseCase {
     }
 
     private KakaoMessage noticeMessage(String channelId, SlackChannelMessage message) {
-        String body = SlackMrkdwn.toPlainText(message.text());
-        if (body.isBlank()) {
+        String text = SlackMrkdwn.toPlainText(message.text());
+        String attachment = "";
+        String body = text;
+        if (text.isBlank()) {
             body =
                     "(본문 없음"
                             + (message.fileCount() > 0 ? ", 첨부 " + message.fileCount() + "개" : "")
                             + ")";
         } else if (message.fileCount() > 0) {
-            body += "\n📎 첨부 " + message.fileCount() + "개";
+            attachment = "\n📎 첨부 " + message.fileCount() + "개";
+            body = text + attachment;
         }
-        return new KakaoMessage(
-                SlackMrkdwn.truncate(PREFIX + body, KakaoMessage.MAX_TEXT_LENGTH),
-                linkFor(channelId, message));
+        String full = PREFIX + body;
+        String finalText =
+                exceedsLimit(full) ? summarized(message, text, attachment).orElse(null) : null;
+        if (finalText == null) {
+            finalText = SlackMrkdwn.truncate(full, KakaoMessage.MAX_TEXT_LENGTH);
+        }
+        return new KakaoMessage(finalText, linkFor(channelId, message));
+    }
+
+    private static boolean exceedsLimit(String text) {
+        return text.codePointCount(0, text.length()) > KakaoMessage.MAX_TEXT_LENGTH;
+    }
+
+    /**
+     * 요약한 최종 문구(접두어 + 요약 + 첨부 안내). 요약기가 없거나 실패하거나 결과가 무효(빈 값, 허용 길이 초과)면 빈 값을 돌려 호출한 쪽이 자르기로 폴백하게
+     * 한다. 어떤 실패도 발송을 막지 않으며, 원문은 로그에 남기지 않는다.
+     */
+    private Optional<String> summarized(
+            SlackChannelMessage message, String text, String attachment) {
+        int allowed =
+                KakaoMessage.MAX_TEXT_LENGTH
+                        - PREFIX.codePointCount(0, PREFIX.length())
+                        - attachment.codePointCount(0, attachment.length());
+        try {
+            Optional<String> raw =
+                    summarizer.summarize(text, Math.min(SUMMARY_TARGET_CHARS, allowed));
+            Optional<String> cleaned = raw.flatMap(r -> NoticeSummarySanitizer.clean(r, allowed));
+            if (cleaned.isEmpty()) {
+                if (raw.isPresent()) {
+                    log.warn(
+                            "[SlackNotice] 요약 결과가 비었거나 허용 길이를 넘어 자르기로 대체합니다 - ts: {}",
+                            message.ts());
+                }
+                return Optional.empty();
+            }
+            return Optional.of(PREFIX + cleaned.get() + attachment);
+        } catch (RuntimeException e) {
+            log.warn(
+                    "[SlackNotice] 공지 요약에 실패해 자르기로 대체합니다 - ts: {}, 원인: {}",
+                    message.ts(),
+                    e.getClass().getSimpleName());
+            return Optional.empty();
+        }
     }
 
     /**

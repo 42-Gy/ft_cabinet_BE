@@ -233,7 +233,9 @@ class SlackNoticeForwardServiceTest {
         cursor = new FakeCursor();
         consents = new FakeConsents();
         kakao = new FakeKakao();
-        service = serviceWith(new SlackNoticeSettings(CHANNEL, 3, 24, "https://front.example"));
+        // 퍼머링크 관련 테스트가 이 설정을 쓴다. 퍼머링크의 기본값은 꺼짐이므로 여기서는 명시적으로 켠다.
+        service =
+                serviceWith(new SlackNoticeSettings(CHANNEL, 3, 24, "https://front.example", true));
         cursor.store.put(CHANNEL, "1700000000.000000");
     }
 
@@ -741,6 +743,24 @@ class SlackNoticeForwardServiceTest {
 
         service.forwardNewNotices();
 
+        assertThat(channel.permalinkCalls).isEmpty();
+    }
+
+    @Test
+    @DisplayName("퍼머링크는 기본이 꺼짐이다 - 별도 지정이 없으면 슬랙을 조회하지 않고 기본 링크를 쓴다")
+    void permalinkIsOffByDefault() {
+        SlackNoticeSettings defaults =
+                new SlackNoticeSettings(CHANNEL, 3, 24, "https://front.example");
+        assertThat(defaults.permalinkEnabled()).isFalse();
+
+        service = serviceWith(defaults);
+        addRecipient(1, "a");
+        channel.messages.add(msg("1700000100.000100", "공지"));
+        channel.permalinks.put("1700000100.000100", "https://ws.slack.com/p1");
+
+        service.forwardNewNotices();
+
+        assertThat(kakao.sent.get(0).message().linkUrl()).isEqualTo("https://front.example");
         assertThat(channel.permalinkCalls).isEmpty();
     }
 }
