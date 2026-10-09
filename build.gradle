@@ -45,6 +45,8 @@ tasks.named('test') {
 dependencies {
 	implementation 'org.apache.commons:commons-lang3:3.18.0'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-mysql'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 
@@ -55,6 +57,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testRuntimeOnly 'com.h2database:h2'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:mysql'
 
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
@@ -74,6 +78,10 @@ dependencies {
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'
 	implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
 	implementation 'com.azure.spring:spring-cloud-azure-starter-storage-blob'
+
+	// 챗봇(FAQ 의미 검색)의 서버 내부 임베딩: ONNX 모델 실행 + HuggingFace 토크나이저. 둘 다 네이티브 라이브러리를 jar 안에 포함한다.
+	implementation 'com.microsoft.onnxruntime:onnxruntime:1.30.0'
+	implementation 'ai.djl.huggingface:tokenizers:0.38.0'
 }
 
 tasks.named('test') {

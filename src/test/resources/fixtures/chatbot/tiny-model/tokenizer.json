@@ -1,0 +1,108 @@
+{
+  "version": "1.0",
+  "truncation": null,
+  "padding": null,
+  "added_tokens": [],
+  "normalizer": null,
+  "pre_tokenizer": {
+    "type": "Whitespace"
+  },
+  "post_processor": {
+    "type": "TemplateProcessing",
+    "single": [
+      {
+        "SpecialToken": {
+          "id": "<s>",
+          "type_id": 0
+        }
+      },
+      {
+        "Sequence": {
+          "id": "A",
+          "type_id": 0
+        }
+      },
+      {
+        "SpecialToken": {
+          "id": "</s>",
+          "type_id": 0
+        }
+      }
+    ],
+    "pair": [
+      {
+        "Sequence": {
+          "id": "A",
+          "type_id": 0
+        }
+      },
+      {
+        "Sequence": {
+          "id": "B",
+          "type_id": 1
+        }
+      }
+    ],
+    "special_tokens": {
+      "</s>": {
+        "id": "</s>",
+        "ids": [
+          2
+        ],
+        "tokens": [
+          "</s>"
+        ]
+      },
+      "<s>": {
+        "id": "<s>",
+        "ids": [
+          0
+        ],
+        "tokens": [
+          "<s>"
+        ]
+      }
+    }
+  },
+  "decoder": null,
+  "model": {
+    "type": "WordLevel",
+    "vocab": {
+      "<s>": 0,
+      "<pad>": 1,
+      "</s>": 2,
+      "<unk>": 3,
+      "사물함": 4,
+      "대여": 5,
+      "반납": 6,
+      "연장": 7,
+      "이사": 8,
+      "패널티": 9,
+      "코인": 10,
+      "아이템": 11,
+      "수박": 12,
+      "로그인": 13,
+      "어떻게": 14,
+      "하나요": 15,
+      "언제": 16,
+      "얼마": 17,
+      "가능": 18,
+      "불가": 19,
+      "연체": 20,
+      "예약": 21,
+      "카카오": 22,
+      "구글": 23,
+      "the": 24,
+      "cabinet": 25,
+      "return": 26,
+      "extend": 27,
+      "how": 28,
+      "to": 29,
+      "penalty": 30,
+      "swap": 31,
+      "coin": 32,
+      "item": 33
+    },
+    "unk_token": "<unk>"
+  }
+}

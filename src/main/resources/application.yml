@@ -30,6 +30,16 @@ spring:
       host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6379}
 
+  flyway:
+    # 기본은 꺼 둔다. 설정 실수로 다른 DB(특히 운영)에서 마이그레이션이 조용히 실행되는 것을 막기 위해
+    # 마이그레이션을 적용할 환경에서만 FLYWAY_ENABLED=true 로 명시한다.
+    enabled: ${FLYWAY_ENABLED:false}
+    # 기존 DB 의 baseline 은 사람이 수동으로 1회 실행한다. 자동 baseline 은 절대 켜지 않는다.
+    baseline-on-migrate: false
+    validate-on-migrate: true
+    clean-disabled: true
+    locations: classpath:db/migration
+
   sql:
     init:
       mode: never
@@ -52,9 +62,10 @@ spring:
       leak-detection-threshold: 15000
 
   jpa:
+    # spring.jpa.defer-datasource-initialization 을 true 로 켜면 Flyway 와 entityManagerFactory 가 서로를 기다리는
+    # 순환 의존이 생겨 FLYWAY_ENABLED=true 에서 부팅이 실패한다. 스키마는 Flyway 가 만들므로 켜지 않는다.
     hibernate:
       ddl-auto: validate
-    defer-datasource-initialization: true
     properties:
       hibernate:
         format_sql: true
@@ -70,7 +81,7 @@ spring:
             client-secret: ${FT_CLIENT_SECRET}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
-            redirect-uri: "https://subak.site/login/oauth2/code/42"
+            redirect-uri: "${FRONTEND_URL}/login/oauth2/code/42"
             scope: public
             client-name: 42 gyeongsan
           kakao:
@@ -78,13 +89,13 @@ spring:
             client-secret: ${KAKAO_CLIENT_SECRET}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
-            redirect-uri: "https://subak.site/login/oauth2/code/kakao"
+            redirect-uri: "${FRONTEND_URL}/login/oauth2/code/kakao"
             scope: account_email
             client-name: Kakao
           google:
             client-id: ${GOOGLE_CLIENT_ID}
             client-secret: ${GOOGLE_CLIENT_SECRET}
-            redirect-uri: "https://subak.site/login/oauth2/code/google"
+            redirect-uri: "${FRONTEND_URL}/login/oauth2/code/google"
             scope: profile,email
         provider:
           42:
@@ -146,7 +157,7 @@ ai:
 
 app:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS},http://localhost:5173,https://subak.site
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   client:
     connect-timeout: 20000
     read-timeout: 20000
@@ -155,6 +166,89 @@ app:
   ft-api:
     root-url: https://api.intra.42.fr
     token-url: https://api.intra.42.fr/oauth/token
+  # 사물함 오류제보 채널의 새 글을 관리자 DM 으로 전달한다. 기본은 꺼짐.
+  # 켜려면 SLACK_REPORT_FORWARD_ENABLED=true 와 채널 ID 가 필요하다(채널 ID 가 없으면 부팅 실패).
+  # 수신자는 설정이 아니라 DB 에서 권한이 ADMIN/MASTER 인 유저 전원이며, 슬랙 사용자명이 인트라 ID 와 같아야 DM 이 간다. 수신자가 없으면 경고만 남기고 보류한다.
+  slack-report:
+    enabled: ${SLACK_REPORT_FORWARD_ENABLED:false}
+    channel-id: ${SLACK_REPORT_CHANNEL_ID:}
+    poll-interval-ms: ${SLACK_REPORT_POLL_INTERVAL_MS:60000}
+    max-per-poll: 20
+  # 슬랙 공지 → 카카오톡 "나에게 보내기" 알림. 둘 다 기본은 꺼짐.
+  #  - kakao-notify: 동의 등록(talk_message)·알림 스위치 API. 켜려면 KAKAO_NOTIFY_ENABLED=true 와 토큰 암호화 키 KAKAO_TOKEN_ENC_KEY
+  #    (base64 32바이트, 예: `openssl rand -base64 32`)가 필요하다(키가 없거나 형식이 틀리면 부팅 실패). 키를 잃으면 저장된 동의를 전부 다시 받아야 한다.
+  #  - slack-notice: 공지 채널 폴링·전달. 켜려면 SLACK_NOTICE_FORWARD_ENABLED=true, SLACK_NOTICE_CHANNEL_ID, 그리고 KAKAO_NOTIFY_ENABLED=true 가 필요하다.
+  #    link-url 은 요약 메시지와 퍼머링크 폴백에 쓰는 기본 주소로 기본은 FRONTEND_URL 이며, 카카오 개발자 앱에 등록된 웹 도메인이어야 한다.
+  kakao-notify:
+    enabled: ${KAKAO_NOTIFY_ENABLED:false}
+    enc-key: ${KAKAO_TOKEN_ENC_KEY:}
+  slack-notice:
+    enabled: ${SLACK_NOTICE_FORWARD_ENABLED:false}
+    channel-id: ${SLACK_NOTICE_CHANNEL_ID:}
+    poll-interval-ms: ${SLACK_NOTICE_POLL_INTERVAL_MS:60000}
+    link-url: ${SLACK_NOTICE_LINK_URL:${FRONTEND_URL:}}
+    # 공지 카톡을 누르면 해당 슬랙 글(퍼머링크)로 가게 한다(켜면 퍼머링크를 못 얻을 때 link-url 로 폴백). 카카오 메시지 링크는 앱에 등록된 도메인이어야 해서 기본은 꺼짐(항상 link-url).
+    permalink-enabled: ${SLACK_NOTICE_PERMALINK_ENABLED:false}
+    # 긴 공지(접두어 포함 200자 초과)를 Gemini 로 요약한다. 기본 꺼짐. 켜도 키가 없거나 호출이 실패/시간 초과/무효면 기존 자르기로 대체한다.
+    # 주의: 켜면 공지 본문이 Google(해외)로 전송된다. 키(GEMINI_API_KEY)는 환경변수로만 주입하고 로그·예외에 남기지 않는다.
+    summary:
+      enabled: ${SLACK_NOTICE_SUMMARY_ENABLED:false}
+      api-key: ${GEMINI_API_KEY:}
+      model: ${SLACK_NOTICE_SUMMARY_MODEL:gemini-3.8-flash}
+      # 생각(thinking) 수준. Gemini 3.x 계열은 thinkingLevel(low/medium/high)을 쓴다. 비우면 보내지 않는다(모델 기본값).
+      thinking-level: ${SLACK_NOTICE_SUMMARY_THINKING_LEVEL:low}
+      timeout: ${SLACK_NOTICE_SUMMARY_TIMEOUT:8s}
+      circuit-breaker:
+        sliding-window-size: 5
+        minimum-calls: 3
+        failure-rate-threshold: 50
+        wait-in-open-state: 10m
+    max-per-poll: 5
+    max-hold-hours: 24
+  # FAQ 챗봇(의미 검색, 서버 내부 임베딩). 기본은 꺼짐. 켜려면 CHATBOT_ENABLED=true 와 모델 파일이 필요하다(없어도 서버는 뜨고 챗봇만 503).
+  # 질문은 서버 밖으로 나가지 않고, 원문은 저장하지 않는다(결과별 건수만 지표로 집계).
+  chatbot:
+    enabled: ${CHATBOT_ENABLED:false}
+    # 임계값은 모델마다 다르다. 아래 기본값은 e5(multilingual-e5-small)·FAQ 26개/변형 180개 기준으로 평가의 공통 격자(개발+보류 세트의
+    # 같은 T, M 칸)에서 골랐다: T=0.93, M=0.02 는 두 세트 모두 범위 밖 수락 0%, 합산 커버리지 35.9%·1위 정답률 94.3%
+    # (개발 26.4%/87.0%, 보류 43.5%/97.9%). 평가 질문이 같은 저자의 것이라 실제 분포에서는 더 낮을 수 있다.
+    #  - suggest-threshold: 이 이상이면 "비슷한 질문" 후보를 보여 준다(사용자가 눌러 확정하므로 틀린 후보의 피해가 작다).
+    #  - match-threshold + match-margin: 1위 점수가 이 이상이고 2위와 차이도 이 이상일 때만 답변을 바로 보여 준다.
+    #  - match-alternatives: 자동 답변과 함께 돌려줄 "혹시 이 질문인가요?" 대안 후보 수.
+    # 모델이나 FAQ 를 바꾸면 GitHub Actions 의 챗봇 평가(공통 격자)로 다시 맞춘다. ngram(개발용)은 점수대가 낮아 별도 값이 필요하다.
+    match-threshold: ${CHATBOT_MATCH_THRESHOLD:0.93}
+    suggest-threshold: ${CHATBOT_SUGGEST_THRESHOLD:0.88}
+    match-margin: ${CHATBOT_MATCH_MARGIN:0.02}
+    match-alternatives: ${CHATBOT_MATCH_ALTERNATIVES:2}
+    max-suggestions: 3
+    # "내 정보" 답변(만료일, 패널티, 대여권 조건, 대여 불가 진단). 기본 꺼짐. 켜려면 CHATBOT_ENABLED 도 true 여야 한다.
+    # 질문은 칩만 제안하고, 개인 정보는 칩을 눌러 호출하는 /v4/chatbot/personal 에서만 본인 것으로 조회한다.
+    personal:
+      enabled: ${CHATBOT_PERSONAL_ENABLED:false}
+      rate-limit-per-minute: ${CHATBOT_PERSONAL_RATE_PER_MINUTE:10}
+    max-question-length: 200
+    max-concurrent-embeddings: 2
+    reload-interval-ms: 30000
+    fallback-message: "비슷한 FAQ 를 찾지 못했어요. 홈페이지 공지의 연락처나 오류제보 채널로 문의해 주세요."
+    embedding:
+      # onnx(기본, 서버 내부 모델) | ngram(모델 없이 글자 겹침만 보는 개발용, 의미 검색 아님)
+      provider: ${CHATBOT_EMBEDDING_PROVIDER:onnx}
+      # model-id, prefix, max-tokens 를 비워 두면 모델 디렉터리의 model.properties 를 따른다.
+      model-id: ${CHATBOT_MODEL_ID:unknown}
+      model-dir: ${CHATBOT_MODEL_DIR:/app/chatbot-model}
+      model-file: ${CHATBOT_MODEL_FILE:model.onnx}
+      tokenizer-file: ${CHATBOT_TOKENIZER_FILE:tokenizer.json}
+      # e5 계열 모델은 "query: " 를 앞에 붙여야 한다.
+      prefix: ${CHATBOT_EMBEDDING_PREFIX:}
+      # 0 이면 model.properties(모델 내려받기 스크립트가 만든 파일)의 값, 없으면 128
+      max-tokens: ${CHATBOT_MAX_TOKENS:0}
+      threads: ${CHATBOT_EMBEDDING_THREADS:2}
+  reward:
+    lent-ticket:
+      # 월간 로그타임(분)이 이 값 이상이면 지급일에 대여권을 지급한다. 사용자마다 기준은 하나만 적용된다.
+      default-threshold-minutes: ${LENT_TICKET_THRESHOLD_MINUTES:4800}
+      # 트센(본과정 grade "Transcender") 기준. 일반 기준보다 클 수 없고, 잘못되면 부팅이 실패한다.
+      transcender-threshold-minutes: ${LENT_TICKET_TRANSCENDER_THRESHOLD_MINUTES:900}
 
 resilience4j:
   circuitbreaker:
@@ -173,12 +267,15 @@ resilience4j:
         limitForPeriod: 50
         limitRefreshPeriod: 1s
         timeoutDuration: 0s
-      storeApi:
-        limitForPeriod: 3
+      # 대여/예약/반납 API 전체가 함께 쓰는 한도(사용자별이 아니라 서버 전체 기준)이다. 정상 트래픽을 막지 않도록 넉넉한
+      # 보호용 상한으로 두었으며, 실제 트래픽을 보고 이 값만 조정한다.
+      # FAQ 챗봇 질문. 임베딩 계산이 CPU 를 쓰므로 서버 전체 기준으로 상한을 둔다(별도로 동시 계산 수도 제한한다).
+      chatbotApi:
+        limitForPeriod: 20
         limitRefreshPeriod: 1s
         timeoutDuration: 0s
       lentApi:
-        limitForPeriod: 5
+        limitForPeriod: 30
         limitRefreshPeriod: 1s
         timeoutDuration: 0s
 

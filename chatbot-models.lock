@@ -1,0 +1,20 @@
+# 챗봇 임베딩 모델 고정(lock) 파일. 빌드가 내려받는 모델 파일을 정확한 버전과 SHA256 으로 고정한다.
+#
+# 형식(파이프 구분):
+#   meta|<id>|<HuggingFace 저장소>|<revision(커밋 SHA)>|<입력 앞에 붙일 접두어>|<최대 토큰>
+#   file|<id>|<model 또는 tokenizer>|<저장소 안의 파일 경로>|<sha256>
+#
+# PENDING 은 아직 고정하지 않았다는 뜻이다. PENDING 이 남아 있으면 Docker 이미지 빌드(strict)는 실패하고,
+# GitHub Actions 의 "챗봇 모델 평가"/"모델 고정" 작업(resolve 모드)이 실제 revision 과 SHA256 을 계산해 출력해 준다.
+# 그 값을 이 파일에 옮겨 적고 커밋하면 이후 빌드는 항상 같은 파일만 받는다.
+#
+# 2026-10-06: 후보 비교(평가 + 정답 벡터 대조) 결과 e5 로 확정했다. minilm 은 폐기해 이 파일에서 뺐다.
+# 값은 GitHub Actions "챗봇 모델 평가 / 고정"(resolve 모드)이 계산한 것이다. 이후 Actions 실행(resolve)은 고정된 SHA256 이
+# 다르면 실패하므로, 실제 저장소 파일이 이 값과 같은지 매번 검증된다.
+#
+# 파일 경로(onnx/model.onnx 등)는 저장소마다 다르다. 404 가 나면 스크립트가 그 저장소의 .onnx 파일 목록을 보여 준다.
+# 현재 고정한 onnx/model.onnx 는 fp32 라 약 470MB 다(양자화 int8 은 약 120MB 지만 별도 검증이 필요하다).
+
+meta|e5|intfloat/multilingual-e5-small|614241f622f53c4eeff9890bdc4f31cfecc418b3|query: |128
+file|e5|model|onnx/model.onnx|ca456c06b3a9505ddfd9131408916dd79290368331e7d76bb621f1cba6bc8665
+file|e5|tokenizer|tokenizer.json|0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39

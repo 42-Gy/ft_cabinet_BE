@@ -433,6 +433,12 @@ erDiagram
     }
 ```
 
+### 스키마 관리 (Flyway)
+
+- 스키마의 단일 출처는 `src/main/resources/db/migration/` 이다. **V1** 은 운영 DB(`cabi`)의 `mysqldump --no-data` 를 `scripts/db/sanitize_baseline.py` 로 정제한 베이스라인(12개 테이블, `idx_cabinet_visible_num` 유니크 인덱스 포함), **V2~V5** 는 이후 추가분(관리자 감사 로그, `user.ft_grade`, FAQ)이다.
+- 새 DB 는 `FLYWAY_ENABLED=true` 로 부팅하면 V1~V5 가 순서대로 적용된다. **운영처럼 이미 스키마가 있는 DB 는 사람이 `baseline 1` 을 한 번 수동으로 찍어야 하며, `baselineOnMigrate` 는 쓰지 않는다.** V1 파일에는 `CREATE TABLE` 만 둔다(`FlywayBaselineV1GuardTest` 가 막음).
+- 운영 적용 절차, 테스트 서버(`ddl-auto` update → validate) 전환, 이력 상태별 대처는 [`docs/db/FLYWAY_BASELINE.md`](docs/db/FLYWAY_BASELINE.md) 를 따른다.
+
 <br>
 
 ## 📜 Version History (개발 연혁)
@@ -493,6 +499,8 @@ erDiagram
 ### 4. 🛡️ 시스템 안정성 및 성능 (Robustness & Performance)
 * **상황 맞춤형 락 분리 적용:** 
     * 사물함 선착순 대여 등 트랜잭션 충돌이 빈번한 곳에는 **Pessimistic Lock(비관적 락)**을 적용하여 성능과 정합성을 보장.
+    * **같은 유저의 동시 요청**(대여·수동 연장·이사)은 사용자 행 비관적 락으로 직렬화한다(대여권 1장으로 두 번 처리되는 것을 방지). 락 순서는 항상 **사용자 → 사물함**이며, 사용자 락은 트랜잭션의 첫 DB 조회여야 한다. 이사의 예약 확인은 사물함 행 락을 잡은 뒤 트랜잭션 안에서 한다. **반납**(AI/수동)과 **패널티 감면**도 같은 순서를 따른다: 반납은 사용자 락 → 사물함 락을 잡은 뒤 처리해 관리자의 상태 변경·Undo 와 사물함 행을 서로 덮어쓰지 않고(사물함 ID 는 락 전에 트랜잭션 밖에서 가볍게 읽고, 그 사이 대여가 다른 사물함으로 바뀌었으면 다시 시도한다), 감면은 사용자 락으로 직렬화한다. **이사**는 옛·새 사물함을 둘 다 잠그되 **ID 오름차순**으로 잡는다(관리자 일괄 변경·Undo 와 같은 순서라, 서로의 사물함으로 동시에 이사하는 두 유저도 데드락이 나지 않는다). 이때 PK 로 잠근 새 사물함을 같은 트랜잭션에서 `findByVisibleNumWithLock` 으로 다시 찾지 않는다: `CABINET.VISIBLE_NUM` 에 인덱스가 없는 스키마(엔티티에 인덱스 정의가 없어 Hibernate 가 만든 테스트·데모 DB)에서는 그 쿼리가 PK 순으로 테이블을 훑으며 행을 잠가 교착이 나기 때문이다. 현재 `Cabinet` 엔티티는 `idx_cabinet_visible_num`(유니크)을 선언하고 있어 인덱스가 있는 환경에서는 해당 행만 잠기지만(운영에는 2026-10-07 에 같은 이름으로 직접 적용), 인덱스가 없는 환경에서도 락 순서가 안전하도록 이 규칙을 지킨다(테스트가 두 스키마를 모두 검증).
+    * **분산 락(`@DistributedLock`)**은 값에 요청별 토큰을 저장하고, 해제할 때 Lua 로 "내 토큰일 때만" 지운다. lease 가 만료된 뒤 먼저 끝난 요청이 다음 요청의 락을 지우지 않는다. 락을 못 얻으면 **409(`LOCK_001`, 현재 처리 중인 요청)**로 응답한다. lease 만료로 겹쳐 실행되는 경우의 최종 안전은 DB 행 락이 담당한다.
     * 코인, 이사권 등 충돌 빈도가 낮으나 정합성이 생명인 곳에는 **Optimistic Lock(낙관적 락, `@Version`)** 적용.
     * Redis Streams 분산 워커 및 스케줄러 동시성 제어에는 **Redis 기반 분산 락(ShedLock 등)** 적용.
 * **비동기 이벤트 큐 (Redis Streams):** 무거운 외부 API 통신(슬랙 알림 전송, 3,000명 단위의 42 API 로그타임 집계)을 메인 스레드에서 분리하여 Redis 큐로 위임. 사용자 응답 지연을 방지하고 분산 워커 환경을 완벽하게 지원합니다.
@@ -528,6 +536,118 @@ erDiagram
 ### 9. ⚡ 이사 전용 실시간 예약 (Swap Reservation) [New]
 * **15분 선점(Ticketing):** 사용자가 이사하고 싶은 사물함을 발견하면, **이사 전용 예약**을 통해 **15분간** 해당 사물함을 선점할 수 있습니다.
 * **Redis TTL:** Redis를 활용한 만료 시간 관리로, 예약 후 15분 내에 이사를 완료하지 않으면 예약이 자동 취소되어 다른 사용자가 이용 가능해집니다.
+* **예약은 하나만:** 한 사용자는 예약을 하나만 가질 수 있고, 다른 사물함을 예약하면 기존 예약은 자동 취소됩니다(`DELETE /v4/lent/reservation`으로 직접 취소도 가능). 사물함을 대여하거나 이사하면 내 예약은 함께 정리됩니다. 내 `/me` 응답의 `reservedVisibleNum`, `reservationRemainingSeconds`로 현재 예약과 남은 시간을 볼 수 있습니다.
+
+### 잔여기간 표기 기준
+
+- `daysRemaining`은 **달력 날짜 기준**이다(만료일 − 오늘). 시각은 보지 않는다. `0`은 만료일 당일, 음수는 만료일이 지난 일수. `/me`, 반납 응답, 사물함 목록·상세(`daysRemaining`)가 모두 같은 기준이다. 사물함 상세는 대여 중이 아니면 `null`이다(목록은 0으로 채운다).
+- `overdue`는 반납 시 패널티 부과와 같은 판정(`now > expiredAt`, 시각 포함)이다. 그래서 만료일 당일(`daysRemaining == 0`)이어도 만료 시각이 지났으면 `overdue == true`일 수 있다.
+- `expiredAt`(`MM월 dd일 HH:mm`)은 기존 프론트 호환을 위해 그대로 두며, 새 화면은 `expiredAtIso`를 쓴다. 대여 시작 시각도 같은 방식이라 `/me` 의 `lentStartedAt`(문자열)은 유지하고 `lentStartedAtIso`(ISO)를 병행한다. ISO 값은 서버 시간대(Asia/Seoul)의 오프셋 없는 시각이다.
+
+### 월간 대여권 지급 기준 (트센)
+
+- 매월 1일, 지난달 로그타임이 기준 이상이면 `LENT` 대여권을 지급한다. 기준은 사용자마다 **하나만** 적용된다: 일반 80시간(4800분), 트센 15시간(900분). 두 기준을 동시에 만족해도 대여권은 1개다. 기준값은 `app.reward.lent-ticket.*`(환경변수 `LENT_TICKET_THRESHOLD_MINUTES`, `LENT_TICKET_TRANSCENDER_THRESHOLD_MINUTES`)로 바꿀 수 있고, 잘못된 값(0 이하, 트센 기준 > 일반 기준)이면 부팅이 실패한다.
+- **트센 판정**: 42 API `cursus_users`에서 `cursus.id == 21`인 항목의 `grade`가 정확히 `"Transcender"`일 때만 트센이다. `Cadet`, 값 없음, 처음 보는 값은 모두 일반 사용자다(확인된 값은 `Cadet`, `Transcender`뿐이며, 미확인 값은 경고 로그를 남긴다). 피시너(9)·재도전 피시너(66)의 `grade`는 읽지 않는다.
+- `grade` 원문은 `USER.FT_GRADE`(Flyway V4)에 저장하며 **로그인 때** 갱신된다. 지급일에는 로그타임이 15시간 이상 80시간 미만인 비-트센·비-피시너 사용자만 42 API로 `grade`를 다시 조회한다(실패하면 저장된 값을 유지).
+- 이미 미사용 대여권이 있으면 지급을 생략하며, 이때도 월간 로그타임은 초기화된다(기존 동작).
+
+### 사물함 오류제보 → 관리자 DM 전달 (Slack Report Forwarding)
+
+- 사물함 오류제보/문의 슬랙 채널에 올라온 **새 글을 관리자(권한이 `ADMIN` 또는 `MASTER` 인 유저 전원, 탈퇴자 제외)에게 DM 으로 그대로 전달**한다(내용은 거르지 않고, 입퇴장·주제 변경 같은 시스템 메시지만 제외). 봇이나 파일이 포함된 글도 전달한다.
+- **폴링 방식**: 기본 60초마다 `conversations.history` 를 호출한다(ShedLock 으로 서버가 여러 대여도 한 곳만 실행). 채널의 **최상위 메시지만** 다루며 스레드 답글은 전달하지 않는다(답글 수만 표시).
+- **중복 방지**: 채널별로 "마지막으로 확인한 메시지 ts"를 Redis(`slack:report:cursor:{channelId}`)에 저장한다. **커서가 없으면(처음 켠 경우, Redis 초기화 포함) 과거 글은 전달하지 않고 지금부터 시작**한다. 한 번에 20건을 넘게 쌓이면 최근 20건만 전달하고 나머지는 요약 한 줄로 대신한다.
+- 전달 실패는 로그만 남기고 다음 글로 넘어간다(`AlarmPort` 는 성공 여부를 알려주지 않는다).
+- **설정(기본은 꺼짐)**: `SLACK_REPORT_FORWARD_ENABLED=true`, `SLACK_REPORT_CHANNEL_ID`(채널 ID). 켠 상태에서 채널 ID 가 없으면 부팅이 실패한다. **수신자는 설정이 아니라 DB 에서 매번 조회**하므로 권한 변경이 바로 반영된다(슬랙 사용자명이 인트라 ID(`User.name`)와 같아야 DM 이 간다). 수신자가 0명이면 부팅은 되고 경고 로그만 남기며, 그 글은 **커서를 옮기지 않고 보류**했다가 관리자가 생기면 다음 주기에 전달한다(수신자 조회가 실패했을 때도 같다). 예전 `SLACK_REPORT_RECIPIENTS` 는 더 이상 읽지 않는다. 선택: `SLACK_REPORT_POLL_INTERVAL_MS`(기본 60000).
+- **Slack 앱 준비(사람이 해야 함)**: 봇 토큰 앱에 `channels:history`(비공개 채널은 `groups:history`) 권한을 추가해 재설치하고, 채널에 봇을 초대한다. `chat:write` 등 기존 DM 권한은 그대로 쓴다.
+
+### 슬랙 공지 → 카카오톡 알림 (Kakao Notify)
+
+- 슬랙 공지 채널에 새 글이 올라오면, **카카오 `talk_message` 동의를 해 두고 알림을 켠 유저**에게 카카오톡 "나에게 보내기"로 그 내용을 전달한다. 수신 대상 = (동의 유효) AND (알림 스위치 켜짐)이며, 발송 직전에 둘 다 다시 확인한다.
+- **동의 등록**(`POST /v4/users/me/kakao-notify/consent {authorizationCode}`): 로그인용 카카오 연동(`/v4/auth/link/kakao`)은 그대로 두고, `talk_message` 동의만 따로 받는다. 프론트가 `scope=talk_message` 로 카카오 동의 화면을 띄워 받은 인가 코드를 보낸다(`redirect_uri` 는 계정 연동 때와 같아야 한다). 서버는 ① 로그인용 카카오 연동이 있는지(없으면 거부) ② 돌아온 카카오 회원 번호가 연동한 계정과 같은지(다르면 거부, 받은 토큰은 버림) ③ `talk_message` 범위가 있는지 확인한 뒤 refresh_token 을 저장한다.
+- **경로가 `/v4/auth/**` 가 아닌 이유**: 보안 설정에서 `/v4/auth/**` 는 인증 없이 열려 있다(컨트롤러가 로그인 상태를 직접 가정). 보안 설정을 바꾸지 않고 로그인한 본인에게만 열리게 하려고 `/v4/users/me/kakao-notify/**`(인증 필요)에 두었다. 대상 유저는 JWT 에서만 얻는다.
+- **상태·스위치**: `GET /v4/users/me/kakao-notify`(`consented`, `alarmEnabled`, `receiving`), `PUT /v4/users/me/kakao-notify/alarm {enabled}`(켜려면 유효한 동의가 있어야 하며, 끄는 것은 항상 가능). 알림 스위치는 `USER.KAKAO_ALARM`(기본 꺼짐)이고 **첫 동의(또는 해지 후 재동의) 때 켜진다**. 이미 유효한 동의를 다시 받아도 유저가 꺼 둔 스위치는 되돌리지 않는다.
+- **토큰 저장**: 로그인용 `OAUTH_LINK` 와 분리된 `KAKAO_NOTIFY_CONSENT`(Flyway V6)에 **AES-256-GCM 으로 암호화한 refresh_token** 만 저장한다(access_token 은 저장하지 않고 보낼 때마다 refresh_token 으로 새로 받는다). 암호문은 유저 ID 에 묶여 있어 다른 유저 행에 옮겨 붙이면 복호화되지 않는다. 카카오가 새 refresh_token 을 주면(회전) 조건부 갱신으로 저장한다.
+- **해지 처리**: refresh_token 갱신이 `invalid_grant` 로 거절되거나(유저가 카카오에서 동의 해지·토큰 만료) 발송이 동의 항목 부족(-402)으로 거절되면 `revoked_at` 을 찍고 그 뒤로 대상에서 뺀다(사용한 토큰이 그대로일 때만 — 그 사이 유저가 다시 동의했다면 새 동의를 해지하지 않는다). 카카오 일시 장애는 해지하지 않고 그 사람만 건너뛴다. 복호화 실패(키 분실·변경)도 해지하지 않고 건너뛰며, 유저가 다시 동의하면 새 키로 덮어쓴다.
+- **전달 파이프라인**: 오류제보 포워더와 같은 구조다. 폴링(기본 60초, ShedLock `slackNoticeForwardTask`), 채널별 Redis 커서(`slack:notice:cursor:{channelId}`, 오류제보 커서와 키가 다름)로 중복 방지, 커서가 없으면 과거 글은 보내지 않고 지금부터 시작, 시스템 메시지 제외, 5건 초과 시 최근 5건 + 요약 한 줄. 슬랙 표기(`<@U..>`, `<url|이름>`, `<!channel>`)는 평문으로 풀고 카카오 한도(200자)에 맞춰 자른다. 수신 대상이 0명이거나 조회에 실패하면 경고만 남기고 **커서를 옮기지 않아 공지가 사라지지 않게** 하되, 24시간(`max-hold-hours`)이 지난 공지는 새 수신자에게 쏟아내지 않도록 경고와 함께 건너뛴다. 개별 발송 실패는 로그만 남기고 다음 사람으로 넘어간다.
+- **설정(둘 다 기본 꺼짐)**: `KAKAO_NOTIFY_ENABLED=true` + `KAKAO_TOKEN_ENC_KEY`(base64 32바이트, 예: `openssl rand -base64 32`, 없거나 형식이 틀리면 부팅 실패) 가 동의/스위치 API 를 켠다. `SLACK_NOTICE_FORWARD_ENABLED=true` + `SLACK_NOTICE_CHANNEL_ID` 가 공지 전달을 켠다(`KAKAO_NOTIFY_ENABLED` 가 꺼져 있으면 부팅 실패). 선택: `SLACK_NOTICE_POLL_INTERVAL_MS`(기본 60000), `SLACK_NOTICE_LINK_URL`(요약 메시지와 퍼머링크 폴백에 쓰는 기본 링크, 기본 `FRONTEND_URL`, 카카오 앱에 등록된 도메인이어야 함), `SLACK_NOTICE_PERMALINK_ENABLED`(기본 false, 아래 참고), 긴 공지 요약 `SLACK_NOTICE_SUMMARY_ENABLED`(기본 false)·`GEMINI_API_KEY`·`SLACK_NOTICE_SUMMARY_MODEL`(기본 `gemini-3.8-flash`)·`SLACK_NOTICE_SUMMARY_THINKING_LEVEL`(기본 `low`)·`SLACK_NOTICE_SUMMARY_TIMEOUT`(기본 `8s`).
+- **메시지를 누르면 열리는 링크**: 카카오 메시지 링크는 앱에 등록된 웹 도메인이어야 해서 **기본은 항상 `SLACK_NOTICE_LINK_URL`**(기본 `FRONTEND_URL`)이다. `SLACK_NOTICE_PERMALINK_ENABLED=true` 로 켜면 공지 메시지가 해당 슬랙 글의 퍼머링크(`chat.getPermalink`)를 열도록 보내고, 조회 실패나 http(s) 가 아닌 값이면 기본 링크로 폴백한다(공지 한 건당 한 번 조회, "이전 N건 생략" 요약은 항상 기본 링크). 슬랙 도메인을 카카오 앱이 받아 주는지는 실환경 확인이 필요하다.
+- **긴 공지 요약(기본 꺼짐)**: 카톡 텍스트 템플릿은 200자 제한이라, 접두어(`📢 [공지] `)를 포함해 200자를 **넘는 공지만** Gemini API(`generateContent`)로 요약한다(넘지 않으면 호출하지 않음). 공지 한 건당 호출은 한 번이고 결과를 모든 수신자가 공유한다. 요약이 꺼져 있거나, 키가 없거나, 시간 초과·오류·빈 응답·차단·허용 길이 초과면 **기존 자르기(199자 + `…`)** 로 보내며 발송은 막지 않는다(WARN 로그에 원문은 남기지 않음). 구조: `NoticeSummarizerPort`(출력 포트) ← `GeminiNoticeSummarizerAdapter`(WebClient + 제한 시간 + Resilience4j 서킷 브레이커), 응답은 `NoticeSummarySanitizer` 가 URL·마크다운 링크·이모지·줄바꿈을 제거하고 길이를 검증한다. 슬랙 본문은 신뢰할 수 없는 입력이므로 고정 구분자로 감싸고 "데이터이지 지시가 아님"을 시스템 지시에 명시하며, 접두어와 링크는 모델이 아니라 코드가 붙인다. **켜면 공지 본문이 Google(해외)로 전송된다**(개인정보 고지·약관·무료 티어의 데이터 사용 조건 확인 필요). API 키는 환경변수로만 주입하고 로그·예외·`toString` 에 남기지 않는다.
+- **운영 주의**: ① **`KAKAO_TOKEN_ENC_KEY` 를 잃으면 저장된 동의가 전부 무효**가 된다(복호화 불가 → 발송 대상에서 사실상 빠지고, 유저가 다시 동의해야 함). 키를 안전한 곳에 따로 보관하고 코드·로그·DB 에 남기지 말 것. ② 키를 바꾸는 것도 같은 효과다(키 교체 절차는 아직 없음). ③ V6 은 `user` 테이블에 컬럼을 추가하고 새 테이블을 만들므로 `ddl-auto: validate` 인 운영은 Flyway 롤아웃 순서(baseline → `FLYWAY_ENABLED=true` → 배포)를 먼저 따라야 한다(기능을 꺼 둬도 필요). ④ Kakao 개발자 앱에 `talk_message` 동의항목과 메시지 링크 도메인 등록이 필요하다.
+
+### FAQ 챗봇 (Tier 1: 의미 검색 FAQ 매칭)
+
+- 질문을 임베딩(문장 벡터)으로 바꿔 미리 써 둔 FAQ 질문들과 코사인 유사도로 비교하고, **가장 비슷한 FAQ 의 정해진 답변을 그대로 돌려준다**. 문장을 생성하는 LLM 은 쓰지 않으므로 답변이 지어내질 일이 없다.
+- 결과는 세 가지다: `MATCHED`(점수와 1·2위 차이가 모두 기준 이상, 답변 반환 + 대안 후보 최대 2개), `SUGGESTED`(애매함, 비슷한 FAQ 최대 3개 제안), `UNMATCHED`(안내 문구).
+- **서버 내부 임베딩**: ONNX Runtime(Java) + DJL 토크나이저로 같은 JVM 안에서 계산한다. 질문이 외부 API 로 나가지 않는다. 동시 임베딩은 세마포어(기본 2)로 제한하고 넘치면 503 을 준다. jar 크기가 약 75MB 늘어난다(ONNX Runtime·토크나이저 네이티브 라이브러리 포함).
+- **FAQ 는 DB**(`faq`, `faq_question`, Flyway V5)에 저장하고 관리자 API 로 관리한다. 하나의 FAQ(답변)에 여러 질문 표현을 둘 수 있다. **임베딩은 저장하지 않고** 서버마다 메모리에 인덱스를 만든다. 서버는 30초마다 FAQ 변경(건수 + 최신 수정 시각)을 확인해 다시 만들고, 다른 서버에서 고친 내용도 그 안에 반영된다. 인덱스가 아직 준비되지 않았거나 모델을 못 불러오면 챗봇만 503 이고 서버는 정상 기동한다.
+- **개인정보**: 질문 원문은 저장도 로그도 하지 않는다. 결과별 건수만 `chatbot.ask{result=...}` 지표로 집계한다. 요청 로그(`LoggingAspect`)는 **값을 남기지 않는 것이 기본**이다: 숫자·불리언·열거형·날짜만 그대로 남기고 문자열, DTO, 파일, 인증 정보는 타입 이름만 남긴다(예전에는 컨트롤러 인자를 통째로 찍어 챗봇 질문과 반납 공유 비밀번호가 로그에 남았다). 접근 기록(누가, 언제, 어느 URI)은 남는다.
+- **초기 FAQ**: 테이블이 비어 있을 때만 `src/main/resources/chatbot/faq-seed.json`(26개, 질문 표현 180개)으로 채운다(`seed_key` UNIQUE 로 서버 여러 대의 동시 시작도 안전). **답변은 초안**이며 `docs/chatbot/FAQ_REVIEW.md` 의 "확인 필요" 항목을 사람이 검토해야 한다.
+
+| Method | URI | 설명 |
+| :--- | :--- | :--- |
+| `POST` | `/v4/chatbot/ask` | 질문(`{"question": "..."}`, 200자 이하)에 대한 FAQ 매칭 결과 |
+| `GET` | `/v4/chatbot/faqs` | 사용 중인 FAQ 를 카테고리별로 조회(검색 없이 둘러보기) |
+| `GET` | `/v4/chatbot/faqs/{id}` | FAQ 하나 조회 |
+| `POST` | `/v4/chatbot/personal` | **"내 정보" 조회**(개인화, 별도 플래그). `{"intent": "LENT_EXPIRY"}` 처럼 인텐트 이름만 받고, 대상은 항상 로그인한 본인 |
+| `GET` | `/v4/chatbot/personal/intents` | 칩으로 보여 줄 인텐트 목록(개인 정보 없음) |
+| `GET/POST/PUT/DELETE` | `/v4/admin/faqs`, `/v4/admin/faqs/{id}` | 관리자: FAQ 목록(비활성 포함)/등록/수정/삭제. 질문은 FAQ 당 최대 10개(각 200자), 답변 2000자 이하 |
+
+**설정(기본은 꺼짐)**
+
+| 환경변수 | 기본값 | 설명 |
+| :--- | :--- | :--- |
+| `CHATBOT_ENABLED` | `false` | `true` 여야 컨트롤러·인덱스·스케줄러가 켜진다 |
+| `CHATBOT_MODEL_DIR` | `/app/chatbot-model` | `model.onnx`, `tokenizer.json`, `model.properties` 가 있는 디렉터리(Docker 빌드가 채운다) |
+| `CHATBOT_MODEL_ID`, `CHATBOT_EMBEDDING_PREFIX`, `CHATBOT_MAX_TOKENS` | 비움 | 비워 두면 `model.properties` 를 따른다(e5 의 `query: ` 접두어 누락 방지). 값을 넣으면 그 값이 우선 |
+| `CHATBOT_MATCH_THRESHOLD` / `CHATBOT_MATCH_MARGIN` | `0.93` / `0.02` | **자동 답변(MATCHED)** 조건: 1위 유사도가 T 이상이고 1·2위 차이도 M 이상. e5 는 점수가 0.84~0.96 에 몰려서 절대 점수보다 1·2위 차이가 정답을 더 잘 가려낸다(정답 구분력 AUROC: 점수 0.59~0.75, margin 0.74~0.90). 평가의 공통 격자에서 두 세트 모두 범위 밖 수락 0%인 칸 중 골랐다(합산 커버리지 35.9%, 1위 정답률 94.3%). 모델이나 FAQ 를 바꾸면 다시 맞춘다 |
+| `CHATBOT_SUGGEST_THRESHOLD` | `0.88` | **후보 제안** 하한. 이 이상이면 비슷한 질문 후보(최대 3개)를 보여 주고, 사용자가 눌러 확정한다(틀린 후보의 피해가 작다). 근접 도메인 범위 밖 질문("사물함 크기")에도 후보가 나갈 수 있는 것은 감수한다 |
+| `CHATBOT_MATCH_ALTERNATIVES` | `2` | 자동 답변과 함께 "혹시 이 질문인가요?" 대안 후보를 최대 몇 개 돌려줄지(후보 하한 이상인 2위부터). 0 이면 끔 |
+| `CHATBOT_EMBEDDING_THREADS` | `2` | ONNX 스레드 수 |
+| `CHATBOT_EMBEDDING_PROVIDER` | `onnx` | `ngram` 은 모델 없이 글자 겹침만 보는 **개발용**(의미 검색 아님). 알 수 없는 값은 부팅 실패 |
+
+`/v4/chatbot/*` 는 전역 한도 `chatbotApi`(20/s)를 쓴다.
+
+**"내 정보" 답변 (개인화, 기본 꺼짐)**
+
+만료일·패널티·대여권 지급 조건·대여 불가 사유를 로그인한 본인 정보로 알려 준다. 생성형 모델 없이 **고정 문장에 값을 채우는 방식**이고, **읽기만 한다**(락도 상태 변경도 없어 대여 흐름과 경합하지 않는다).
+
+| 환경변수 | 기본값 | 설명 |
+| :--- | :--- | :--- |
+| `CHATBOT_PERSONAL_ENABLED` | `false` | `CHATBOT_ENABLED` 도 `true` 일 때만 켜진다. 꺼져 있으면 `/v4/chatbot/personal*` 는 404, `/ask` 응답의 `personalAction` 은 항상 null |
+| `CHATBOT_PERSONAL_RATE_PER_MINUTE` | `10` | 사용자별 분당 조회 한도(서버 메모리 기준이라 서버가 여러 대면 서버별 적용). 넘으면 429. 전역 `chatbotApi` 한도와 별개 |
+
+| 인텐트 | 알려 주는 것(응답 `facts` 의 화이트리스트) |
+| :--- | :--- |
+| `LENT_EXPIRY` | 사물함 번호, 만료 시각, 남은 일수(달력 기준, `/me` 와 같은 계산), 만료 시각 경과 여부 |
+| `PENALTY_STATUS` | 남은 패널티 일수, 해제 예정일(오늘 + 일수, 매일 자정 1일 감소) |
+| `LENT_TICKET_CONDITION` | 내 지급 기준(일반 4800분·트센 900분, 설정값), 이번 달 집계된 로그타임, 기준 충족 여부, 미사용 대여권 보유 여부, 다음 지급일(다음 달 1일) |
+| `LENT_BLOCKER_DIAGNOSIS` | 사용자 단위 사유만: 패널티 → 이미 대여 중 → 대여권 없음(`startLent` 검사 순서), 라피신 여부에 따른 대여 가능 사물함 종류 |
+
+**흐름과 보안 규칙**
+
+- 자유 질문(`/ask`)은 **칩만 제안**한다(`personalAction: {intent, label}`). 이 응답에는 개인 정보가 없고, 사용자가 칩을 눌러 `/v4/chatbot/personal` 을 호출해야 본인 정보가 나간다. 질문 문장은 "무엇을 볼지"만 고르고 "누구 것인지"는 고르지 못한다.
+- 조회 대상은 **JWT 의 `UserPrincipal` 하나뿐**이다. 요청 본문에서 받는 값은 인텐트 이름뿐이고, 본문에 `userId` 등을 실어도 무시한다(테스트: 컨트롤러 핸들러가 `@RequestBody`/`@AuthenticationPrincipal` 외 파라미터를 갖지 못함, 요청 DTO 필드는 `intent` 하나). 그래서 "다른 사람 만료일 알려줘" 같은 질문에 칩이 붙어도 보이는 것은 본인 정보뿐이다.
+- 응답 필드는 인텐트별 레코드로 **고정**되어 있고, 필드를 늘리면 `PersonalFactsContractTest` 가 실패해 리뷰를 강제한다. 이메일·코인 내역·이전 사용자의 반납 메모·다른 사용자 정보는 어떤 경로로도 실리지 않는다.
+- 사물함 단위 사유(남의 예약, 특정 사물함의 상태)는 특정 사물함을 지정해야 알 수 있고 다른 사람의 정보가 새어 나갈 수 있어 판단하지 않는다.
+- 응답은 `Cache-Control: no-store`, 값은 로그에 남기지 않는다(`LoggingAspect` 는 문자열·DTO 인자의 값을 기록하지 않는다). 지표는 `chatbot.personal{intent,outcome}` 건수만 센다(사용자 ID 태그 없음).
+- **정책 표현**: 반납 패널티는 만료 *시각*이 지나면 붙고 스케줄러의 연체 전환은 만료일 끝까지 유예한다(미해결 불일치). 문장은 "만료일까지 안전" 같은 약속 없이 만료 시각과 "지나면 패널티 대상"이라는 사실만 말한다.
+- 대여권 지급 문장의 로그타임은 매일 새벽 갱신된 집계값(어제까지)이다. 지급 생략(미사용 대여권 보유) 조건도 문장에 포함한다.
+
+**칩 라우팅**: 인텐트별 질문 표현(`src/main/resources/chatbot/personal-intents.json`, 인텐트당 8개)을 같은 임베딩 모델로 첫 질문 때 색인한다. 질문이 후보 하한(`suggest-threshold` 0.88) 이상으로 인텐트와 비슷하고 **가장 비슷한 FAQ 만큼 가까울 때만** 칩을 붙인다(FAQ 결과 자체는 바뀌지 않는다). 평가는 Actions 의 "챗봇 모델 평가" 에서 `ChatbotPersonalEvaluationTest` 가 `personal.md` 로 남긴다(도달률·오탐률·제3자 질문, 기준 없이 보고용; 질문은 `eval-personal.json`, 인텐트 표현과 겹치지 않고 결과를 본 뒤 고치지 않는다). 칩은 제안이라 이 수치는 안전이 아니라 사용성 지표다.
+
+**모델 고정과 배포(SHA256 검증)**
+
+1. `chatbot-models.lock` 에 모델의 저장소·revision·파일 경로·SHA256 을 적는다. 후보 비교(평가 + 정답 벡터 대조) 결과 **`e5`(intfloat/multilingual-e5-small)로 확정**했고 minilm 은 폐기했다. 새 모델을 평가할 때는 `PENDING` 으로 추가해 Actions(resolve 모드)가 출력하는 값을 옮겨 적는다.
+2. GitHub Actions 의 **"챗봇 모델 평가 / 고정"**(수동 실행)이 두 모델을 내려받아 다음을 요약(Job summary)에 보여 주고, lock 파일에 옮겨 적을 `meta|…`/`file|…` 줄을 출력한다. 기본은 기준을 적용하지 않아(`enforce=false`) 표만 보고 빨간불이 뜨지 않는다.
+   - **구현 정합성**: 같은 모델 저장소의 원본 가중치를 sentence-transformers(파이썬)로 돌린 정답 벡터(`golden.json`)와 Java 어댑터의 임베딩을 같은 문장 31개로 비교한다(코사인). 평가 점수가 낮을 때 "모델이 약한 것"과 "구현이 틀린 것"을 가르는 첫 번째 확인이다. 1.0 에 가까워야 한다.
+   - **검색 품질**: 개발 세트(`eval-set.json`)와 보류 세트(`eval-holdout.json`)의 top-1/top-3, 임계값별 표(0.05 단위 + 점수가 몰린 구간 0.01 단위), 점수·margin 이 정답을 가려내는 신호인지(AUROC), 자동 답변 규칙(점수 ≥ T 그리고 margin ≥ M) 격자, 틀린 질문 전체와 혼동 쌍, FAQ 당 변형 수에 따른 학습곡선.
+   - **평가 질문의 한계**: 모두 FAQ 를 쓴 사람이 만들었고 실제 학생 질문이 아니다(챗봇은 질문 원문을 수집하지 않는 설계). 수치는 모델·설정 사이의 상대 비교로만 읽는다. 보류 세트는 FAQ 변형·개발 세트와 겹치지 않게 따로 쓴 보고용이며, **보류 세트 결과를 보고 FAQ 변형이나 임계값을 고치지 않는다**(테스트가 세 집합이 서로 겹치지 않는지 확인한다).
+3. 모델을 고르고 출력된 줄로 lock 파일을 고쳐 커밋하면, 이후 `docker build --build-arg CHATBOT_MODEL=<id> .` 는 **고정된 revision 의 파일만 받고 SHA256 이 다르거나 `PENDING` 이 남아 있으면 실패**한다. `CHATBOT_MODEL` 을 주지 않으면(기본) 아무것도 받지 않으며 기존 빌드와 같다.
+4. 평가 기준(`CHATBOT_EVAL_ENFORCE=true`, 로컬 기본값. 개발 세트에 적용): 후보 모델은 top-1 `CHATBOT_EVAL_MIN_TOP1`(기본 0.80) 이상이어야 하고, "범위 밖 오답 수락률 5% 이하 · 정밀도 95% 이상 · 커버리지 50% 이상"인 임계값이 존재해야 한다. 로컬에서는 `CHATBOT_EVAL_MODELS_DIR` 아래에 `<id>/model.onnx`, `tokenizer.json`, `model.properties`(정합성 검사는 `golden.json` 도, `scripts/chatbot/golden_vectors.py` 로 생성)를 두고 `./gradlew test --tests '*ChatbotRetrievalEvaluationTest' --tests '*ChatbotGoldenVectorTest'` 로 같은 평가를 돌린다(모델이 없으면 ngram 기준선만 계산).
+
+**메모리·지연(참고)**: CI 러너에서 CPU 를 2코어로 제한해 잰 값이다(Azure 실측 아님). e5 fp32 모델 파일 448MB, 로드 약 1.9초, 프로세스 RSS 약 +874MB(로드 중 최고 약 +1.2GB), 첫 질문 약 31ms, 질문 1개 p50/p95 약 10/13ms, 색인 전체(질문 표현 180개) 임베딩 약 2.4초. 모델은 JVM 힙이 아니라 네이티브 메모리를 써서 `jvm.memory.*` 지표에는 안 보인다. 챗봇을 켠 서버에서는 `/actuator/metrics` 의 `chatbot.process.rss.bytes`(RSS), `chatbot.process.rss.peak.bytes`, `chatbot.ask.duration`(p50/p95/p99)과 로그("임베딩 모델 로드 완료", "색인 완료")로 확인한다. CI 측정은 평가 워크플로우의 "메모리·지연 측정" 단계에서 다시 돌릴 수 있다.
+
+**운영 반영 순서**: ① V5 는 새 테이블 두 개를 만들고 엔티티가 항상 등록되므로 `ddl-auto: validate` 인 운영에서는 Flyway 롤아웃(baseline → `FLYWAY_ENABLED=true` → 배포)을 먼저 해야 한다 ② 모델을 고정하고 `CHATBOT_MODEL` 빌드 인자를 배포 워크플로우에 넣는다 ③ `CHATBOT_ENABLED=true` 와 임계값을 설정한다 ④ `docs/chatbot/FAQ_REVIEW.md` 를 검토한 뒤 관리자 API 로 답변을 고친다.
 
 ### 10. 🍉 수박씨 강화 이벤트 & 독립 상점 (Watermelon Event) [New]
 * **강화 시도 및 확률 매트릭스:** 레벨별 기본 확률에 따라 0강~최대 10강까지 강화 성공/유지/하락/파괴를 롤링합니다.
@@ -782,7 +902,7 @@ sequenceDiagram
 ### 2. 👤 유저 (User)
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
-| `GET` | `/v4/users/me` | 내 정보 (현재 대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회 |
+| `GET` | `/v4/users/me` | 내 정보 (현재 대여, 연체, 코인, **[NEW] 재화/아이템 사용 이력 포함**) 조회. 대여 중이면 `expiredAtIso`(ISO 만료 시각), `lentStartedAtIso`(ISO 대여 시작 시각), `daysRemaining`, `overdue` 포함 (`expiredAt`, `lentStartedAt`은 표시용 문자열로 유지). `isTranscender`(트센 여부) 포함 |
 | `POST` | `/v4/users/attendance` | **[NEW]** 수동 출석 체크 (코인 획득) |
 | `GET` | `/v4/users/attendance` | 이번 달 출석 현황 조회 |
 
@@ -798,9 +918,10 @@ sequenceDiagram
 | Method | URI | 설명 |
 | :--- | :--- | :--- |
 | `POST` | `/v4/lent/cabinets/{visibleNum}` | 사물함 대여 시작 |
-| `POST` | `/v4/lent/reservation/{visibleNum}` | **[NEW]** 사물함 예약 (15분 선점, 대여 중이면 이사 예약으로 자동 처리) |
+| `POST` | `/v4/lent/reservation/{visibleNum}` | **[NEW]** 사물함 예약 (15분 선점, 대여 중이면 이사 예약으로 자동 처리). 사용자는 예약을 **하나만** 가지며, 다른 사물함을 다시 예약하면 기존 예약은 자동 취소됩니다. 이미 예약한 사물함을 다시 예약하면 거부(`ALREADY_RESERVED`)하고 시간도 연장되지 않습니다. |
+| `DELETE` | `/v4/lent/reservation` | 내 예약 취소. 예약이 없으면 404(`RESERVATION_NOT_FOUND`). |
 | `POST` | `/v4/lent/check-image` | **[AI]** 반납 사진 사전 검증 (AI 청결도 검사만 선실행) |
-| `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력) |
+| `POST` | `/v4/lent/return` | **[AI/Manual]** 반납 (forceReturn=true 시 강제 반납/사유 입력). 응답 `data`에 `message`와 함께 `expiredAtIso`, `daysRemaining`, `overdue`, `penaltyAppliedDays`, `returnedAt` 포함 |
 | `POST` | `/v4/lent/swap/{newVisibleNum}` | **[Item]** 이사권을 사용해 사물함 이동 |
 | `POST` | `/v4/lent/extension` | **[Item]** 연장권을 사용해 기간 연장 |
 | `POST` | `/v4/lent/renew` | **[Ticket]** 대여권을 새로 사용하여 기간 연장 (31일) |
@@ -849,7 +970,10 @@ sequenceDiagram
 | `POST` | `/v4/admin/users/{name}/role/admin` | 유저를 관리자로 승급 |
 | `DELETE` | `/v4/admin/users/{name}/role/admin` | 관리자 권한 해제 |
 | `PATCH` | `/v4/admin/cabinets/{visibleNum}` | 사물함 상태(고장 등) 변경 |
-| `PATCH` | `/v4/admin/cabinets/bundle/status` | **[NEW]** 사물함 상태/LentType 일괄 변경 (피시너 전용 구역 설정) |
+| `PATCH` | `/v4/admin/cabinets/bundle/status` | **[NEW]** 사물함 상태/LentType 일괄 변경 (피시너 전용 구역 설정, 월말 일괄 반납). 대여 중인 사물함의 상태를 바꾸려면 `endActiveLents: true` 를 명시해야 하며, 없는 ID 또는 미명시 대여 중 사물함이 하나라도 있으면 아무것도 바꾸지 않고 전체 거부합니다(404/409, 문제 사물함 목록 포함). 응답에는 변경된 사물함과 종료된 대여/사용자 요약이 담깁니다. `reason`(작업 사유, 255자 이하)은 선택이지만 `endActiveLents: true`일 때는 필수이며, 감사 로그에 함께 남고, 성공한 작업은 변경 전/후 값이 `admin_action_log` / `admin_action_log_item` 테이블에 영구 기록됩니다. |
+| `GET` | `/v4/admin/action-logs` | 관리자 작업 감사 기록 목록(최신순, 페이지 크기 최대 100). 각 기록의 항목 수와, 이미 되돌려졌다면 `undoneByBatchId`를 담습니다. |
+| `GET` | `/v4/admin/action-logs/{batchId}` | 감사 기록 상세. 요청 원문과 대상별 변경 전/후 값을 담습니다. 없는 batchId는 404. |
+| `POST` | `/v4/admin/action-logs/{batchId}/undo` | 사물함 일괄 변경(`CABINET_BULK_STATUS_UPDATE`)을 되돌립니다. 본문 `{"reason": "..."}`은 필수(255자 이하)입니다. 로그의 변경 전 값으로 사물함 상태·LentType·메모를 복구하고 종료된 대여를 다시 엽니다. 그 사이 바뀐 것이 하나라도 있으면 아무것도 바꾸지 않고 전체 거부(409)하며 충돌을 한 번에 모두 알려 줍니다: `CABINET_CHANGED`, `LENT_CHANGED`, `CABINET_OCCUPIED`, `USER_HAS_ACTIVE_LENT`, `LENT_EXPIRED`(만료된 대여는 되살리지 않음), `RESERVED`, `USER_INACTIVE`, `ALREADY_UNDONE`. 한 작업은 한 번만 되돌릴 수 있고 Undo 기록은 다시 되돌릴 수 없습니다. Undo 자체도 감사 기록(`CABINET_BULK_STATUS_UNDO`)으로 남습니다. |
 | `POST` | `/v4/admin/cabinets/{visibleNum}/force-return` | 관리자 권한 강제 반납 |
 | `GET` | `/v4/admin/cabinets/pending` | 수동 반납 승인 대기 목록 조회 |
 | `GET` | `/v4/admin/returns/photos` | **[NEW]** 반납 완료된 사물함 사진 조회 (Audit) |

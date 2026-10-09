@@ -14,6 +14,11 @@ public interface LentRepository extends JpaRepository<LentHistory, Long> {
 
     Optional<LentHistory> findByUserIdAndEndedAtIsNull(Long userId);
 
+    @Query(
+            "SELECT lh.cabinet.id FROM LentHistory lh "
+                    + "WHERE lh.user.id = :userId AND lh.endedAt IS NULL")
+    Optional<Long> findActiveCabinetIdByUserId(@Param("userId") Long userId);
+
     Optional<LentHistory> findByCabinetIdAndEndedAtIsNull(Long cabinetId);
 
     long countByEndedAtIsNull();
@@ -26,6 +31,10 @@ public interface LentRepository extends JpaRepository<LentHistory, Long> {
     @Query(
             "SELECT lh FROM LentHistory lh JOIN FETCH lh.user JOIN FETCH lh.cabinet c WHERE c.id IN :cabinetIds AND lh.endedAt IS NULL")
     List<LentHistory> findAllActiveLentByCabinetIds(@Param("cabinetIds") List<Long> cabinetIds);
+
+    @Query(
+            "SELECT lh FROM LentHistory lh JOIN FETCH lh.user JOIN FETCH lh.cabinet WHERE lh.id IN :ids")
+    List<LentHistory> findAllWithUserAndCabinetByIds(@Param("ids") List<Long> ids);
 
     @Query(
             "SELECT lh FROM LentHistory lh JOIN FETCH lh.cabinet c WHERE lh.user.id IN :userIds AND lh.endedAt IS NULL")

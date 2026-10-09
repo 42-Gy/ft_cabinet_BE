@@ -1,0 +1,144 @@
+name: 🚀 Deploy to Test (GHCR → Azure App Service)
+
+# master 에 push 되면 Docker 이미지를 빌드해 GHCR 에 올리고,
+# 테스트 App Service 의 컨테이너 이미지를 방금 올린 것으로 교체한다.
+# 이 워크플로우는 아래 env 에 적은 테스트 리소스만 대상으로 한다.
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+
+# 배포가 겹쳐 돌면 이미지 교체 순서가 꼬일 수 있어 직렬화 (진행 중인 배포는 취소하지 않음)
+concurrency:
+  group: deploy-test
+  cancel-in-progress: false
+
+env:
+  # GHCR 이미지 경로는 소문자여야 하므로 github.repository 대신 고정값 사용
+  IMAGE_NAME: ghcr.io/farmer0010/ft_cabinet_be-v2
+  AZURE_WEBAPP_NAME: subak-server-test
+  AZURE_RESOURCE_GROUP: 42-Cabinet-Test-RG
+
+jobs:
+  build-and-push:
+    # 이 워크플로우가 다른 레포로 옮겨져도(머지/포크) 동작하지 않도록 레포를 고정
+    if: github.repository == 'farmer0010/ft_cabinet_BE-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write # GITHUB_TOKEN 으로 GHCR push (별도 PAT 불필요)
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: '17'
+          cache: gradle
+
+      # Dockerfile 은 jar 를 빌드하지 않고 build/libs/*SNAPSHOT.jar 를 COPY 만 하므로 먼저 jar 를 만든다
+      - name: 🔨 Build jar (bootJar)
+        run: ./gradlew bootJar --no-daemon
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔑 Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # provenance: false → 단일 이미지 매니페스트로 푸시 (App Service 호환성 위험 제거)
+      - name: 📤 Build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          provenance: false
+          # 챗봇 임베딩 모델(e5)을 이미지에 넣는다. chatbot-models.lock 에 고정된 revision/SHA256 과 다르면 빌드가 실패한다.
+          # 모델이 들어가도 챗봇은 CHATBOT_ENABLED=true 를 설정하기 전까지 꺼져 있다(이미지가 약 470MB 커진다).
+          build-args: |
+            CHATBOT_MODEL=e5
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    if: github.repository == 'farmer0010/ft_cabinet_BE-v2'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      # 시크릿이 비어 있으면 azure/login 의 모호한 오류 대신 어떤 값이 없는지 바로 알려준다 (값은 출력하지 않음)
+      - name: 🔎 Check required secrets
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_CLIENT_SECRET AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::GitHub Secret ${name} 가 비어 있거나 등록되지 않았습니다."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      # azure/login@v2 는 client-secret 단독 입력이 없어 creds JSON 으로 4개 시크릿을 전달한다
+      - name: 🔐 Azure login
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      # 읽기 전용 확인: 대상 앱이 지정한 테스트 리소스 그룹 안에 있는지 검증한 뒤에만 변경한다
+      - name: 🎯 Verify deploy target (read-only)
+        run: |
+          set -euo pipefail
+          actual_rg="$(az webapp show \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query resourceGroup -o tsv)"
+          if [ "${actual_rg,,}" != "${AZURE_RESOURCE_GROUP,,}" ]; then
+            echo "::error::대상 App Service 의 리소스 그룹이 예상과 다릅니다. 배포를 중단합니다."
+            exit 1
+          fi
+          echo "대상 확인: ${AZURE_WEBAPP_NAME} (${AZURE_RESOURCE_GROUP})"
+
+      # :latest 가 아니라 커밋 SHA 태그로 교체한다.
+      # 같은 태그 문자열이면 설정 변경이 없어 재시작/재pull 이 보장되지 않고, SHA 는 롤백/추적에도 유리하다.
+      # (이미지 pull 인증은 설정하지 않는다: GHCR 패키지 public 이거나 App Service 에 pull 자격증명이 이미 있어야 함.
+      #  GITHUB_TOKEN 은 잡 종료 시 만료되므로 App Service 의 pull 자격증명으로 쓰면 안 된다.)
+      - name: 🔄 Update container image
+        run: |
+          set -euo pipefail
+          az webapp config container set \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --container-image-name "${IMAGE_NAME}:${GITHUB_SHA}" \
+            --container-registry-url https://ghcr.io
+
+      - name: 🧾 Show configured image
+        run: |
+          az webapp config show \
+            --name "$AZURE_WEBAPP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query linuxFxVersion -o tsv

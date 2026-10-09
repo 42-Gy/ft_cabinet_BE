@@ -8,8 +8,11 @@ import com.gyeongsan.cabinet.domain.auth.OauthLink;
 import com.gyeongsan.cabinet.domain.auth.port.out.OauthLinkRepositoryPort;
 import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
 import com.gyeongsan.cabinet.domain.item.model.ItemType;
+import com.gyeongsan.cabinet.domain.user.model.FtGradeResolver;
+import com.gyeongsan.cabinet.domain.user.model.FtGradeSnapshot;
 import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.model.UserRole;
+import com.gyeongsan.cabinet.utils.FtCursusParser;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -56,6 +59,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             return handleSocialLogin(userRequest, attributes, registrationId);
         }
 
+        return handleFtLogin(userRequest, attributes);
+    }
+
+    /** 42 인트라 로그인: 캠퍼스/차단 검사 후 사용자 정보(블랙홀, 피시너, grade)를 갱신한다. */
+    OAuth2User handleFtLogin(OAuth2UserRequest userRequest, Map<String, Object> attributes) {
         String intraId = (String) attributes.get("login");
         String email = (String) attributes.get("email");
 
@@ -73,8 +81,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         LocalDateTime blackholedAt = extractBlackholedAt(attributes);
         boolean pisciner = isPisciner(attributes);
+        FtGradeSnapshot gradeSnapshot = resolveGrade(attributes);
 
-        saveOrUpdateUser(intraId, email, blackholedAt, pisciner);
+        saveOrUpdateUser(intraId, email, blackholedAt, pisciner, gradeSnapshot);
 
         String userNameAttributeName =
                 userRequest
@@ -165,13 +174,35 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return null;
     }
 
+    /** 본과정(cursus 21)의 grade 를 해석한다. 해석에 실패하면 저장된 값을 건드리지 않도록 parsed=false 로 돌려준다. */
+    private FtGradeSnapshot resolveGrade(Map<String, Object> attributes) {
+        FtGradeSnapshot snapshot =
+                FtGradeResolver.resolve(
+                        FtCursusParser.fromAttribute(attributes.get("cursus_users")));
+        if (!snapshot.parsed()) {
+            log.warn("⚠️ cursus_users 를 해석하지 못해 grade 를 갱신하지 않습니다.");
+        } else if (snapshot.rejected()) {
+            log.warn("⚠️ 본과정 grade 형식이 올바르지 않아 저장하지 않습니다.");
+        } else if (!FtGradeResolver.isRecognized(snapshot.grade())) {
+            log.warn("⚠️ 미확인 grade 값을 받았습니다(일반 사용자로 취급): {}", snapshot.grade());
+        }
+        return snapshot;
+    }
+
     private void saveOrUpdateUser(
-            String intraId, String email, LocalDateTime blackholedAt, boolean isPisciner) {
+            String intraId,
+            String email,
+            LocalDateTime blackholedAt,
+            boolean isPisciner,
+            FtGradeSnapshot gradeSnapshot) {
         User user = userRepository.findByName(intraId).orElse(null);
 
         if (user == null) {
             log.info("🎉 신규 유저 발견! 회원가입: {} (피시너: {})", intraId, isPisciner);
             user = User.of(intraId, email, UserRole.USER, isPisciner);
+            if (gradeSnapshot.shouldStore()) {
+                user.updateFtGrade(gradeSnapshot.grade());
+            }
             user = userRepository.save(user);
             giveWelcomeGift(user);
         } else {
@@ -179,12 +210,20 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 log.info("🎓 피시너 → 본과정 전환 감지: {}", intraId);
             }
             user.updatePiscinerStatus(isPisciner);
+            if (gradeSnapshot.shouldStore()) {
+                user.updateFtGrade(gradeSnapshot.grade());
+            }
         }
 
         user.updateBlackholedAt(blackholedAt);
         userRepository.save(user);
 
-        log.info("✅ 유저 로그인 처리 완료: {} (블랙홀: {}, 피시너: {})", intraId, blackholedAt, isPisciner);
+        log.info(
+                "✅ 유저 로그인 처리 완료: {} (블랙홀: {}, 피시너: {}, grade: {})",
+                intraId,
+                blackholedAt,
+                isPisciner,
+                user.getFtGrade());
     }
 
     private void giveWelcomeGift(User user) {

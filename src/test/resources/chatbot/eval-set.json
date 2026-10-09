@@ -1,0 +1,374 @@
+{
+  "inScope": [
+    {
+      "expected": "lent-how",
+      "question": "사물함 쓰려면 뭐부터 해야 돼?"
+    },
+    {
+      "expected": "lent-how",
+      "question": "빌리는 법 알려주세요"
+    },
+    {
+      "expected": "lent-how",
+      "question": "락커 대여 절차가 궁금합니다"
+    },
+    {
+      "expected": "lent-how",
+      "question": "사물함 신청하는 방법"
+    },
+    {
+      "expected": "lent-fail",
+      "question": "빌리기 버튼 눌러도 에러가 떠요"
+    },
+    {
+      "expected": "lent-fail",
+      "question": "대여가 거부됩니다 이유가 뭔가요"
+    },
+    {
+      "expected": "lent-fail",
+      "question": "사물함 신청했는데 실패했다고 나와요"
+    },
+    {
+      "expected": "lent-ticket-get",
+      "question": "대여권 어디서 사요?"
+    },
+    {
+      "expected": "lent-ticket-get",
+      "question": "사물함 빌릴 티켓이 부족하대요"
+    },
+    {
+      "expected": "lent-ticket-get",
+      "question": "대여권 받는 조건이 뭐예요"
+    },
+    {
+      "expected": "lent-ticket-get",
+      "question": "로그타임 몇 시간이면 대여권 주나요"
+    },
+    {
+      "expected": "lent-period",
+      "question": "몇 일 동안 빌릴 수 있죠?"
+    },
+    {
+      "expected": "lent-period",
+      "question": "사물함 사용 기한이 궁금해요"
+    },
+    {
+      "expected": "lent-period",
+      "question": "언제까지 쓸 수 있나요"
+    },
+    {
+      "expected": "lent-piscine",
+      "question": "라피신 때는 아무 사물함이나 되나요?"
+    },
+    {
+      "expected": "lent-piscine",
+      "question": "피신 기간에 연장 가능한가요"
+    },
+    {
+      "expected": "lent-piscine",
+      "question": "수영장 사물함 말고 일반 사물함 쓸 수 있어요?"
+    },
+    {
+      "expected": "lent-reserve",
+      "question": "마음에 드는 자리 잠깐 잡아둘 수 있나요"
+    },
+    {
+      "expected": "lent-reserve",
+      "question": "예약 시간이 지나면 어떻게 되나요"
+    },
+    {
+      "expected": "lent-reserve",
+      "question": "사물함 찜하는 기능 있어요?"
+    },
+    {
+      "expected": "return-how",
+      "question": "반납하려면 뭘 해야 하죠?"
+    },
+    {
+      "expected": "return-how",
+      "question": "사물함 비우고 나서 어떻게 해요"
+    },
+    {
+      "expected": "return-how",
+      "question": "반납할 때 사진을 왜 찍나요"
+    },
+    {
+      "expected": "return-how",
+      "question": "반납 절차 알려주세요"
+    },
+    {
+      "expected": "return-ai-fail",
+      "question": "사진 찍었는데 비어있는데도 안 비었대요"
+    },
+    {
+      "expected": "return-ai-fail",
+      "question": "AI가 사물함에 물건이 있다고 하는데 없어요"
+    },
+    {
+      "expected": "return-ai-fail",
+      "question": "강제 반납은 어떻게 하나요"
+    },
+    {
+      "expected": "return-ai-fail",
+      "question": "반납이 보류됐다고 떠요"
+    },
+    {
+      "expected": "return-overdue",
+      "question": "기한 넘겨서 반납했어요"
+    },
+    {
+      "expected": "return-overdue",
+      "question": "연체되면 불이익이 뭐죠?"
+    },
+    {
+      "expected": "return-overdue",
+      "question": "늦게 반납하면 몇 일 정지돼요"
+    },
+    {
+      "expected": "extend-ticket",
+      "question": "기간 늘리는 방법"
+    },
+    {
+      "expected": "extend-ticket",
+      "question": "며칠 더 쓰고 싶은데 어떻게 해요"
+    },
+    {
+      "expected": "extend-ticket",
+      "question": "연장 신청은 어디서 하나요"
+    },
+    {
+      "expected": "extend-renew",
+      "question": "대여권 쓰면 기간이 늘어나요?"
+    },
+    {
+      "expected": "extend-renew",
+      "question": "31일 연장하는 방법"
+    },
+    {
+      "expected": "extend-renew",
+      "question": "티켓으로 사용 기간 늘리기"
+    },
+    {
+      "expected": "extend-auto",
+      "question": "자동으로 기간이 늘어나게 할 수 있나요"
+    },
+    {
+      "expected": "extend-auto",
+      "question": "자동연장 설정 해제하는 법"
+    },
+    {
+      "expected": "extend-auto",
+      "question": "대여권이 자동으로 사라졌어요"
+    },
+    {
+      "expected": "extend-limit",
+      "question": "연장권을 더 못 사요"
+    },
+    {
+      "expected": "extend-limit",
+      "question": "연장권 월 구매 제한이 있나요"
+    },
+    {
+      "expected": "extend-limit",
+      "question": "연장권 구매가 안 된다고 나와요"
+    },
+    {
+      "expected": "alarm-timing",
+      "question": "기한 임박하면 연락 오나요"
+    },
+    {
+      "expected": "alarm-timing",
+      "question": "알림 몇 일 전에 와요"
+    },
+    {
+      "expected": "alarm-timing",
+      "question": "연체 경고 DM이 와요"
+    },
+    {
+      "expected": "swap-how",
+      "question": "자리를 바꾸고 싶은데요"
+    },
+    {
+      "expected": "swap-how",
+      "question": "사물함 변경 방법"
+    },
+    {
+      "expected": "swap-how",
+      "question": "이사권 쓰는 순서가 궁금해요"
+    },
+    {
+      "expected": "swap-conditions",
+      "question": "연체했는데 이사 신청이 거절돼요"
+    },
+    {
+      "expected": "swap-conditions",
+      "question": "이사권이 있는데도 못 옮겨요"
+    },
+    {
+      "expected": "swap-conditions",
+      "question": "같은 사물함으로 이사 가능?"
+    },
+    {
+      "expected": "swap-expiry",
+      "question": "옮기면 기간 초기화되나요"
+    },
+    {
+      "expected": "swap-expiry",
+      "question": "이사하고 나면 며칠 남아요"
+    },
+    {
+      "expected": "swap-expiry",
+      "question": "사물함 바꾸면 만료일도 바뀌나요"
+    },
+    {
+      "expected": "penalty-what",
+      "question": "패널티 걸리면 어떻게 돼요"
+    },
+    {
+      "expected": "penalty-what",
+      "question": "대여 정지 기간이 있나요"
+    },
+    {
+      "expected": "penalty-what",
+      "question": "왜 대여가 막혔나요 패널티래요"
+    },
+    {
+      "expected": "penalty-decay",
+      "question": "패널티 며칠이면 끝나요"
+    },
+    {
+      "expected": "penalty-decay",
+      "question": "언제부터 다시 빌릴 수 있어요"
+    },
+    {
+      "expected": "penalty-decay",
+      "question": "패널티 자동으로 줄어드나요"
+    },
+    {
+      "expected": "penalty-exempt",
+      "question": "패널티를 빨리 풀고 싶은데 방법이 있나요"
+    },
+    {
+      "expected": "penalty-exempt",
+      "question": "감면권 쓰면 며칠 줄어요"
+    },
+    {
+      "expected": "penalty-exempt",
+      "question": "패널티 없애는 아이템"
+    },
+    {
+      "expected": "coin-earn",
+      "question": "출석하면 뭐 줘요?"
+    },
+    {
+      "expected": "coin-earn",
+      "question": "씨앗 보너스 조건"
+    },
+    {
+      "expected": "coin-earn",
+      "question": "코인은 어디서 벌어요"
+    },
+    {
+      "expected": "coin-earn",
+      "question": "한 달 개근하면 보상이 있나요"
+    },
+    {
+      "expected": "item-list",
+      "question": "아이템 목록 알려주세요"
+    },
+    {
+      "expected": "item-list",
+      "question": "씨앗으로 살 수 있는 것"
+    },
+    {
+      "expected": "item-list",
+      "question": "연장권 이사권 값"
+    },
+    {
+      "expected": "watermelon-what",
+      "question": "수박 강화가 뭐죠"
+    },
+    {
+      "expected": "watermelon-what",
+      "question": "강화 시도하면 어떻게 돼요"
+    },
+    {
+      "expected": "watermelon-what",
+      "question": "최대 강화 단계"
+    },
+    {
+      "expected": "watermelon-what",
+      "question": "리더보드는 어떻게 정해지나요"
+    },
+    {
+      "expected": "watermelon-items",
+      "question": "위험한 비료는 언제 못 써요"
+    },
+    {
+      "expected": "watermelon-items",
+      "question": "강화 실패해도 안 떨어지게 하는 아이템"
+    },
+    {
+      "expected": "watermelon-items",
+      "question": "파괴되는 걸 막을 수 있나요"
+    },
+    {
+      "expected": "social-link",
+      "question": "카카오로 로그인이 안 돼요"
+    },
+    {
+      "expected": "social-link",
+      "question": "다른 계정으로 로그인하는 방법"
+    },
+    {
+      "expected": "social-link",
+      "question": "카카오 연동 어디서 해요"
+    },
+    {
+      "expected": "login-denied",
+      "question": "다른 캠퍼스인데 로그인 되나요"
+    },
+    {
+      "expected": "login-denied",
+      "question": "인트라 로그인했는데 막혀요"
+    },
+    {
+      "expected": "login-denied",
+      "question": "로그인이 차단됐다는 메시지"
+    },
+    {
+      "expected": "contact",
+      "question": "사물함이 고장났어요 누구한테 말하나요"
+    },
+    {
+      "expected": "contact",
+      "question": "관리자 연락처"
+    },
+    {
+      "expected": "contact",
+      "question": "문제가 생겼는데 도와주세요"
+    }
+  ],
+  "outOfScope": [
+    "오늘 학식 메뉴 뭐예요",
+    "내일 날씨 알려주세요",
+    "수강신청은 언제 해요",
+    "와이파이 비밀번호가 뭐예요",
+    "점심 메뉴 추천해줘",
+    "42 서울 클러스터 자리 예약",
+    "과제 마감이 언제야",
+    "버스 시간표 알려줘",
+    "ㅋㅋㅋㅋ",
+    "안녕",
+    "너는 누구니",
+    "파이썬 리스트 정렬하는 법",
+    "서브젝트 어디서 보나요",
+    "동아리 가입 방법",
+    "주차장 이용 방법",
+    "프린터는 어디 있나요",
+    "기숙사 신청 기간",
+    "휴학 신청하려면",
+    "블랙홀이 뭔가요",
+    "evaluation 점수 계산 방법"
+  ]
+}
