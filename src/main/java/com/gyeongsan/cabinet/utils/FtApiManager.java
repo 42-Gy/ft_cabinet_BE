@@ -1,14 +1,11 @@
 package com.gyeongsan.cabinet.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.gyeongsan.cabinet.domain.user.model.FtCursusEntry;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
@@ -85,50 +82,6 @@ public class FtApiManager {
         String url = String.format("%s/v2/users/%s/locations_stats", ftApiRootUrl, intraId);
 
         return callApiWithRetry(url, intraId, startDate, endDate);
-    }
-
-    /**
-     * 사용자의 cursus_users 를 조회한다. 로그인 시점에만 갱신되는 grade 를 지급일에 다시 확인하는 데 쓴다. 실패하면 비어 있는 Optional 을
-     * 돌려주며, 호출하는 쪽은 저장된 값을 그대로 유지해야 한다.
-     */
-    @RateLimiter(name = "ftApi")
-    public Optional<List<FtCursusEntry>> getCursusEntries(String intraId) {
-        try {
-            synchronized (this) {
-                if (this.accessToken == null) {
-                    generateToken();
-                }
-            }
-            return requestCursusEntries(intraId);
-        } catch (WebClientResponseException.Unauthorized e) {
-            log.warn("🔄 [401 Unauthorized] 토큰 만료. 재발급 후 재시도... ({})", intraId);
-            try {
-                generateToken();
-                return requestCursusEntries(intraId);
-            } catch (Exception ex) {
-                log.error("❌ cursus 조회 재시도 실패 ({}): {}", intraId, ex.getMessage());
-                return Optional.empty();
-            }
-        } catch (Exception e) {
-            log.error("❌ cursus 조회 실패 ({}): {}", intraId, e.getMessage());
-            return Optional.empty();
-        }
-    }
-
-    private Optional<List<FtCursusEntry>> requestCursusEntries(String intraId) {
-        // 로그인명은 URI 변수로 넘겨 경로 구분자 등이 인코딩되게 한다(문자열 이어붙이기 금지).
-        JsonNode user =
-                webClient
-                        .get()
-                        .uri(ftApiRootUrl + "/v2/users/{login}", intraId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
-                        .retrieve()
-                        .bodyToMono(JsonNode.class)
-                        .block();
-        if (user == null) {
-            return Optional.empty();
-        }
-        return FtCursusParser.fromJson(user.get("cursus_users"));
     }
 
     private int callApiWithRetry(

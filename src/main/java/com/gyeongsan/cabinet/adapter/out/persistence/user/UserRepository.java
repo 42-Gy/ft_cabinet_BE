@@ -1,9 +1,7 @@
 package com.gyeongsan.cabinet.adapter.out.persistence.user;
 
 import com.gyeongsan.cabinet.domain.user.model.User;
-import com.gyeongsan.cabinet.domain.user.model.UserRole;
 import jakarta.persistence.LockModeType;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -28,7 +26,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u WHERE u.penaltyDays > 0 ORDER BY u.penaltyDays DESC")
     List<User> findAllPenaltyUsers();
-
-    @Query("SELECT u FROM User u WHERE u.role IN :roles AND u.deletedAt IS NULL ORDER BY u.id")
-    List<User> findAllActiveByRoleIn(@Param("roles") Collection<UserRole> roles);
 }

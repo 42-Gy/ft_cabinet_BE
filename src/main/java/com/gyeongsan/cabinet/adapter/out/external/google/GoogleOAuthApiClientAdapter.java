@@ -11,9 +11,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
@@ -33,22 +30,15 @@ public class GoogleOAuthApiClientAdapter implements OAuthApiClientPort {
     private String redirectUri;
 
     public GoogleOAuthApiClientAdapter() {
-        this(createWebClient());
-    }
-
-    GoogleOAuthApiClientAdapter(WebClient webClient) {
-        this.webClient = webClient;
-    }
-
-    private static WebClient createWebClient() {
         HttpClient httpClient =
                 HttpClient.create()
                         .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000)
                         .responseTimeout(Duration.ofSeconds(3));
 
-        return WebClient.builder()
-                .clientConnector(new ReactorClientHttpConnector(httpClient))
-                .build();
+        this.webClient =
+                WebClient.builder()
+                        .clientConnector(new ReactorClientHttpConnector(httpClient))
+                        .build();
     }
 
     @Override
@@ -69,19 +59,23 @@ public class GoogleOAuthApiClientAdapter implements OAuthApiClientPort {
                         ? customRedirectUri
                         : redirectUri;
 
-        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("grant_type", "authorization_code");
-        form.add("client_id", clientId);
-        form.add("client_secret", clientSecret);
-        form.add("redirect_uri", targetRedirectUri);
-        form.add("code", code);
-
         Map<String, Object> response =
                 webClient
                         .post()
                         .uri("https://oauth2.googleapis.com/token")
-                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                        .body(BodyInserters.fromFormData(form))
+                        .header(
+                                HttpHeaders.CONTENT_TYPE,
+                                MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                        .bodyValue(
+                                "grant_type=authorization_code"
+                                        + "&client_id="
+                                        + clientId
+                                        + "&client_secret="
+                                        + clientSecret
+                                        + "&redirect_uri="
+                                        + targetRedirectUri
+                                        + "&code="
+                                        + code)
                         .retrieve()
                         .bodyToMono(Map.class)
                         .block();
