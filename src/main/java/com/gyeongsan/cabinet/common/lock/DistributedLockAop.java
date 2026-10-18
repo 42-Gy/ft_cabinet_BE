@@ -1,5 +1,7 @@
 package com.gyeongsan.cabinet.common.lock;
 
+import com.gyeongsan.cabinet.global.exception.ErrorCode;
+import com.gyeongsan.cabinet.global.exception.ServiceException;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
@@ -78,7 +80,7 @@ public class DistributedLockAop {
 
             if (!isLocked) {
                 log.warn("[DistributedLock] 락 획득 실패 - Key: {}", key);
-                throw new IllegalStateException("현재 처리 중인 요청입니다. 잠시 후 다시 시도해주세요.");
+                throw new ServiceException(ErrorCode.REQUEST_IN_PROGRESS);
             }
 
             return joinPoint.proceed();
