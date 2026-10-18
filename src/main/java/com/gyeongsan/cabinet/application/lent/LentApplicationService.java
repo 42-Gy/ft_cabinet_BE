@@ -9,6 +9,7 @@ import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
 import com.gyeongsan.cabinet.domain.item.model.ItemType;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
+import com.gyeongsan.cabinet.domain.lent.model.ReservationOutcome;
 import com.gyeongsan.cabinet.domain.lent.port.in.LentUseCase;
 import com.gyeongsan.cabinet.domain.lent.port.out.AiCheckPort;
 import com.gyeongsan.cabinet.domain.lent.port.out.ImageUploadPort;
@@ -41,6 +42,8 @@ public class LentApplicationService implements LentUseCase {
     private final AiCheckPort aiCheckPort;
     private final ImageUploadPort imageUploadPort;
     private final TransactionTemplate transactionTemplate;
+
+    private static final long RESERVATION_TTL_MINUTES = 15;
 
     @Value("${cabinet.policy.lent-term}")
     private int lentTerm;
@@ -430,7 +433,7 @@ public class LentApplicationService implements LentUseCase {
     public void makeReservation(Long userId, Integer visibleNum) {
         log.info("사물함 예약 시도 - User: {}, Cabinet Num: {}", userId, visibleNum);
 
-        if (reservationPort.getUserReservation(userId).isPresent()) {
+        if (reservationPort.getUserReservation(userId).filter(visibleNum::equals).isPresent()) {
             throw new ServiceException(ErrorCode.ALREADY_RESERVED);
         }
 
@@ -459,14 +462,33 @@ public class LentApplicationService implements LentUseCase {
                         .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
         validateLentTypePermission(user, cabinet);
 
-        var reservedUserId = reservationPort.getReservedUserId(visibleNum);
-        if (reservedUserId.isPresent() && !reservedUserId.get().equals(userId)) {
-            throw new ServiceException(ErrorCode.CABINET_ALREADY_RESERVED);
+        ReservationOutcome outcome =
+                reservationPort.reserveReplacing(visibleNum, userId, RESERVATION_TTL_MINUTES);
+
+        switch (outcome.status()) {
+            case TAKEN_BY_OTHER -> throw new ServiceException(ErrorCode.CABINET_ALREADY_RESERVED);
+            case ALREADY_MINE -> throw new ServiceException(ErrorCode.ALREADY_RESERVED);
+            case RESERVED -> {
+                if (outcome.replacedVisibleNum() != null) {
+                    log.info(
+                            "기존 예약 자동 취소 - User: {}, 취소: {}번, 새 예약: {}번",
+                            userId,
+                            outcome.replacedVisibleNum(),
+                            visibleNum);
+                }
+                log.info("사물함 예약 성공 - User: {}, Cabinet: {}", userId, visibleNum);
+            }
         }
+    }
 
-        reservationPort.reserve(visibleNum, userId, 15);
-
-        log.info("사물함 예약 성공 - User: {}, Cabinet: {}", userId, visibleNum);
+    @Override
+    public Integer cancelReservation(Long userId) {
+        Integer cancelled =
+                reservationPort
+                        .cancelUserReservation(userId)
+                        .orElseThrow(() -> new ServiceException(ErrorCode.RESERVATION_NOT_FOUND));
+        log.info("사물함 예약 취소 - User: {}, Cabinet: {}", userId, cancelled);
+        return cancelled;
     }
 
     private void checkCabinetReservation(Integer visibleNum, Long userId) {

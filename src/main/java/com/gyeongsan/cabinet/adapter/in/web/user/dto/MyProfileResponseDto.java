@@ -35,6 +35,10 @@ public class MyProfileResponseDto {
 
     private String lentStartedAt;
 
+    private Integer reservedVisibleNum;
+
+    private Long reservationRemainingSeconds;
+
     private String expiredAt;
 
     private List<MyItemDto> myItems;

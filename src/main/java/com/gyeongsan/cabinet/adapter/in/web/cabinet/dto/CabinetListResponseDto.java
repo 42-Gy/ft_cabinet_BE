@@ -25,4 +25,7 @@ public class CabinetListResponseDto {
     private LocalDateTime lentStartedAt;
     private LocalDateTime lentExpiredAt;
     private Long daysRemaining;
+
+    private Boolean isReserved;
+    private Boolean isReservedByMe;
 }

@@ -16,14 +16,20 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Log4j2
 public class CabinetDomainService implements CabinetQueryUseCase {
 
     private final CabinetRepositoryPort cabinetRepository;
@@ -36,6 +42,7 @@ public class CabinetDomainService implements CabinetQueryUseCase {
         List<Long> cabinetIds = cabinets.stream().map(Cabinet::getId).collect(Collectors.toList());
 
         List<LentHistory> activeLents = lentRepository.findAllActiveLentByCabinetIds(cabinetIds);
+        Map<Integer, Long> reservedUserIds = findReservedUserIds(cabinets);
 
         return cabinets.stream()
                 .map(
@@ -70,6 +77,8 @@ public class CabinetDomainService implements CabinetQueryUseCase {
                                 userName = "*****";
                             }
 
+                            Long reservedBy = reservedUserIds.get(cabinet.getVisibleNum());
+
                             return CabinetListResponseDto.builder()
                                     .cabinetId(cabinet.getId())
                                     .visibleNum(cabinet.getVisibleNum())
@@ -82,9 +91,35 @@ public class CabinetDomainService implements CabinetQueryUseCase {
                                     .lentStartedAt(startedAt)
                                     .lentExpiredAt(expiredAt)
                                     .daysRemaining(daysRemaining)
+                                    .isReserved(reservedBy != null)
+                                    .isReservedByMe(isMine(reservedBy, userPrincipal))
                                     .build();
                         })
                 .collect(Collectors.toList());
+    }
+
+    private Map<Integer, Long> findReservedUserIds(List<Cabinet> cabinets) {
+        Set<Integer> availableNums =
+                cabinets.stream()
+                        .filter(c -> c.getStatus() == CabinetStatus.AVAILABLE)
+                        .map(Cabinet::getVisibleNum)
+                        .filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+        if (availableNums.isEmpty()) {
+            return Map.of();
+        }
+        try {
+            return reservationPort.getReservedUserIds(availableNums);
+        } catch (RuntimeException e) {
+            log.warn("사물함 예약 목록 조회 실패 - 원인: {}", e.toString());
+            return Map.of();
+        }
+    }
+
+    private static boolean isMine(Long reservedBy, UserPrincipal userPrincipal) {
+        return reservedBy != null
+                && userPrincipal != null
+                && reservedBy.equals(userPrincipal.getUserId());
     }
 
     @Override
@@ -149,13 +184,22 @@ public class CabinetDomainService implements CabinetQueryUseCase {
             if (!"-".equals(prevName)) prevName = "*****";
         }
 
-        Boolean isReservedByMe = false;
-        if (userPrincipal != null) {
-            var reservedUserId = reservationPort.getReservedUserId(cabinet.getVisibleNum());
-            if (reservedUserId.isPresent()
-                    && reservedUserId.get().equals(userPrincipal.getUserId())) {
-                isReservedByMe = true;
-            }
+        boolean isReserved = false;
+        boolean isReservedByMe = false;
+        Long reservationRemainingSeconds = null;
+        try {
+            Optional<Long> reservedUserId =
+                    reservationPort.getReservedUserId(cabinet.getVisibleNum());
+            Optional<Long> remaining =
+                    reservedUserId.isPresent()
+                            ? reservationPort.getCabinetReservationTtlSeconds(
+                                    cabinet.getVisibleNum())
+                            : Optional.empty();
+            isReserved = reservedUserId.isPresent();
+            isReservedByMe = isMine(reservedUserId.orElse(null), userPrincipal);
+            reservationRemainingSeconds = remaining.orElse(null);
+        } catch (RuntimeException e) {
+            log.warn("사물함 예약 상태 조회 실패 - Cabinet: {}, 원인: {}", cabinetId, e.toString());
         }
 
         return CabinetDetailResponseDto.builder()
@@ -170,7 +214,9 @@ public class CabinetDomainService implements CabinetQueryUseCase {
                 .lentExpiredAt(curEnd)
                 .previousUserName(prevName)
                 .previousEndedAt(prevEnd)
+                .isReserved(isReserved)
                 .isReservedByMe(isReservedByMe)
+                .reservationRemainingSeconds(reservationRemainingSeconds)
                 .build();
     }
 
