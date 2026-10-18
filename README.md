@@ -1,5 +1,5 @@
 
-# 🗄️ 42Cabi Gyeongsan Ver 1.6
+# 🗄️ 42Subak Gyeongsan Ver 1.6
 
 > **42 경산 캠퍼스 지능형 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성, 공정한 이용, 게임화(Gamification), 그리고 **시스템의 안정성**을 모두 갖춘 REST API 서버입니다.
@@ -889,8 +889,8 @@ sequenceDiagram
 ```properties
 # Database
 DB_ROOT_PASSWORD=root_password
-DB_USER=cabi
-DB_PASSWORD=cabi_password
+DB_USER=subak
+DB_PASSWORD=subak_password
 
 # Redis
 REDIS_PORT=6379
@@ -915,8 +915,8 @@ TZ=Asia/Seoul
 `.env`로 대체 가능하나, 로컬 실행 시 필요할 수 있습니다. `application.yml`의 환경 변수를 대체할 수 있도록 동일한 키를 포함해야 합니다.
 ```properties
 # Database
-spring.datasource.username=cabi
-spring.datasource.password=cabi_password
+spring.datasource.username=subak
+spring.datasource.password=subak_password
 
 # Security & OAuth
 jwt.secret=your_jwt_strong_secret_key
