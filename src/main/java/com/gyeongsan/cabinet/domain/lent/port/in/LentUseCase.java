@@ -32,4 +32,6 @@ public interface LentUseCase {
     void updateAutoExtensionStatus(Long userId, Boolean enabled);
 
     void makeReservation(Long userId, Integer visibleNum);
+
+    Integer cancelReservation(Long userId);
 }
