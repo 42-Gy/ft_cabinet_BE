@@ -116,6 +116,8 @@ public class UserDomainService implements UserUseCase {
             autoExtensionEnabled = activeLent.isAutoExtension();
         }
 
+        boolean isFirstRental = !lentRepository.existsByUserId(userId);
+
         Integer reservedVisibleNum = null;
         Long reservationRemainingSeconds = null;
         try {
@@ -136,6 +138,7 @@ public class UserDomainService implements UserUseCase {
                 .coin(user.getCoin())
                 .role(user.getRole())
                 .isPisciner(user.isPisciner())
+                .isFirstRental(isFirstRental)
                 .penaltyDays(penaltyDays)
                 .monthlyLogtime(user.getMonthlyLogtime())
                 .lentCabinetId(cabinetId)

@@ -11,6 +11,8 @@ public interface LentRepositoryPort {
 
     Optional<LentHistory> findByUserIdAndEndedAtIsNull(Long userId);
 
+    boolean existsByUserId(Long userId);
+
     Optional<LentHistory> findByCabinetIdAndEndedAtIsNull(Long cabinetId);
 
     Optional<LentHistory> findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(Long cabinetId);

@@ -23,6 +23,8 @@ public class MyProfileResponseDto {
 
     private boolean isPisciner;
 
+    private Boolean isFirstRental;
+
     private Integer penaltyDays;
     private Integer monthlyLogtime;
 
