@@ -4,14 +4,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
 import com.gyeongsan.cabinet.adapter.in.web.user.dto.MyProfileResponseDto;
+import com.gyeongsan.cabinet.domain.cabinet.model.Cabinet;
+import com.gyeongsan.cabinet.domain.cabinet.model.CabinetStatus;
+import com.gyeongsan.cabinet.domain.cabinet.model.LentType;
 import com.gyeongsan.cabinet.domain.coin.port.out.CoinHistoryRepositoryPort;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
+import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
 import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.port.out.ReservationPort;
 import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.model.UserRole;
 import com.gyeongsan.cabinet.domain.user.port.out.AttendanceRepositoryPort;
 import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -39,11 +44,16 @@ class UserDomainServiceTest {
         User user = User.builder().id(USER_ID).name("tester").role(UserRole.USER).build();
         given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
         given(lentRepository.findByUserIdAndEndedAtIsNull(USER_ID)).willReturn(Optional.empty());
+        given(lentRepository.existsByUserId(USER_ID)).willReturn(true);
         given(itemHistoryRepository.findAllByUserIdAndUsedAtIsNull(USER_ID)).willReturn(List.of());
         given(coinHistoryRepository.findAllByUserIdOrderByCreatedAtDesc(USER_ID))
                 .willReturn(List.of());
         given(itemHistoryRepository.findAllByUserIdOrderByPurchaseAtDesc(USER_ID))
                 .willReturn(List.of());
+    }
+
+    private Cabinet cabinet() {
+        return Cabinet.of(10, CabinetStatus.FULL, LentType.PRIVATE, 1, null, 1, "A", 1, 1);
     }
 
     @Test
@@ -82,5 +92,67 @@ class UserDomainServiceTest {
 
         assertThat(dto.getReservedVisibleNum()).isNull();
         assertThat(dto.getReservationRemainingSeconds()).isNull();
+    }
+
+    @Test
+    @DisplayName("getMyProfile: 대여 이력이 없으면 isFirstRental=true")
+    void getMyProfile_noLentHistory_firstRentalTrue() {
+        stubCommonProfileLookups();
+        given(lentRepository.existsByUserId(USER_ID)).willReturn(false);
+        given(reservationPort.getUserReservation(USER_ID)).willReturn(Optional.empty());
+
+        MyProfileResponseDto dto = userDomainService.getMyProfile(USER_ID);
+
+        assertThat(dto.getIsFirstRental()).isTrue();
+    }
+
+    @Test
+    @DisplayName("getMyProfile: 현재 대여 중이면 isFirstRental=false")
+    void getMyProfile_currentlyRenting_firstRentalFalse() {
+        stubCommonProfileLookups();
+        LentHistory activeLent =
+                LentHistory.of(
+                        User.builder().id(USER_ID).name("tester").role(UserRole.USER).build(),
+                        cabinet(),
+                        LocalDateTime.now(),
+                        LocalDateTime.now().plusDays(30));
+        given(lentRepository.findByUserIdAndEndedAtIsNull(USER_ID))
+                .willReturn(Optional.of(activeLent));
+        given(lentRepository.existsByUserId(USER_ID)).willReturn(true);
+        given(
+                        lentRepository.findTopByCabinetIdAndEndedAtIsNotNullOrderByEndedAtDesc(
+                                cabinet().getId()))
+                .willReturn(Optional.empty());
+        given(reservationPort.getUserReservation(USER_ID)).willReturn(Optional.empty());
+
+        MyProfileResponseDto dto = userDomainService.getMyProfile(USER_ID);
+
+        assertThat(dto.getIsFirstRental()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getMyProfile: 대여 후 반납을 끝낸 사용자는 isFirstRental=false")
+    void getMyProfile_returnedBefore_firstRentalFalse() {
+        stubCommonProfileLookups();
+        given(lentRepository.findByUserIdAndEndedAtIsNull(USER_ID)).willReturn(Optional.empty());
+        given(lentRepository.existsByUserId(USER_ID)).willReturn(true);
+        given(reservationPort.getUserReservation(USER_ID)).willReturn(Optional.empty());
+
+        MyProfileResponseDto dto = userDomainService.getMyProfile(USER_ID);
+
+        assertThat(dto.getIsFirstRental()).isFalse();
+    }
+
+    @Test
+    @DisplayName("getMyProfile: 이력이 여러 건이어도 isFirstRental=false")
+    void getMyProfile_multipleHistoryRows_firstRentalFalse() {
+        stubCommonProfileLookups();
+        given(lentRepository.findByUserIdAndEndedAtIsNull(USER_ID)).willReturn(Optional.empty());
+        given(lentRepository.existsByUserId(USER_ID)).willReturn(true);
+        given(reservationPort.getUserReservation(USER_ID)).willReturn(Optional.empty());
+
+        MyProfileResponseDto dto = userDomainService.getMyProfile(USER_ID);
+
+        assertThat(dto.getIsFirstRental()).isFalse();
     }
 }
