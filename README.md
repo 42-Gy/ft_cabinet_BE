@@ -456,7 +456,7 @@ erDiagram
 | **Ver 1.4** | **Azure Redis & Stability** | **Azure Managed Redis** 연동 및 내장 레디스 완전 제거. **ShedLock**을 통한 분산 서버 스케줄러 동시성 제어 적용. JWT Access Token에 role 등 Claims 포함(최신 상태 반영을 위해 인증 시 DB 조회는 유지, 향후 최적화 예정). 12-Factor App 보안 구성을 통한 환경 변수 분리 및 SSL 단방향 적용 |
 | **Ver 1.5** | **Redis Streams Async Queue** | 대규모 트래픽 확장에 대비하여 **Redis Streams** 기반 비동기 이벤트 큐 시스템 구축. 외부 통신(Slack 알림 발송, 42 API 로그타임 집계)에 의한 메인 서버 블로킹 방지 및 분산 워커 처리 적용 |
 | **Ver 1.6** | **Core Refactoring & Isolation** | **비관적/낙관적(Redis) 분산 락**을 상황에 맞게 적용(사물함 대여 동시성 제어, 코인 사용 등). **Rich Domain Model**로 전환하여 서비스 레이어의 비즈니스 응집도 향상. **Hexagonal Architecture(Package by Feature)** 완전 적용으로 도메인별 디렉토리 철저한 분리 구축. **Jacoco/Spotless/Pre-commit** 도입으로 코드 품질 검증 자동화 완비 |
-| **Ver 1.7** | **Reliability & Concurrency Fix** | **42 API 로그타임 동기화 안정화**(429·5xx·연결 오류 지수 백오프 재시도, 호출 한도 3초당 1회, 유휴 커넥션 정리). **월초 순서 경쟁 해결**(자동 연장 04:00·월초 재시도 04:10으로 이동, 1일 API 실패 시 저장된 누적 시간으로 보상 판정). **유저 행 락**으로 대여·이사·수동 연장·패널티 감면·출석 중복 요청 차단, 분산 락 해제 시 소유 토큰 검증. **인증 강화**(Refresh Token으로 API 인증 불가, 로그아웃 시 Redis Refresh Token 삭제, `/v4/auth/link/**` 인증 필수). **Redis Stream 방치 메시지 회수**(6시간 이내만 재처리), 구독 에러 시 자동 종료 방지. 운영 Swagger 비활성화, 에러 응답 정리(없는 경로 404, 중복 출석 400, 동시 수정 409). **Testcontainers(MariaDB·Redis) 동시성 통합 테스트** 및 커버리지 규칙 확대 |
+| **Ver 1.7** | **Reliability & Concurrency Fix** | **42 API 로그타임 동기화 안정화**(429·5xx·연결 오류 지수 백오프 재시도, 호출 한도 3초당 1회, 유휴 커넥션 정리). **월초 순서 경쟁 해결**(자동 연장 04:00·월초 재시도 04:10으로 이동, 1일 API 실패 시 저장된 누적 시간으로 보상 판정). **유저 행 락**으로 대여·이사·수동 연장·패널티 감면·출석 중복 요청 차단, 분산 락 해제 시 소유 토큰 검증. **인증 강화**(Refresh Token으로 API 인증 불가, 로그아웃 시 Redis Refresh Token 삭제, `/v4/auth/link/**` 인증 필수). **Redis Stream 방치 메시지 회수**(6시간 이내만 재처리), 구독 에러 시 자동 종료 방지. 운영 Swagger 비활성화, 에러 응답 정리(없는 경로 404, 잘못된 파라미터·깨진 JSON 400, 파일 크기 초과 413, 중복 출석 400, 동시 수정 409). **master 대상 PR에서 CI 테스트 자동 실행**. **Testcontainers(MariaDB·Redis) 동시성 통합 테스트** 및 커버리지 규칙 확대 |
 
 <br>
 
@@ -507,6 +507,7 @@ erDiagram
 * **WebClient Timeout:** AI 서버 통신 시 3초 타임아웃을 강제 적용하여 외부 장애 전파를 차단합니다.
 * **분산 스케줄러 락 (ShedLock):** Azure Managed Redis 기반의 분산 락을 도입하여 다중 서버(Scale-out) 환경이나 무중단 배포 시 스케줄러가 중복 실행되어 데이터 정합성이 깨지는 문제를 원천 차단했습니다.
 * **JWT 인증:** Access Token에 role 등 Claims를 포함하며, 인증 시에는 최신 사용자 상태 반영을 위해 DB 조회를 유지합니다(Claims 기반 조회 생략은 추후 최적화 과제). Refresh Token은 Redis로 관리하며, API 인증에는 쓸 수 없고 로그아웃 시 Redis에서도 삭제됩니다.
+* **일관된 에러 응답:** 잘못된 요청(필수 파라미터 누락, 형식 오류, 깨진 JSON)은 400, 업로드 파일 크기 초과는 413, 없는 경로는 404로 응답합니다. 서버 오류(500)는 실제 서버 문제에만 남아서 로그에서 진짜 장애를 찾기 쉽습니다.
 * **CORS 기반 교차 출처 차단:** 허용 목록에 없는 출처(`Origin`)의 요청은 처리 전에 403으로 거부되어, 외부 사이트에서 로그인 쿠키로 요청을 위조하는 공격(CSRF)을 막습니다.
 * **Logback Rolling Policy:** 로그 파일 용량(10MB/3GB) 제한으로 디스크 장애 예방.
 
@@ -982,7 +983,8 @@ docker-compose up -d --build
 
 * 단위 테스트, Spotless 포맷 검사, Jacoco 커버리지 검사(핵심 클래스 20% 이상)를 함께 실행합니다.
 * `LentConcurrencyIntegrationTest`는 **Testcontainers**로 MariaDB 10.6과 Redis를 띄워 동시 대여·수동 연장 요청을 실제로 검증합니다. Docker가 없으면 자동으로 건너뜁니다.
-* 현재 CI(`ci.yml`)는 `main`·`develop` 대상 PR에서만 돌고, 배포(`deploy.yml`)는 테스트를 건너뜁니다. master에 머지하기 전에는 로컬에서 위 명령을 실행해주세요.
+* `master`로 가는 PR을 올리면 CI(`ci.yml`)가 위 명령을 자동으로 실행합니다(통합 테스트 포함). Docker 이미지 빌드·푸시는 `develop` 푸시에서만 실행됩니다.
+* 배포(`deploy.yml`)는 테스트를 건너뛰므로, **PR의 CI가 통과한 뒤에 머지**해주세요.
 
 ### 6. 주요 테스트 시나리오
 1. **대여/반납:** 메인 화면에서 사물함 선택 -> 대여 -> 내 정보 -> 반납 (사진 업로드)
