@@ -2,6 +2,7 @@ package com.gyeongsan.cabinet.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Iterator;
@@ -16,7 +17,9 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.util.retry.Retry;
 
 @Component
 @RequiredArgsConstructor
@@ -111,6 +114,17 @@ public class FtApiManager {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + this.accessToken)
                         .retrieve()
                         .bodyToMono(JsonNode.class)
+                        .retryWhen(
+                                Retry.backoff(3, Duration.ofSeconds(2))
+                                        .maxBackoff(Duration.ofSeconds(10))
+                                        .filter(FtApiManager::isRetryable)
+                                        .doBeforeRetry(
+                                                s ->
+                                                        log.warn(
+                                                                "🔁 42 API 재시도 {}회차: {}",
+                                                                s.totalRetries() + 1,
+                                                                s.failure().getMessage()))
+                                        .onRetryExhaustedThrow((spec, signal) -> signal.failure()))
                         .block();
 
         if (stats == null || stats.isEmpty()) {
@@ -141,5 +155,12 @@ public class FtApiManager {
         }
 
         return (int) (totalSeconds / 60);
+    }
+
+    static boolean isRetryable(Throwable e) {
+        if (e instanceof WebClientResponseException ex) {
+            return ex.getStatusCode().value() == 429 || ex.getStatusCode().is5xxServerError();
+        }
+        return e instanceof WebClientRequestException;
     }
 }
