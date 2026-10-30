@@ -5,15 +5,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.gyeongsan.cabinet.global.exception.ErrorCode;
 import com.gyeongsan.cabinet.global.exception.ServiceException;
+import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.aop.aspectj.annotation.AspectJProxyFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 
 class DistributedLockAopArgBindingTest {
 
@@ -45,6 +51,32 @@ class DistributedLockAopArgBindingTest {
         String result = proxy.run(42L);
 
         assertThat(result).isEqualTo("ok:42");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void unlock_releasesOnlyWithOwnToken() {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> valueOps = mock(ValueOperations.class);
+        when(redisTemplate.opsForValue()).thenReturn(valueOps);
+        when(valueOps.setIfAbsent(anyString(), anyString(), anyLong(), any())).thenReturn(true);
+
+        DistributedLockAop aspect = new DistributedLockAop(redisTemplate);
+
+        AspectJProxyFactory factory = new AspectJProxyFactory(new Target());
+        factory.addAspect(aspect);
+        Target proxy = factory.getProxy();
+
+        proxy.run(42L);
+
+        ArgumentCaptor<String> lockToken = ArgumentCaptor.forClass(String.class);
+        verify(valueOps).setIfAbsent(eq("test-key:42"), lockToken.capture(), anyLong(), any());
+        verify(redisTemplate)
+                .execute(
+                        any(RedisScript.class),
+                        eq(List.of("test-key:42")),
+                        eq(lockToken.getValue()));
+        verify(redisTemplate, never()).delete(anyString());
     }
 
     @Test

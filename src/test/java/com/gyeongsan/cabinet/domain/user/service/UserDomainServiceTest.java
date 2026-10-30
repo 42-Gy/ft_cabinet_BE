@@ -1,21 +1,32 @@
 package com.gyeongsan.cabinet.domain.user.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.gyeongsan.cabinet.adapter.in.web.user.dto.MyProfileResponseDto;
 import com.gyeongsan.cabinet.domain.cabinet.model.Cabinet;
 import com.gyeongsan.cabinet.domain.cabinet.model.CabinetStatus;
 import com.gyeongsan.cabinet.domain.cabinet.model.LentType;
 import com.gyeongsan.cabinet.domain.coin.port.out.CoinHistoryRepositoryPort;
+import com.gyeongsan.cabinet.domain.item.model.Item;
+import com.gyeongsan.cabinet.domain.item.model.ItemHistory;
+import com.gyeongsan.cabinet.domain.item.model.ItemType;
 import com.gyeongsan.cabinet.domain.item.port.out.ItemHistoryRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.model.LentHistory;
 import com.gyeongsan.cabinet.domain.lent.port.out.LentRepositoryPort;
 import com.gyeongsan.cabinet.domain.lent.port.out.ReservationPort;
+import com.gyeongsan.cabinet.domain.user.model.Attendance;
 import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.model.UserRole;
 import com.gyeongsan.cabinet.domain.user.port.out.AttendanceRepositoryPort;
 import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
+import com.gyeongsan.cabinet.global.exception.ErrorCode;
+import com.gyeongsan.cabinet.global.exception.ServiceException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -154,5 +165,61 @@ class UserDomainServiceTest {
         MyProfileResponseDto dto = userDomainService.getMyProfile(USER_ID);
 
         assertThat(dto.getIsFirstRental()).isFalse();
+    }
+
+    @Test
+    @DisplayName("doAttendance: 이미 출석했으면 400(ALREADY_ATTENDED)")
+    void doAttendance_alreadyAttended_throws() {
+        User user = User.builder().id(USER_ID).name("tester").role(UserRole.USER).build();
+        given(userRepository.findByIdWithLock(USER_ID)).willReturn(Optional.of(user));
+        given(attendanceRepository.findTodayAttendance(any(), any(), any()))
+                .willReturn(Optional.of(new Attendance(user, LocalDate.now())));
+
+        assertThatThrownBy(() -> userDomainService.doAttendance(USER_ID))
+                .isInstanceOf(ServiceException.class)
+                .extracting(e -> ((ServiceException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ALREADY_ATTENDED);
+
+        assertThat(user.getCoin()).isZero();
+    }
+
+    @Test
+    @DisplayName("processLogtimeTransaction: 1일에 API가 실패해도 저장된 누적 시간으로 보상 지급 후 초기화한다")
+    void processLogtimeTransaction_payDayApiFailure_usesStoredLogtime() {
+        User user =
+                User.builder()
+                        .id(USER_ID)
+                        .name("tester")
+                        .role(UserRole.USER)
+                        .monthlyLogtime(5000)
+                        .build();
+        Item lentTicket = new Item("대여권", ItemType.LENT, 0L, "대여권");
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+        given(itemHistoryRepository.countByUserIdAndItemTypeAndUsedAtIsNull(USER_ID, ItemType.LENT))
+                .willReturn(0);
+
+        userDomainService.processLogtimeTransaction(USER_ID, lentTicket, -1, true);
+
+        verify(itemHistoryRepository).save(any(ItemHistory.class));
+        assertThat(user.getMonthlyLogtime()).isZero();
+    }
+
+    @Test
+    @DisplayName("processLogtimeTransaction: 1일에 저장된 누적 시간이 80시간 미만이면 보상 없이 초기화한다")
+    void processLogtimeTransaction_payDayBelowTarget_noReward() {
+        User user =
+                User.builder()
+                        .id(USER_ID)
+                        .name("tester")
+                        .role(UserRole.USER)
+                        .monthlyLogtime(4799)
+                        .build();
+        Item lentTicket = new Item("대여권", ItemType.LENT, 0L, "대여권");
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+        userDomainService.processLogtimeTransaction(USER_ID, lentTicket, -1, true);
+
+        verify(itemHistoryRepository, never()).save(any(ItemHistory.class));
+        assertThat(user.getMonthlyLogtime()).isZero();
     }
 }

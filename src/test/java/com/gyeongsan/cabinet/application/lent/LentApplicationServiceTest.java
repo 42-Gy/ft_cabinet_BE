@@ -213,6 +213,54 @@ class LentApplicationServiceTest {
     }
 
     @Test
+    @DisplayName("startLent: 유저 행을 잠근 뒤 대여 조건을 검사한다")
+    void startLent_locksUserRow() {
+        User penaltyUser =
+                User.builder()
+                        .id(USER_ID)
+                        .name("tester")
+                        .role(UserRole.USER)
+                        .isPisciner(false)
+                        .penaltyDays(3)
+                        .build();
+        given(userRepository.findByIdWithLock(USER_ID)).willReturn(Optional.of(penaltyUser));
+
+        assertThatThrownBy(() -> lentApplicationService.startLent(USER_ID, NEW_CABINET_NUM))
+                .isInstanceOf(ServiceException.class)
+                .extracting(e -> ((ServiceException) e).getErrorCode())
+                .isEqualTo(ErrorCode.PENALTY_USER);
+
+        verify(userRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("manualRenew: 유저 행을 잠근 뒤 대여권을 사용한다")
+    void manualRenew_locksUserRow() {
+        given(userRepository.findByIdWithLock(USER_ID)).willReturn(Optional.of(user()));
+        given(lentRepository.findByUserIdAndEndedAtIsNull(USER_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> lentApplicationService.manualRenew(USER_ID))
+                .isInstanceOf(ServiceException.class)
+                .extracting(e -> ((ServiceException) e).getErrorCode())
+                .isEqualTo(ErrorCode.LENT_NOT_FOUND);
+
+        verify(userRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("usePenaltyExemption: 유저 행을 잠근 뒤 패널티를 확인한다")
+    void usePenaltyExemption_locksUserRow() {
+        given(userRepository.findByIdWithLock(USER_ID)).willReturn(Optional.of(user()));
+
+        assertThatThrownBy(() -> lentApplicationService.usePenaltyExemption(USER_ID))
+                .isInstanceOf(ServiceException.class)
+                .extracting(e -> ((ServiceException) e).getErrorCode())
+                .isEqualTo(ErrorCode.PENALTY_NOT_FOUND);
+
+        verify(userRepository, never()).findById(any());
+    }
+
+    @Test
     @DisplayName("cancelReservation: 예약이 있으면 취소하고 사물함 번호를 반환한다")
     void cancelReservation_success() {
         given(reservationPort.cancelUserReservation(USER_ID))

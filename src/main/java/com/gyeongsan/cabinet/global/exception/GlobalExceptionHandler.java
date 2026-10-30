@@ -6,6 +6,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -49,6 +50,12 @@ public class GlobalExceptionHandler {
                 ApiResponse.fail(
                         HttpStatus.TOO_MANY_REQUESTS, "너무 많은 요청을 보내셨습니다. 잠시 후 다시 시도해주세요. 🛑");
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response);
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<?>> handleOptimisticLockingFailure(
+            ObjectOptimisticLockingFailureException e) {
+        return handleServiceException(new ServiceException(ErrorCode.CONCURRENT_UPDATE));
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

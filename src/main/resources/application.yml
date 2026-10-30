@@ -166,9 +166,9 @@ resilience4j:
   ratelimiter:
     instances:
       ftApi:
-        limitForPeriod: 5
-        limitRefreshPeriod: 1s
-        timeoutDuration: 5s
+        limitForPeriod: 1
+        limitRefreshPeriod: 3s
+        timeoutDuration: 10s
       userApi:
         limitForPeriod: 50
         limitRefreshPeriod: 1s

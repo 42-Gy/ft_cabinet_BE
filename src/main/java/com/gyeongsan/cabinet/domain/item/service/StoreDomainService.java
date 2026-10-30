@@ -52,7 +52,7 @@ public class StoreDomainService implements StoreUseCase {
                         .orElseThrow(() -> new ServiceException(ErrorCode.ITEM_NOT_FOUND));
 
         if (item.getType() == ItemType.LENT) {
-            throw new IllegalArgumentException("대여권은 상점에서 구매할 수 없습니다. (월 50시간 학습 보상으로만 획득 가능)");
+            throw new IllegalArgumentException("대여권은 상점에서 구매할 수 없습니다. (월 80시간 학습 보상으로만 획득 가능)");
         }
 
         if (item.getType() == ItemType.EXTENSION) {

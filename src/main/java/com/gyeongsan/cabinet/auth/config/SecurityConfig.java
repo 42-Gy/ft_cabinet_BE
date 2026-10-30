@@ -6,13 +6,16 @@ import com.gyeongsan.cabinet.auth.jwt.JwtAuthenticationFilter;
 import com.gyeongsan.cabinet.auth.jwt.JwtTokenProvider;
 import com.gyeongsan.cabinet.auth.oauth.OAuth2SuccessHandler;
 import com.gyeongsan.cabinet.auth.service.CustomOAuth2UserService;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseCookie;
@@ -40,6 +43,7 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler customAccessDeniedHandler;
     private final CookieOAuth2AuthorizationRequestRepository
             cookieOAuth2AuthorizationRequestRepository;
+    private final StringRedisTemplate redisTemplate;
 
     @Value("${app.cors.allowed-origins}")
     private List<String> allowedOrigins;
@@ -69,6 +73,8 @@ public class SecurityConfig {
                                                 "/swagger-ui/**",
                                                 "/swagger-ui.html")
                                         .permitAll()
+                                        .requestMatchers("/v4/auth/link/**")
+                                        .authenticated()
                                         .requestMatchers("/v4/auth/**")
                                         .permitAll()
                                         .requestMatchers(HttpMethod.GET, "/v4/cabinets/**")
@@ -128,6 +134,7 @@ public class SecurityConfig {
                                 logout.logoutUrl("/v4/auth/logout")
                                         .addLogoutHandler(
                                                 (request, response, authentication) -> {
+                                                    deleteStoredRefreshToken(request.getCookies());
                                                     ResponseCookie accessTokenCookie =
                                                             ResponseCookie.from("access_token", "")
                                                                     .path("/")
@@ -158,6 +165,24 @@ public class SecurityConfig {
                                         .permitAll());
 
         return http.build();
+    }
+
+    private void deleteStoredRefreshToken(Cookie[] cookies) {
+        if (cookies == null) {
+            return;
+        }
+        Arrays.stream(cookies)
+                .filter(c -> "refresh_token".equals(c.getName()))
+                .map(Cookie::getValue)
+                .filter(jwtTokenProvider::validateToken)
+                .findFirst()
+                .ifPresent(
+                        refreshToken ->
+                                redisTemplate.delete(
+                                        "RT:"
+                                                + jwtTokenProvider
+                                                        .parseClaims(refreshToken)
+                                                        .getSubject()));
     }
 
     @Bean
