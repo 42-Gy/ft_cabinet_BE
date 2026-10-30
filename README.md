@@ -1,5 +1,5 @@
 
-# 🗄️ 42Subak Gyeongsan Ver 1.6
+# 🗄️ 42Subak Gyeongsan Ver 1.7
 
 > **42 경산 캠퍼스 지능형 사물함 대여/반납 서비스**<br>
 > 사용자의 편의성, 공정한 이용, 게임화(Gamification), 그리고 **시스템의 안정성**을 모두 갖춘 REST API 서버입니다.
@@ -214,7 +214,8 @@ flowchart TD
 │   │   │   │   │   └── watermelon/WatermelonEventController.java
 │   │   │   │   ├── in/scheduler        # --- Inbound Adapter (Scheduler) ---
 │   │   │   │   │   ├── lent/LentScheduler.java              # D-7/D-1 알림, 자동 연장, 연체 처리
-│   │   │   │   │   └── user/LogtimeScheduler.java, LogtimeStreamListener.java
+│   │   │   │   │   ├── user/LogtimeScheduler.java, LogtimeStreamListener.java
+│   │   │   │   │   └── stream/PendingStreamReclaimer.java   # 방치된 Redis Stream 메시지 회수
 │   │   │   │   ├── out/persistence     # --- Outbound Adapter (DB) ---
 │   │   │   │   │   ├── cabinet/CabinetPersistenceAdapter.java
 │   │   │   │   │   ├── user/UserPersistenceAdapter.java
@@ -455,6 +456,7 @@ erDiagram
 | **Ver 1.4** | **Azure Redis & Stability** | **Azure Managed Redis** 연동 및 내장 레디스 완전 제거. **ShedLock**을 통한 분산 서버 스케줄러 동시성 제어 적용. JWT Access Token에 role 등 Claims 포함(최신 상태 반영을 위해 인증 시 DB 조회는 유지, 향후 최적화 예정). 12-Factor App 보안 구성을 통한 환경 변수 분리 및 SSL 단방향 적용 |
 | **Ver 1.5** | **Redis Streams Async Queue** | 대규모 트래픽 확장에 대비하여 **Redis Streams** 기반 비동기 이벤트 큐 시스템 구축. 외부 통신(Slack 알림 발송, 42 API 로그타임 집계)에 의한 메인 서버 블로킹 방지 및 분산 워커 처리 적용 |
 | **Ver 1.6** | **Core Refactoring & Isolation** | **비관적/낙관적(Redis) 분산 락**을 상황에 맞게 적용(사물함 대여 동시성 제어, 코인 사용 등). **Rich Domain Model**로 전환하여 서비스 레이어의 비즈니스 응집도 향상. **Hexagonal Architecture(Package by Feature)** 완전 적용으로 도메인별 디렉토리 철저한 분리 구축. **Jacoco/Spotless/Pre-commit** 도입으로 코드 품질 검증 자동화 완비 |
+| **Ver 1.7** | **Reliability & Concurrency Fix** | **42 API 로그타임 동기화 안정화**(429·5xx·연결 오류 지수 백오프 재시도, 호출 한도 3초당 1회, 유휴 커넥션 정리). **월초 순서 경쟁 해결**(자동 연장 04:00·월초 재시도 04:10으로 이동, 1일 API 실패 시 저장된 누적 시간으로 보상 판정). **유저 행 락**으로 대여·이사·수동 연장·패널티 감면·출석 중복 요청 차단, 분산 락 해제 시 소유 토큰 검증. **인증 강화**(Refresh Token으로 API 인증 불가, 로그아웃 시 Redis Refresh Token 삭제, `/v4/auth/link/**` 인증 필수). **Redis Stream 방치 메시지 회수**(6시간 이내만 재처리), 구독 에러 시 자동 종료 방지. 운영 Swagger 비활성화, 에러 응답 정리(없는 경로 404, 중복 출석 400, 동시 수정 409). **Testcontainers(MariaDB·Redis) 동시성 통합 테스트** 및 커버리지 규칙 확대 |
 
 <br>
 
@@ -493,16 +495,36 @@ erDiagram
 ### 4. 🛡️ 시스템 안정성 및 성능 (Robustness & Performance)
 * **상황 맞춤형 락 분리 적용:** 
     * 사물함 선착순 대여 등 트랜잭션 충돌이 빈번한 곳에는 **Pessimistic Lock(비관적 락)**을 적용하여 성능과 정합성을 보장.
-    * 코인, 이사권 등 충돌 빈도가 낮으나 정합성이 생명인 곳에는 **Optimistic Lock(낙관적 락, `@Version`)** 적용.
-    * Redis Streams 분산 워커 및 스케줄러 동시성 제어에는 **Redis 기반 분산 락(ShedLock 등)** 적용.
+    * 코인, 이사권 등 충돌 빈도가 낮으나 정합성이 생명인 곳에는 **Optimistic Lock(낙관적 락, `@Version`)** 적용. 충돌 시 500이 아닌 409로 응답합니다.
+    * 대여·이사·수동 연장·패널티 감면·출석은 **유저 행 비관적 락**으로 같은 유저의 동시 요청(더블 클릭)을 한 줄로 세웁니다. 대여권 1장으로 사물함 2개를 빌리거나 두 번 연장되는 문제를 막습니다.
+    * Redis Streams 분산 워커 및 스케줄러 동시성 제어에는 **Redis 기반 분산 락(ShedLock 등)** 적용. 사물함 분산 락은 요청별 토큰을 저장해, 해제할 때 자신이 건 락만 지웁니다.
 * **비동기 이벤트 큐 (Redis Streams):** 무거운 외부 API 통신(슬랙 알림 전송, 3,000명 단위의 42 API 로그타임 집계)을 메인 스레드에서 분리하여 Redis 큐로 위임. 사용자 응답 지연을 방지하고 분산 워커 환경을 완벽하게 지원합니다.
+* **42 API 로그타임 동기화:** 429·5xx·연결 오류는 2→4→8초 간격으로 최대 3회 재시도하고, 호출은 3초에 1회로 제한해 42 API 한도(초당 2회·시간당 1,200회) 안에서 동작합니다. 매월 1일 조회가 끝내 실패하면 DB에 저장된 누적 시간으로 월간 보상(80시간)을 판정합니다.
+* **방치된 스트림 메시지 회수:** 처리 도중 서버가 재시작되어 멈춘 Redis Stream 메시지(로그타임·슬랙 알림)를 10분마다 찾아 다시 처리합니다. 생성 후 6시간이 지난 메시지는 과거 데이터로 현재 값을 덮어쓰지 않도록 재처리하지 않고 폐기합니다.
 * **Graceful Shutdown:** 배포나 서버 재시작 시, 진행 중인 대여/반납 요청을 강제로 끊지 않고 **안전하게 완료한 뒤 종료**되도록 설정하여 데이터 유실을 방지합니다.
 * **DB 인덱싱(Indexing):** 대여 기록(`LentHistory`)의 핵심 컬럼(`user_id`, `cabinet_id`, `ended_at`)에 인덱스를 적용하여, 데이터가 수십만 건 쌓여도 **조회 속도가 저하되지 않도록 최적화**했습니다.
 * **Timezone 동기화:** Docker 컨테이너 레벨에서 `Asia/Seoul` 타임존을 강제하여, 서버 환경에 상관없이 **출석 체크와 연체료 계산**이 정확한 시간에 수행됩니다.
 * **WebClient Timeout:** AI 서버 통신 시 3초 타임아웃을 강제 적용하여 외부 장애 전파를 차단합니다.
 * **분산 스케줄러 락 (ShedLock):** Azure Managed Redis 기반의 분산 락을 도입하여 다중 서버(Scale-out) 환경이나 무중단 배포 시 스케줄러가 중복 실행되어 데이터 정합성이 깨지는 문제를 원천 차단했습니다.
-* **JWT 인증:** Access Token에 role 등 Claims를 포함하며, 인증 시에는 최신 사용자 상태 반영을 위해 DB 조회를 유지합니다(Claims 기반 조회 생략은 추후 최적화 과제). Refresh Token은 Redis로 안전하게 관리합니다.
+* **JWT 인증:** Access Token에 role 등 Claims를 포함하며, 인증 시에는 최신 사용자 상태 반영을 위해 DB 조회를 유지합니다(Claims 기반 조회 생략은 추후 최적화 과제). Refresh Token은 Redis로 관리하며, API 인증에는 쓸 수 없고 로그아웃 시 Redis에서도 삭제됩니다.
+* **CORS 기반 교차 출처 차단:** 허용 목록에 없는 출처(`Origin`)의 요청은 처리 전에 403으로 거부되어, 외부 사이트에서 로그인 쿠키로 요청을 위조하는 공격(CSRF)을 막습니다.
 * **Logback Rolling Policy:** 로그 파일 용량(10MB/3GB) 제한으로 디스크 장애 예방.
+
+### ⏰ 스케줄러 실행 시간 (Asia/Seoul)
+
+| 시각 | 작업 | 설명 |
+| :--- | :--- | :--- |
+| 매일 00:00 | 패널티 감소 | 패널티 보유자의 남은 일수를 하루씩 줄임 |
+| 매일 01:00 | 로그타임 집계 | 전체 유저를 Redis Stream에 넣고 워커가 42 API로 이번 달 학습시간 갱신 (매월 1일은 지난달 보상 지급 후 초기화) |
+| 매일 04:00 | 자동 연장 | 내일 만료되는 대여 중 자동 연장 ON인 건에 대여권 사용 |
+| 매월 1일 04:10 | 월초 자동 연장 재시도 | 말일에 만료된 대여를 새로 받은 대여권으로 재시도 |
+| 매일 09:00 | 연체 처리 | 연체 사물함 상태 변경 및 알림 (D+1/3/7/14 이후) |
+| 매일 09:15 | 반납 임박 알림 | D-7, D-1 알림 |
+| 10분마다 | 방치 메시지 회수 | 60분 넘게 멈춘 스트림 메시지 재처리 (6시간 초과분은 폐기) |
+
+> 자동 연장이 04:00인 이유: 01:00에 시작하는 대여권 지급이 끝난 뒤에 연장해야 월초에 새 대여권으로 연장할 수 있습니다. 새벽 01:00~01:15에는 배포를 피해주세요.
+
+<br>
 
 ### 5. 🎮 게임화 및 상점 (Gamification)
 * **패널티($D*3$):** 연체 시 `연체일수 * 3` 만큼 대여 불가 기간을 부여하여 정시 반납 유도.
@@ -943,6 +965,7 @@ docker-compose up -d --build
 
 ### 3. 접속 정보
 * **메인 서비스:** `http://localhost` (Port 80)
+* **Swagger UI:** `http://localhost:8080/swagger-ui.html` (로컬 전용, 운영(`prod`) 프로필에서는 비활성화)
 * **Grafana:** `http://localhost:3000` (계정: admin / admin)
 * **Prometheus:** `http://localhost:9090`
 
@@ -951,7 +974,17 @@ docker-compose up -d --build
 
 > **Tip:** 로그인 후 `/v4/admin/users/{your_intra_id}/coin` API를 통해 코인을 추가로 지급받아 상점 기능을 테스트해볼 수 있습니다.
 
-### 5. 주요 테스트 시나리오
+### 5. 자동 테스트 실행
+
+```bash
+./gradlew clean build
+```
+
+* 단위 테스트, Spotless 포맷 검사, Jacoco 커버리지 검사(핵심 클래스 20% 이상)를 함께 실행합니다.
+* `LentConcurrencyIntegrationTest`는 **Testcontainers**로 MariaDB 10.6과 Redis를 띄워 동시 대여·수동 연장 요청을 실제로 검증합니다. Docker가 없으면 자동으로 건너뜁니다.
+* 현재 CI(`ci.yml`)는 `main`·`develop` 대상 PR에서만 돌고, 배포(`deploy.yml`)는 테스트를 건너뜁니다. master에 머지하기 전에는 로컬에서 위 명령을 실행해주세요.
+
+### 6. 주요 테스트 시나리오
 1. **대여/반납:** 메인 화면에서 사물함 선택 -> 대여 -> 내 정보 -> 반납 (사진 업로드)
 2. **자동 연장:** 상점에서 `연장권` 구매 -> `/v4/lent/extension/auto` API로 자동 연장 ON 설청 -> (DB에서 만료일 조작하여 테스트 close)
 3. **관리자 모드:** URL에 `/admin/login` 접근 -> (Admin 계정 필요) -> 대시보드 확인
