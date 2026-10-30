@@ -57,33 +57,51 @@ class PendingStreamReclaimerTest {
         return new PendingMessage(RecordId.of(id), Consumer.from(GROUP, "dead"), idle, 1);
     }
 
+    private MapRecord<String, String, String> record(RecordId id) {
+        return StreamRecords.newRecord().in(KEY).withId(id).ofMap(Map.of("userId", "1"));
+    }
+
     @Test
     @DisplayName("60분 넘게 방치된 메시지만 가져와서 다시 처리한다")
     void reclaimsOnlyIdleMessages() {
+        RecordId idleId =
+                RecordId.of(System.currentTimeMillis() - Duration.ofMinutes(70).toMillis(), 0);
+        RecordId busyId =
+                RecordId.of(System.currentTimeMillis() - Duration.ofMinutes(5).toMillis(), 0);
         given(streamOps.pending(eq(KEY), eq(GROUP), any(), anyLong()))
                 .willReturn(
                         new PendingMessages(
                                 GROUP,
                                 List.of(
-                                        pending("1-0", Duration.ofMinutes(61)),
-                                        pending("2-0", Duration.ofMinutes(5)))));
-        MapRecord<String, String, String> record =
-                StreamRecords.newRecord()
-                        .in(KEY)
-                        .withId(RecordId.of("1-0"))
-                        .ofMap(Map.of("userId", "1"));
-        given(
-                        streamOps.claim(
-                                KEY,
-                                GROUP,
-                                "me",
-                                PendingStreamReclaimer.MIN_IDLE,
-                                RecordId.of("1-0")))
-                .willReturn(List.of(record));
+                                        pending(idleId.getValue(), Duration.ofMinutes(70)),
+                                        pending(busyId.getValue(), Duration.ofMinutes(5)))));
+        MapRecord<String, String, String> idle = record(idleId);
+        given(streamOps.claim(KEY, GROUP, "me", PendingStreamReclaimer.MIN_IDLE, idleId))
+                .willReturn(List.of(idle));
 
         reclaimer.reclaim(KEY, logtimeListener);
 
-        verify(logtimeListener).onMessage(record);
+        verify(logtimeListener).onMessage(idle);
+        verify(streamOps, never()).delete(anyString(), any(RecordId[].class));
+    }
+
+    @Test
+    @DisplayName("6시간 넘게 지난 메시지는 다시 처리하지 않고 버린다")
+    void discardsStaleMessages() {
+        RecordId staleId =
+                RecordId.of(System.currentTimeMillis() - Duration.ofDays(5).toMillis(), 0);
+        given(streamOps.pending(eq(KEY), eq(GROUP), any(), anyLong()))
+                .willReturn(
+                        new PendingMessages(
+                                GROUP, List.of(pending(staleId.getValue(), Duration.ofDays(5)))));
+        given(streamOps.claim(KEY, GROUP, "me", PendingStreamReclaimer.MIN_IDLE, staleId))
+                .willReturn(List.of(record(staleId)));
+
+        reclaimer.reclaim(KEY, logtimeListener);
+
+        verify(logtimeListener, never()).onMessage(any());
+        verify(streamOps).acknowledge(KEY, GROUP, staleId);
+        verify(streamOps).delete(KEY, staleId);
     }
 
     @Test
