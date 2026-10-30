@@ -3,7 +3,7 @@ name: 🔨 CI - Build & Test
 # PR 생성/업데이트 시 자동 실행
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [ master, main, develop ]
   push:
     branches: [ develop ]
 
@@ -13,6 +13,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      checks: write
 
     steps:
       ##########################################################################
@@ -54,6 +55,7 @@ jobs:
       # Step 5: Docker 이미지 빌드
       ##########################################################################
       - name: 🐳 Build Docker Image
+        if: github.event_name == 'push'
         run: |
           docker build -t ghcr.io/${{ github.repository }}:${{ github.sha }} .
           docker tag ghcr.io/${{ github.repository }}:${{ github.sha }} ghcr.io/${{ github.repository }}:latest
@@ -62,6 +64,7 @@ jobs:
       # Step 6: GitHub Container Registry 로그인
       ##########################################################################
       - name: 🔑 Log in to GitHub Container Registry
+        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -72,6 +75,7 @@ jobs:
       # Step 7: Docker 이미지 푸시
       ##########################################################################
       - name: 📤 Push Docker Image
+        if: github.event_name == 'push'
         run: |
           docker push ghcr.io/${{ github.repository }}:${{ github.sha }}
           docker push ghcr.io/${{ github.repository }}:latest

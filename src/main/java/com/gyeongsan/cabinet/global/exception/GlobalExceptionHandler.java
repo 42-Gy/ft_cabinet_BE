@@ -6,10 +6,14 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
@@ -42,6 +46,36 @@ public class GlobalExceptionHandler {
                         HttpStatus.METHOD_NOT_ALLOWED,
                         "❌ 지원하지 않는 요청 방식입니다. (GET/POST 등 메서드를 확인하세요)");
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<String>> handleMissingParameter(
+            MissingServletRequestParameterException e) {
+        log.warn("⚠️ 필수 파라미터 누락: {}", e.getParameterName());
+        return badRequest("❌ 필수 파라미터가 누락되었습니다: " + e.getParameterName());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<String>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException e) {
+        log.warn("⚠️ 파라미터 형식 오류: {}={}", e.getName(), e.getValue());
+        return badRequest("❌ 파라미터 형식이 올바르지 않습니다: " + e.getName());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<String>> handleNotReadable(
+            HttpMessageNotReadableException e) {
+        log.warn("⚠️ 요청 본문 해석 실패: {}", e.getMessage());
+        return badRequest("❌ 요청 본문 형식이 올바르지 않습니다.");
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<String>> handleMaxUploadSize(
+            MaxUploadSizeExceededException e) {
+        log.warn("⚠️ 업로드 파일 크기 초과: {}", e.getMessage());
+        ApiResponse<String> response =
+                ApiResponse.fail(HttpStatus.PAYLOAD_TOO_LARGE, "❌ 업로드 가능한 파일 크기를 초과했습니다.");
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(response);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
@@ -83,5 +117,10 @@ public class GlobalExceptionHandler {
                 ApiResponse.fail(
                         HttpStatus.INTERNAL_SERVER_ERROR, "🔥 서버 오류가 발생했습니다. 관리자에게 문의하세요.");
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    private ResponseEntity<ApiResponse<String>> badRequest(String message) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.fail(HttpStatus.BAD_REQUEST, message));
     }
 }

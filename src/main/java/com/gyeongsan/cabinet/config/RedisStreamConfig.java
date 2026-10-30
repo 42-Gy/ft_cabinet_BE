@@ -31,6 +31,7 @@ public class RedisStreamConfig {
     public static final String SLACK_STREAM_KEY = "slack-alarm-stream";
     public static final String LOGTIME_STREAM_KEY = "logtime-sync-stream";
     public static final String CONSUMER_GROUP_NAME = "cabinet-backend-group";
+    static final Duration READ_ERROR_BACKOFF = Duration.ofSeconds(5);
     @Getter private final String consumerName = UUID.randomUUID().toString();
 
     @Bean
@@ -47,6 +48,7 @@ public class RedisStreamConfig {
                 StreamMessageListenerContainerOptions.builder()
                         .pollTimeout(Duration.ofSeconds(1))
                         .serializer(stringSerializer)
+                        .errorHandler(RedisStreamConfig::backOffOnReadError)
                         .build();
 
         StreamMessageListenerContainer<String, MapRecord<String, String, String>> container =
@@ -60,6 +62,18 @@ public class RedisStreamConfig {
 
         container.start();
         return container;
+    }
+
+    static void backOffOnReadError(Throwable t) {
+        log.warn(
+                "Redis Stream 읽기 실패, {}초 후 재시도: {}",
+                READ_ERROR_BACKOFF.toSeconds(),
+                t.getMessage());
+        try {
+            Thread.sleep(READ_ERROR_BACKOFF.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void subscribe(
