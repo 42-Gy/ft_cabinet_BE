@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 public class PendingStreamReclaimer {
 
     static final Duration MIN_IDLE = Duration.ofMinutes(60);
+    static final Duration MAX_AGE = Duration.ofHours(6);
     private static final long MAX_RECLAIM_COUNT = 300;
 
     private final StringRedisTemplate stringRedisTemplate;
@@ -68,8 +69,29 @@ public class PendingStreamReclaimer {
                             MIN_IDLE,
                             idleIds);
 
-            log.warn("♻️ [Reclaim] {} 에서 방치된 메시지 {}건을 회수해 재처리합니다.", streamKey, claimed.size());
-            claimed.forEach(listener::onMessage);
+            long oldestAllowed = System.currentTimeMillis() - MAX_AGE.toMillis();
+            List<MapRecord<String, String, String>> fresh =
+                    claimed.stream()
+                            .filter(r -> r.getId().getTimestamp() >= oldestAllowed)
+                            .toList();
+            RecordId[] staleIds =
+                    claimed.stream()
+                            .filter(r -> r.getId().getTimestamp() < oldestAllowed)
+                            .map(MapRecord::getId)
+                            .toArray(RecordId[]::new);
+
+            if (staleIds.length > 0) {
+                streamOps.acknowledge(streamKey, RedisStreamConfig.CONSUMER_GROUP_NAME, staleIds);
+                streamOps.delete(streamKey, staleIds);
+                log.warn(
+                        "🗑️ [Reclaim] {} 에서 {}시간 지난 메시지 {}건은 재처리하지 않고 폐기합니다.",
+                        streamKey,
+                        MAX_AGE.toHours(),
+                        staleIds.length);
+            }
+
+            log.warn("♻️ [Reclaim] {} 에서 방치된 메시지 {}건을 회수해 재처리합니다.", streamKey, fresh.size());
+            fresh.forEach(listener::onMessage);
         } catch (Exception e) {
             log.error("🚨 [Reclaim] {} 방치 메시지 회수 실패: {}", streamKey, e.getMessage());
         }
