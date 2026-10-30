@@ -10,6 +10,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 @Log4j2
@@ -41,6 +42,14 @@ public class GlobalExceptionHandler {
                         HttpStatus.METHOD_NOT_ALLOWED,
                         "❌ 지원하지 않는 요청 방식입니다. (GET/POST 등 메서드를 확인하세요)");
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<String>> handleNoResourceFound(NoResourceFoundException e) {
+        log.warn("⚠️ 존재하지 않는 경로 요청: {}", e.getResourcePath());
+        ApiResponse<String> response =
+                ApiResponse.fail(HttpStatus.NOT_FOUND, "❌ 요청한 경로를 찾을 수 없습니다.");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
     @ExceptionHandler(RequestNotPermitted.class)
