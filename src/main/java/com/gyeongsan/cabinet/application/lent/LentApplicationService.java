@@ -61,7 +61,7 @@ public class LentApplicationService implements LentUseCase {
 
         User user =
                 userRepository
-                        .findById(userId)
+                        .findByIdWithLock(userId)
                         .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getPenaltyDays() > 0) {
@@ -241,7 +241,7 @@ public class LentApplicationService implements LentUseCase {
 
         User user =
                 userRepository
-                        .findById(userId)
+                        .findByIdWithLock(userId)
                         .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getPenaltyDays() > 0) {
@@ -321,7 +321,7 @@ public class LentApplicationService implements LentUseCase {
             String photoUrl) {
         User user =
                 userRepository
-                        .findById(userId)
+                        .findByIdWithLock(userId)
                         .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         LentHistory oldLent =
@@ -397,7 +397,7 @@ public class LentApplicationService implements LentUseCase {
     public void usePenaltyExemption(Long userId) {
         User user =
                 userRepository
-                        .findById(userId)
+                        .findByIdWithLock(userId)
                         .orElseThrow(() -> new ServiceException(ErrorCode.USER_NOT_FOUND));
 
         if (user.getPenaltyDays() <= 0) {

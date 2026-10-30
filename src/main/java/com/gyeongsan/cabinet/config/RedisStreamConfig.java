@@ -17,6 +17,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer;
 import org.springframework.data.redis.stream.StreamMessageListenerContainer.StreamMessageListenerContainerOptions;
+import org.springframework.data.redis.stream.StreamMessageListenerContainer.StreamReadRequest;
 
 @Configuration
 @RequiredArgsConstructor
@@ -53,18 +54,24 @@ public class RedisStreamConfig {
         createStreamGroup(SLACK_STREAM_KEY);
         createStreamGroup(LOGTIME_STREAM_KEY);
 
-        container.receive(
-                Consumer.from(CONSUMER_GROUP_NAME, consumerName),
-                StreamOffset.create(SLACK_STREAM_KEY, ReadOffset.lastConsumed()),
-                slackAlarmStreamListener);
-
-        container.receive(
-                Consumer.from(CONSUMER_GROUP_NAME, consumerName),
-                StreamOffset.create(LOGTIME_STREAM_KEY, ReadOffset.lastConsumed()),
-                logtimeStreamListener);
+        subscribe(container, SLACK_STREAM_KEY, slackAlarmStreamListener);
+        subscribe(container, LOGTIME_STREAM_KEY, logtimeStreamListener);
 
         container.start();
         return container;
+    }
+
+    private void subscribe(
+            StreamMessageListenerContainer<String, MapRecord<String, String, String>> container,
+            String streamKey,
+            StreamListener<String, MapRecord<String, String, String>> listener) {
+        container.register(
+                StreamReadRequest.builder(StreamOffset.create(streamKey, ReadOffset.lastConsumed()))
+                        .consumer(Consumer.from(CONSUMER_GROUP_NAME, consumerName))
+                        .autoAcknowledge(false)
+                        .cancelOnError(e -> false)
+                        .build(),
+                listener);
     }
 
     private void createStreamGroup(String streamKey) {

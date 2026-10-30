@@ -16,6 +16,8 @@ import com.gyeongsan.cabinet.domain.user.model.User;
 import com.gyeongsan.cabinet.domain.user.port.in.UserUseCase;
 import com.gyeongsan.cabinet.domain.user.port.out.AttendanceRepositoryPort;
 import com.gyeongsan.cabinet.domain.user.port.out.UserRepositoryPort;
+import com.gyeongsan.cabinet.global.exception.ErrorCode;
+import com.gyeongsan.cabinet.global.exception.ServiceException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -199,13 +201,13 @@ public class UserDomainService implements UserUseCase {
     public void doAttendance(Long userId) {
         User user =
                 userRepository
-                        .findById(userId)
+                        .findByIdWithLock(userId)
                         .orElseThrow(() -> new IllegalArgumentException("유저가 없습니다."));
 
         LocalDate today = LocalDate.now();
 
         if (attendanceRepository.findTodayAttendance(user, today, today).isPresent()) {
-            throw new IllegalStateException("이미 오늘 출석체크를 완료했습니다.");
+            throw new ServiceException(ErrorCode.ALREADY_ATTENDED);
         }
 
         Attendance attendance = new Attendance(user, today);

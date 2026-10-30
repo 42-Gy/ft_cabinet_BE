@@ -12,6 +12,7 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.stream.StreamListener;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -45,10 +46,13 @@ public class LogtimeStreamListener
 
             int totalMinutes = ftApiPort.getLogtimeBetween(intraId, start, end);
 
-            if (totalMinutes < 0) {
+            if (totalMinutes < 0 && isPayDay) {
+                log.warn("⚠️ [Consumer] {} 로그타임 API 호출 실패. 저장된 누적 시간으로 월간 보상을 처리합니다.", intraId);
+                applyLogtime(userId, rewardItem, totalMinutes, true);
+            } else if (totalMinutes < 0) {
                 log.warn("⚠️ [Consumer] {} 로그타임 API 호출 실패. 기존 학습시간을 유지하고 건너뜁니다.", intraId);
             } else {
-                userUseCase.processLogtimeTransaction(userId, rewardItem, totalMinutes, isPayDay);
+                applyLogtime(userId, rewardItem, totalMinutes, isPayDay);
             }
 
             Thread.sleep(600);
@@ -72,6 +76,15 @@ public class LogtimeStreamListener
             } catch (Exception ackEx) {
                 log.error("🚨 [Consumer] ACK 처리 중 추가 에러 발생: {}", ackEx.getMessage());
             }
+        }
+    }
+
+    private void applyLogtime(Long userId, Item rewardItem, int totalMinutes, boolean isPayDay) {
+        try {
+            userUseCase.processLogtimeTransaction(userId, rewardItem, totalMinutes, isPayDay);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            log.warn("🔁 [Consumer] userId={} 동시 수정 충돌. 1회 재시도합니다.", userId);
+            userUseCase.processLogtimeTransaction(userId, rewardItem, totalMinutes, isPayDay);
         }
     }
 }

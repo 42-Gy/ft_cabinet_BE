@@ -87,6 +87,9 @@ public class JwtTokenProvider {
 
     public Authentication getAuthentication(String token) {
         Claims claims = parseClaims(token);
+        if (claims.get("role") == null) {
+            throw new IllegalArgumentException("Access Token이 아닙니다.");
+        }
         Long userId = Long.valueOf(claims.getSubject());
 
         User user =

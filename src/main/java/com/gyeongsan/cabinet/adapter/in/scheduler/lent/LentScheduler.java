@@ -37,7 +37,7 @@ public class LentScheduler {
     @Value("${cabinet.policy.lent-term}")
     private Integer lentTerm;
 
-    @Scheduled(cron = "0 40 1 * * *")
+    @Scheduled(cron = "0 0 4 * * *")
     @SchedulerLock(name = "autoExtensionTask", lockAtMostFor = "10m", lockAtLeastFor = "1m")
     @Transactional
     public void autoExtension() {
@@ -79,7 +79,7 @@ public class LentScheduler {
         log.info("총 {}명의 대여가 자동 연장되었습니다.", extendedCount);
     }
 
-    @Scheduled(cron = "0 30 1 1 * *")
+    @Scheduled(cron = "0 10 4 1 * *")
     @SchedulerLock(
             name = "monthlyAutoExtensionRetryTask",
             lockAtMostFor = "10m",
@@ -173,7 +173,7 @@ public class LentScheduler {
             }
 
             if (overdueDays == 1 || overdueDays == 3 || overdueDays == 7 || overdueDays >= 14) {
-                sendOverdueAlarm(user, cabinet.getId());
+                sendOverdueAlarm(user, cabinet.getVisibleNum());
             }
 
             log.info(
@@ -218,11 +218,11 @@ public class LentScheduler {
         log.info(" - {}일 전 알림: {}명 전송 완료", daysLeft, targetLents.size());
     }
 
-    private void sendOverdueAlarm(User user, Long cabinetId) {
+    private void sendOverdueAlarm(User user, Integer visibleNum) {
         String message =
                 String.format(
                         "🚨 *[연체 경고]*\n%s님, %d번 사물함이 연체되었습니다. 패널티가 누적되고 있으니 즉시 반납해주세요!",
-                        user.getName(), cabinetId);
+                        user.getName(), visibleNum);
         eventPublisher.publishEvent(new AlarmEvent(user.getName(), user.getEmail(), message));
     }
 
