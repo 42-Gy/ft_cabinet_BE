@@ -2,8 +2,11 @@ package com.gyeongsan.cabinet.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.URI;
+import java.time.LocalDate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -44,6 +47,44 @@ class FtApiManagerTest {
                         HttpHeaders.EMPTY);
 
         assertThat(FtApiManager.isRetryable(e)).isTrue();
+    }
+
+    @Test
+    @DisplayName("sumLogtimeMinutes: sums only dates within the range")
+    void testSumLogtimeMinutesWithinRange() throws Exception {
+        JsonNode stats =
+                new ObjectMapper()
+                        .readTree(
+                                """
+                                {
+                                  "2026-09-30": "05:00:00.000000",
+                                  "2026-10-01": "01:30:30.500000",
+                                  "2026-10-15": "02:15:00",
+                                  "2026-10-31": "00:00:59.999999",
+                                  "2026-11-01": "09:00:00"
+                                }
+                                """);
+
+        int minutes =
+                FtApiManager.sumLogtimeMinutes(
+                        stats, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31));
+
+        assertThat(minutes).isEqualTo((5430 + 8100 + 59) / 60);
+    }
+
+    @Test
+    @DisplayName("sumLogtimeMinutes: returns 0 for empty stats")
+    void testSumLogtimeMinutesEmpty() throws Exception {
+        assertThat(
+                        FtApiManager.sumLogtimeMinutes(
+                                new ObjectMapper().readTree("{}"),
+                                LocalDate.of(2026, 10, 1),
+                                LocalDate.of(2026, 10, 31)))
+                .isZero();
+        assertThat(
+                        FtApiManager.sumLogtimeMinutes(
+                                null, LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)))
+                .isZero();
     }
 
     @Test

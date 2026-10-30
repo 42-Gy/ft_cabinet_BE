@@ -53,6 +53,9 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:junit-jupiter'
+	testImplementation 'org.testcontainers:mariadb'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testRuntimeOnly 'com.h2database:h2'
 
@@ -109,7 +112,7 @@ jacocoTestReport {
 				'**/global/**',
 				'**/exception/**',
 				'**/adapter/in/web/**',
-				'**/*Application*',
+				'**/CabinetApplication*',
 			])
 		}))
 	}
@@ -124,7 +127,15 @@ jacocoTestCoverageVerification {
 				'com.gyeongsan.cabinet.domain.user.model.User',
 				'com.gyeongsan.cabinet.domain.cabinet.model.Cabinet',
 				'com.gyeongsan.cabinet.domain.admin.service.AdminUserService',
-				'com.gyeongsan.cabinet.domain.admin.service.AdminCabinetService'
+				'com.gyeongsan.cabinet.domain.admin.service.AdminCabinetService',
+				'com.gyeongsan.cabinet.domain.user.service.UserDomainService',
+				'com.gyeongsan.cabinet.application.lent.LentApplicationService',
+				'com.gyeongsan.cabinet.adapter.in.scheduler.lent.LentScheduler',
+				'com.gyeongsan.cabinet.adapter.in.scheduler.user.LogtimeStreamListener',
+				'com.gyeongsan.cabinet.adapter.in.scheduler.stream.PendingStreamReclaimer',
+				'com.gyeongsan.cabinet.common.lock.DistributedLockAop',
+				'com.gyeongsan.cabinet.auth.jwt.JwtTokenProvider',
+				'com.gyeongsan.cabinet.utils.FtApiManager'
 			]
 			limit {
 				counter = 'INSTRUCTION'

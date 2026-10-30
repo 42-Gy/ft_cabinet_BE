@@ -3,6 +3,7 @@ package com.gyeongsan.cabinet.config;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.UUID;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.context.annotation.Bean;
@@ -30,7 +31,7 @@ public class RedisStreamConfig {
     public static final String SLACK_STREAM_KEY = "slack-alarm-stream";
     public static final String LOGTIME_STREAM_KEY = "logtime-sync-stream";
     public static final String CONSUMER_GROUP_NAME = "cabinet-backend-group";
-    private final String consumerName = UUID.randomUUID().toString();
+    @Getter private final String consumerName = UUID.randomUUID().toString();
 
     @Bean
     public StreamMessageListenerContainer<String, MapRecord<String, String, String>>
