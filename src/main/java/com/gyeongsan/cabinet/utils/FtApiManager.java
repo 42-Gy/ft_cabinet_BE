@@ -5,7 +5,6 @@ import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Iterator;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -127,15 +126,17 @@ public class FtApiManager {
                                         .onRetryExhaustedThrow((spec, signal) -> signal.failure()))
                         .block();
 
+        return sumLogtimeMinutes(stats, startDate, endDate);
+    }
+
+    static int sumLogtimeMinutes(JsonNode stats, LocalDate startDate, LocalDate endDate) {
         if (stats == null || stats.isEmpty()) {
             return 0;
         }
 
         long totalSeconds = 0;
 
-        Iterator<Map.Entry<String, JsonNode>> fields = stats.fields();
-        while (fields.hasNext()) {
-            Map.Entry<String, JsonNode> entry = fields.next();
+        for (Map.Entry<String, JsonNode> entry : stats.properties()) {
             String dateStr = entry.getKey();
             String timeStr = entry.getValue().asText();
 
